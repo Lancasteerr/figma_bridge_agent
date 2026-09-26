@@ -1,4 +1,9 @@
-import { EmptyInputSchema, SelectionResultSchema } from '@figma-agent/protocol';
+import {
+  EmptyInputSchema,
+  GetNodeInputSchema,
+  NodeSnapshotSchema,
+  SelectionResultSchema,
+} from '@figma-agent/protocol';
 import type { McpServer } from '@modelcontextprotocol/server';
 
 import type { PluginConnectionBroker } from '../bridge/plugin-connection.js';
@@ -27,5 +32,30 @@ export function registerReadTools(server: McpServer, broker: PluginConnectionBro
       }
     },
   );
-}
 
+  server.registerTool(
+    'figma_get_node',
+    {
+      description:
+        'Return a normalized snapshot of one node on the current Figma page, including geometry, layout, text, visual, component, and direct-child summaries.',
+      inputSchema: GetNodeInputSchema,
+      outputSchema: NodeSnapshotSchema,
+      annotations: {
+        title: 'Get Figma node',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        return structuredResult(
+          NodeSnapshotSchema.parse(await broker.request('getNode', GetNodeInputSchema.parse(input))),
+        );
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+}
