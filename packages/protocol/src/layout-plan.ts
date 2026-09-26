@@ -109,6 +109,7 @@ export const LayoutPlanValidationResultSchema = z.object({
   expiresAt: z.string().datetime().optional(),
   warnings: z.array(LayoutPlanWarningSchema),
 });
+export type LayoutPlanValidationResult = z.infer<typeof LayoutPlanValidationResultSchema>;
 
 export const LayoutPlanApplyResultSchema = z.object({
   proposalRootId: z.string(),
@@ -116,3 +117,4 @@ export const LayoutPlanApplyResultSchema = z.object({
   fingerprint: z.string(),
   componentId: z.string().optional(),
 });
+export type LayoutPlanApplyResult = z.infer<typeof LayoutPlanApplyResultSchema>;
