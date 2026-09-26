@@ -90,5 +90,5 @@ function nextMessage(socket: WebSocket): Promise<unknown> {
 }
 
 function hmac(secret: string, value: string): string {
-  return createHmac('sha256', secret).update(value).digest('base64url');
+  return createHmac('sha256', Buffer.from(secret, 'base64url')).update(value).digest('base64url');
 }

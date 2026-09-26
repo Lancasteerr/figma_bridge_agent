@@ -4,7 +4,7 @@ const PLUGIN_CONTEXT = 'figma-agent/plugin/v1';
 const SERVER_CONTEXT = 'figma-agent/server/v1';
 
 function hmac(secret: string, value: string): string {
-  return createHmac('sha256', secret).update(value).digest('base64url');
+  return createHmac('sha256', Buffer.from(secret, 'base64url')).update(value).digest('base64url');
 }
 
 export function createPluginProof(

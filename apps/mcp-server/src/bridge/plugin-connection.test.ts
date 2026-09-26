@@ -62,7 +62,7 @@ async function startBroker(): Promise<{
   secret: string;
 }> {
   const port = await freePort();
-  const secret = 'test-secret-with-at-least-32-bytes-value';
+  const secret = Buffer.alloc(32, 11).toString('base64url');
   const config: ServerConfig = { version: 1, host: '127.0.0.1', port, secret };
   const broker = new PluginConnectionBroker(config);
   openBrokers.push(broker);

@@ -1,9 +1,11 @@
+import { createHmac } from 'node:crypto';
+
 import { describe, expect, it } from 'vitest';
 
 import { createPluginProof, createServerProof, verifyProof } from './proof.js';
 
 describe('mutual authentication proofs', () => {
-  const secret = 'secret-that-is-long-enough-for-tests';
+  const secret = Buffer.alloc(32, 7).toString('base64url');
   const serverNonce = 'server-nonce-123456';
   const pluginNonce = 'plugin-nonce-123456';
 
@@ -22,5 +24,11 @@ describe('mutual authentication proofs', () => {
     expect(verifyProof(proof, createPluginProof(`${secret}x`, serverNonce, pluginNonce))).toBe(
       false,
     );
+  });
+
+  it('uses the decoded 256-bit key shared with Web Crypto', () => {
+    const value = `figma-agent/plugin/v1|${serverNonce}|${pluginNonce}`;
+    const expected = createHmac('sha256', Buffer.alloc(32, 7)).update(value).digest('base64url');
+    expect(createPluginProof(secret, serverNonce, pluginNonce)).toBe(expected);
   });
 });
