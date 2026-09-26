@@ -17,6 +17,9 @@ import type { ServerConfig } from '../config/store.js';
 import { createPluginProof, createServerProof, verifyProof } from '../security/proof.js';
 
 interface PendingRequest {
+  id: string;
+  method: string;
+  startedAt: number;
   resolve(value: unknown): void;
   reject(reason: unknown): void;
   timer: NodeJS.Timeout;
@@ -104,6 +107,7 @@ export class PluginConnectionBroker {
     return await new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.#pending.delete(id);
+        this.#logRequest(id, method, Date.now() - startedAt, 'RPC_TIMEOUT');
         reject(
           new BridgeFault({
             code: 'RPC_TIMEOUT',
@@ -112,7 +116,15 @@ export class PluginConnectionBroker {
           }),
         );
       }, timeoutMs);
-      this.#pending.set(id, { resolve: (value) => resolve(value as T), reject, timer });
+      const startedAt = Date.now();
+      this.#pending.set(id, {
+        id,
+        method,
+        startedAt,
+        resolve: (value) => resolve(value as T),
+        reject,
+        timer,
+      });
       socket.send(JSON.stringify(request), (error) => {
         if (!error) return;
         const pending = this.#pending.get(id);
@@ -200,8 +212,18 @@ export class PluginConnectionBroker {
     if (!pending) return;
     clearTimeout(pending.timer);
     this.#pending.delete(response.id);
-    if (response.ok) pending.resolve(response.result);
-    else pending.reject(new BridgeFault(response.error));
+    if (response.ok) {
+      this.#logRequest(pending.id, pending.method, Date.now() - pending.startedAt, 'OK');
+      pending.resolve(response.result);
+    } else {
+      this.#logRequest(
+        pending.id,
+        pending.method,
+        Date.now() - pending.startedAt,
+        response.error.code,
+      );
+      pending.reject(new BridgeFault(response.error));
+    }
   }
 
   #rejectSocket(socket: WebSocket, code: 'AUTH_FAILED' | 'PLUGIN_ALREADY_CONNECTED', message: string): void {
@@ -215,6 +237,19 @@ export class PluginConnectionBroker {
       pending.reject(new BridgeFault({ code, message, retryable: true }));
     }
     this.#pending.clear();
+  }
+
+  #logRequest(id: string, method: string, durationMs: number, outcome: string): void {
+    console.error(
+      JSON.stringify({
+        level: outcome === 'OK' ? 'info' : 'warn',
+        event: 'figma_rpc',
+        requestId: id,
+        method,
+        durationMs,
+        outcome,
+      }),
+    );
   }
 
   #parseJson(data: RawData): unknown {
