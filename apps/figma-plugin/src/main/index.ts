@@ -13,6 +13,7 @@ import { getCss, getRawNode, getVariables } from './handlers/codegen.js';
 import { applyLayoutPlan, validateLayoutPlan } from './handlers/layout-plan.js';
 import { RpcRouter } from './rpc/router.js';
 import { publishPluginState, setBridgeState } from './state.js';
+import { generateDevelopmentFixtures } from './dev-fixtures.js';
 
 figma.showUI(__html__, { width: 340, height: 280, themeColors: true });
 
@@ -74,6 +75,16 @@ figma.ui.onmessage = async (raw: unknown) => {
     figma.viewport.scrollAndZoomIntoView([clone]);
     figma.commitUndo();
     publishPluginState();
+  } else if (message.type === 'generate-fixtures') {
+    try {
+      const fixtures = await generateDevelopmentFixtures();
+      figma.notify(`Generated ${fixtures.length} bridge fixtures`);
+      publishPluginState();
+    } catch (error) {
+      figma.notify(error instanceof Error ? error.message : 'Fixture generation failed', {
+        error: true,
+      });
+    }
   }
 };
 

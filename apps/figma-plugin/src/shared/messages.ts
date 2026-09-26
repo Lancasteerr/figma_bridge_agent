@@ -25,7 +25,7 @@ export const UiToMainMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('rpc-request'), payload: z.unknown() }),
   z.object({ type: z.literal('save-secret'), secret: z.string().min(16) }),
   z.object({ type: z.literal('smoke-duplicate') }),
+  z.object({ type: z.literal('generate-fixtures') }),
 ]);
 
 export type MainToUiMessage = z.infer<typeof MainToUiMessageSchema>;
-

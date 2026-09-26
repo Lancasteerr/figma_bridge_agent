@@ -42,4 +42,8 @@ document.querySelector('#smoke')?.addEventListener('click', () => {
   parent.postMessage({ pluginMessage: { type: 'smoke-duplicate' } }, '*');
 });
 
+document.querySelector('#fixtures')?.addEventListener('click', () => {
+  parent.postMessage({ pluginMessage: { type: 'generate-fixtures' } }, '*');
+});
+
 parent.postMessage({ pluginMessage: { type: 'ready' } }, '*');
