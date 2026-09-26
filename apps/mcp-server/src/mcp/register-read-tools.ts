@@ -2,11 +2,13 @@ import {
   CssResultSchema,
   EmptyInputSchema,
   GetCssInputSchema,
+  GetVariablesInputSchema,
   GetNodeInputSchema,
   GetTreeInputSchema,
   NodeSnapshotSchema,
   SelectionResultSchema,
   TreeResultSchema,
+  VariablesResultSchema,
 } from '@figma-agent/protocol';
 import type { McpServer } from '@modelcontextprotocol/server';
 
@@ -14,6 +16,33 @@ import type { PluginConnectionBroker } from '../bridge/plugin-connection.js';
 import { structuredResult, toolError } from './result.js';
 
 export function registerReadTools(server: McpServer, broker: PluginConnectionBroker): void {
+  server.registerTool(
+    'figma_get_variables',
+    {
+      description:
+        'Return a page of local Figma variables plus their local collections. Team library crawling is intentionally excluded.',
+      inputSchema: GetVariablesInputSchema,
+      outputSchema: VariablesResultSchema,
+      annotations: {
+        title: 'Get Local Figma Variables',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const parsed = GetVariablesInputSchema.parse(input);
+        return structuredResult(
+          VariablesResultSchema.parse(await broker.request('getVariables', parsed, 30_000)),
+        );
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
   server.registerTool(
     'figma_get_css',
     {
