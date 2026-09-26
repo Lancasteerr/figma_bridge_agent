@@ -24,4 +24,12 @@ export const MutationResultSchema = z.object({
 });
 export type MutationResult = z.infer<typeof MutationResultSchema>;
 
+export const CreateComponentResultSchema = z.object({
+  proposalRootId: z.string(),
+  componentId: z.string(),
+  replacedNodeId: z.string(),
+  fingerprint: z.string(),
+});
+export type CreateComponentResult = z.infer<typeof CreateComponentResultSchema>;
+
 export const DiscardProposalResultSchema = z.object({ discardedProposalRootId: z.string() });

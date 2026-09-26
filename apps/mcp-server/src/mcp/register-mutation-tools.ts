@@ -1,5 +1,7 @@
 import {
   CreateFrameInputSchema,
+  CreateComponentInputSchema,
+  CreateComponentResultSchema,
   DiscardProposalInputSchema,
   DiscardProposalResultSchema,
   DuplicateProposalInputSchema,
@@ -116,6 +118,35 @@ export function registerMutationTools(server: McpServer, broker: PluginConnectio
         const parsed = SetLayoutInputSchema.parse(input);
         return structuredResult(
           MutationResultSchema.parse(await broker.request('setLayout', parsed, 15_000)),
+        );
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    'figma_create_component_from_node',
+    {
+      description:
+        'Convert a Frame inside a Proposal into a Component while preserving the Proposal marker when the root is replaced.',
+      inputSchema: CreateComponentInputSchema,
+      outputSchema: CreateComponentResultSchema,
+      annotations: {
+        title: 'Create Component From Proposal Node',
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const parsed = CreateComponentInputSchema.parse(input);
+        return structuredResult(
+          CreateComponentResultSchema.parse(
+            await broker.request('createComponentFromNode', parsed, 30_000),
+          ),
         );
       } catch (error) {
         return toolError(error);
