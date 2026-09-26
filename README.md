@@ -1,5 +1,7 @@
 # Local Figma Agent MCP
 
+[中文文档](README.zh-CN.md)
+
 Local-first MCP server and Figma Development Plugin for reading a Figma Design document and making reviewable changes in isolated Proposal copies.
 
 The bridge deliberately does not mutate source artwork. Every public write either creates a Proposal or requires a Proposal root ID. Declarative layout changes use a five-minute, single-use validation ID and re-check the source fingerprint immediately before cloning.

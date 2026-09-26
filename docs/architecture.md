@@ -1,5 +1,7 @@
 # Architecture and safety model
 
+[中文版](architecture.zh-CN.md)
+
 ## Process boundary
 
 ```text

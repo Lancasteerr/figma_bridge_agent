@@ -1,5 +1,7 @@
 # End-to-end acceptance runbook
 
+[中文版](acceptance.zh-CN.md)
+
 Run `pnpm check` before manual acceptance. Use a disposable Figma page for generated fixtures. `E:/codes/java/easy_community/Community.fig` may be used as an additional local scenario but must not be copied into this repository or CI.
 
 ## 1. Desktop smoke gate

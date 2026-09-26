@@ -1,5 +1,7 @@
 # Security notes
 
+[中文版](security.zh-CN.md)
+
 This project is a local development tool, not a remote service.
 
 ## Protected properties

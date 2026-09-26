@@ -1,5 +1,7 @@
 # MCP host configuration
 
+[中文版](hosts.zh-CN.md)
+
 Build first with `pnpm build`. Replace `E:/absolute/path/figma_bridge_agent` in every example.
 
 ## Codex (blocking acceptance host)
