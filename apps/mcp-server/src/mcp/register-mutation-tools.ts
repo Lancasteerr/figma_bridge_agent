@@ -1,5 +1,7 @@
 import {
   CreateFrameInputSchema,
+  DiscardProposalInputSchema,
+  DiscardProposalResultSchema,
   DuplicateProposalInputSchema,
   MutationResultSchema,
   ProposalResultSchema,
@@ -112,6 +114,33 @@ export function registerMutationTools(server: McpServer, broker: PluginConnectio
         const parsed = SetLayoutInputSchema.parse(input);
         return structuredResult(
           MutationResultSchema.parse(await broker.request('setLayout', parsed, 15_000)),
+        );
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    'figma_discard_proposal',
+    {
+      description:
+        'Delete an unchanged bridge-created Proposal. The expected fingerprint prevents deleting a Proposal edited after inspection.',
+      inputSchema: DiscardProposalInputSchema,
+      outputSchema: DiscardProposalResultSchema,
+      annotations: {
+        title: 'Discard Figma Proposal',
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const parsed = DiscardProposalInputSchema.parse(input);
+        return structuredResult(
+          DiscardProposalResultSchema.parse(await broker.request('discardProposal', parsed, 15_000)),
         );
       } catch (error) {
         return toolError(error);

@@ -1,12 +1,13 @@
 import {
   BridgeFault,
+  DiscardProposalInputSchema,
   DuplicateProposalInputSchema,
   type ProposalResult,
 } from '@figma-agent/protocol';
 
-import { mutationCoordinator } from '../mutation/coordinator.js';
+import { atomicMutation, mutationCoordinator } from '../mutation/coordinator.js';
 import { mapClonedSubtree } from '../proposal/id-map.js';
-import { isInside, markProposal } from '../proposal/marker.js';
+import { assertProposalTargets, isInside, markProposal } from '../proposal/marker.js';
 import { fingerprintNodeTree } from '../serialization/node-snapshot.js';
 import { resolveCurrentPageNode } from '../serialization/resolve.js';
 
@@ -26,6 +27,22 @@ export async function duplicateAsProposal(params: unknown): Promise<ProposalResu
     return sources.length === 1
       ? await duplicateSingle(sources[0]!, input.nameSuffix, input.offsetX, input.offsetY)
       : await duplicateMultiple(sources, input.nameSuffix, input.offsetX, input.offsetY);
+  });
+}
+
+export async function discardProposal(
+  params: unknown,
+): Promise<{ discardedProposalRootId: string }> {
+  const input = DiscardProposalInputSchema.parse(params);
+  return await atomicMutation(async () => {
+    const { root } = await assertProposalTargets(
+      input.proposalRootId,
+      [input.proposalRootId],
+      input.expectedFingerprint,
+    );
+    const id = root.id;
+    root.remove();
+    return { discardedProposalRootId: id };
   });
 }
 
@@ -125,4 +142,3 @@ function assertNonOverlapping(nodes: SceneNode[]): void {
     }
   }
 }
-
