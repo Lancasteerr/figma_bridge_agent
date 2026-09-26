@@ -6,6 +6,10 @@ export function setBridgeState(state: typeof bridgeState): void {
   bridgeState = state;
 }
 
+export function getBridgeState(): typeof bridgeState {
+  return bridgeState;
+}
+
 export function publishPluginState(): void {
   const message: MainToUiMessage = {
     type: 'plugin-state',
@@ -21,4 +25,3 @@ export function publishPluginState(): void {
   };
   figma.ui.postMessage(message);
 }
-

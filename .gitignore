@@ -9,4 +9,4 @@ manifest.local.json
 .env
 .env.*
 !.env.example
-
+.idea/
