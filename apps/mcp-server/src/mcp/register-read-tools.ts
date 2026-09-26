@@ -4,8 +4,10 @@ import {
   GetCssInputSchema,
   GetVariablesInputSchema,
   GetNodeInputSchema,
+  GetRawNodeInputSchema,
   GetTreeInputSchema,
   NodeSnapshotSchema,
+  RawNodeResultSchema,
   SelectionResultSchema,
   TreeResultSchema,
   VariablesResultSchema,
@@ -16,6 +18,33 @@ import type { PluginConnectionBroker } from '../bridge/plugin-connection.js';
 import { structuredResult, toolError } from './result.js';
 
 export function registerReadTools(server: McpServer, broker: PluginConnectionBroker): void {
+  server.registerTool(
+    'figma_get_raw_node',
+    {
+      description:
+        'Return bounded JSON_REST_V1 for debugging unsupported node details. Prefer normalized snapshots for normal reasoning.',
+      inputSchema: GetRawNodeInputSchema,
+      outputSchema: RawNodeResultSchema,
+      annotations: {
+        title: 'Get Raw Figma Node',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const parsed = GetRawNodeInputSchema.parse(input);
+        return structuredResult(
+          RawNodeResultSchema.parse(await broker.request('getRawNode', parsed, 30_000)),
+        );
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
   server.registerTool(
     'figma_get_variables',
     {

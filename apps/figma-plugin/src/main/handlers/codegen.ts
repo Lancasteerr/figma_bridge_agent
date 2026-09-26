@@ -1,7 +1,10 @@
 import {
+  BridgeFault,
   CssResultSchema,
   GetCssInputSchema,
   GetVariablesInputSchema,
+  GetRawNodeInputSchema,
+  RawNodeResultSchema,
   VariablesResultSchema,
 } from '@figma-agent/protocol';
 
@@ -60,4 +63,33 @@ export async function getVariables(
       }),
     ),
   });
+}
+
+export async function getRawNode(
+  params: unknown,
+): Promise<ReturnType<typeof RawNodeResultSchema.parse>> {
+  const { nodeId, maxBytes } = GetRawNodeInputSchema.parse(params);
+  const node = await resolveCurrentPageNode(nodeId);
+  const raw = await node.exportAsync({ format: 'JSON_REST_V1' });
+  const json = JSON.stringify(raw);
+  const bytes = utf8ByteLength(json);
+  if (bytes > maxBytes) {
+    throw new BridgeFault({
+      code: 'PAYLOAD_TOO_LARGE',
+      message: `Raw node JSON is ${bytes} bytes; the request limit is ${maxBytes} bytes.`,
+      retryable: true,
+      nodeId,
+      details: { bytes, maxBytes },
+    });
+  }
+  return RawNodeResultSchema.parse({ nodeId, json, bytes });
+}
+
+function utf8ByteLength(value: string): number {
+  let bytes = 0;
+  for (const character of value) {
+    const codePoint = character.codePointAt(0)!;
+    bytes += codePoint <= 0x7f ? 1 : codePoint <= 0x7ff ? 2 : codePoint <= 0xffff ? 3 : 4;
+  }
+  return bytes;
 }
