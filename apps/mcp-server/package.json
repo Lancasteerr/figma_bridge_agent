@@ -19,7 +19,7 @@
     "zod": "^4.1.11"
   },
   "devDependencies": {
+    "@figma-agent/test-support": "workspace:*",
     "@types/ws": "^8.18.1"
   }
 }
-
