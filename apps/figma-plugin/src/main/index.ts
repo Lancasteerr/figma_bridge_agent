@@ -2,6 +2,7 @@ import { UiToMainMessageSchema } from '../shared/messages.js';
 import { startEvents } from './events.js';
 import { getNode, getSelection, getTree } from './handlers/read.js';
 import { getStatus } from './handlers/status.js';
+import { renderNode } from './handlers/render.js';
 import { RpcRouter } from './rpc/router.js';
 import { publishPluginState, setBridgeState } from './state.js';
 
@@ -12,6 +13,7 @@ router.register('status', getStatus);
 router.register('getSelection', getSelection);
 router.register('getNode', getNode);
 router.register('getTree', getTree);
+router.register('renderNode', renderNode);
 startEvents((event) => figma.ui.postMessage({ type: 'rpc-response', payload: event }));
 
 figma.ui.onmessage = async (raw: unknown) => {
