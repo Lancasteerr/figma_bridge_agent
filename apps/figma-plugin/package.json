@@ -1,0 +1,20 @@
+{
+  "name": "@figma-agent/figma-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.ui.json --noEmit",
+    "dev": "node scripts/build.mjs --watch"
+  },
+  "dependencies": {
+    "@figma-agent/protocol": "workspace:*",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.117.0",
+    "esbuild": "^0.25.10"
+  }
+}
+
