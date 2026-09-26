@@ -1,5 +1,6 @@
 import { UiToMainMessageSchema } from '../shared/messages.js';
 import { startEvents } from './events.js';
+import { getSelection } from './handlers/read.js';
 import { getStatus } from './handlers/status.js';
 import { RpcRouter } from './rpc/router.js';
 import { publishPluginState, setBridgeState } from './state.js';
@@ -8,6 +9,7 @@ figma.showUI(__html__, { width: 340, height: 280, themeColors: true });
 
 const router = new RpcRouter();
 router.register('status', getStatus);
+router.register('getSelection', getSelection);
 startEvents((event) => figma.ui.postMessage({ type: 'rpc-response', payload: event }));
 
 figma.ui.onmessage = async (raw: unknown) => {
