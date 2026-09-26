@@ -4,6 +4,7 @@ import { getNode, getSelection, getTree } from './handlers/read.js';
 import { getStatus } from './handlers/status.js';
 import { renderNode } from './handlers/render.js';
 import { duplicateAsProposal } from './handlers/proposal.js';
+import { createFrame } from './handlers/structural.js';
 import { RpcRouter } from './rpc/router.js';
 import { publishPluginState, setBridgeState } from './state.js';
 
@@ -16,6 +17,7 @@ router.register('getNode', getNode);
 router.register('getTree', getTree);
 router.register('renderNode', renderNode);
 router.register('duplicateAsProposal', duplicateAsProposal);
+router.register('createFrame', createFrame);
 startEvents((event) => figma.ui.postMessage({ type: 'rpc-response', payload: event }));
 
 figma.ui.onmessage = async (raw: unknown) => {

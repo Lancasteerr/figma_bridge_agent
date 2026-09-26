@@ -1,4 +1,9 @@
-import { DuplicateProposalInputSchema, ProposalResultSchema } from '@figma-agent/protocol';
+import {
+  CreateFrameInputSchema,
+  DuplicateProposalInputSchema,
+  MutationResultSchema,
+  ProposalResultSchema,
+} from '@figma-agent/protocol';
 import type { McpServer } from '@modelcontextprotocol/server';
 
 import type { PluginConnectionBroker } from '../bridge/plugin-connection.js';
@@ -31,5 +36,30 @@ export function registerMutationTools(server: McpServer, broker: PluginConnectio
       }
     },
   );
-}
 
+  server.registerTool(
+    'figma_create_frame',
+    {
+      description: 'Create one ordinary Frame inside a bridge-marked Proposal. Original design nodes are rejected.',
+      inputSchema: CreateFrameInputSchema,
+      outputSchema: MutationResultSchema,
+      annotations: {
+        title: 'Create Frame in Proposal',
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const parsed = CreateFrameInputSchema.parse(input);
+        return structuredResult(
+          MutationResultSchema.parse(await broker.request('createFrame', parsed, 15_000)),
+        );
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+}

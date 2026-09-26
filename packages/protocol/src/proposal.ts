@@ -17,3 +17,11 @@ export const ProposalResultSchema = z.object({
 });
 export type ProposalResult = z.infer<typeof ProposalResultSchema>;
 
+export const MutationResultSchema = z.object({
+  proposalRootId: z.string(),
+  affectedNodeIds: z.array(z.string()),
+  fingerprint: z.string(),
+});
+export type MutationResult = z.infer<typeof MutationResultSchema>;
+
+export const DiscardProposalResultSchema = z.object({ discardedProposalRootId: z.string() });

@@ -27,3 +27,16 @@ export class MutationCoordinator {
 
 export const mutationCoordinator = new MutationCoordinator();
 
+export async function atomicMutation<T>(operation: () => Promise<T>): Promise<T> {
+  return await mutationCoordinator.run(async () => {
+    figma.commitUndo();
+    try {
+      const result = await operation();
+      figma.commitUndo();
+      return result;
+    } catch (error) {
+      figma.triggerUndo();
+      throw error;
+    }
+  });
+}
