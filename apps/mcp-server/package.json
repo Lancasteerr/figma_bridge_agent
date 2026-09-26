@@ -1,0 +1,25 @@
+{
+  "name": "@figma-agent/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "figma-agent-mcp": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false",
+    "clean": "tsc -b --clean",
+    "start": "node dist/cli.js serve"
+  },
+  "dependencies": {
+    "@figma-agent/protocol": "workspace:*",
+    "@modelcontextprotocol/server": "^2.1.0",
+    "ws": "^8.18.3",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1"
+  }
+}
+
