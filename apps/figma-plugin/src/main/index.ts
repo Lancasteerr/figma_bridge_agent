@@ -5,6 +5,7 @@ import { getStatus } from './handlers/status.js';
 import { renderNode } from './handlers/render.js';
 import { duplicateAsProposal } from './handlers/proposal.js';
 import { createFrame, reparentNodes } from './handlers/structural.js';
+import { setLayout } from './handlers/layout.js';
 import { RpcRouter } from './rpc/router.js';
 import { publishPluginState, setBridgeState } from './state.js';
 
@@ -19,6 +20,7 @@ router.register('renderNode', renderNode);
 router.register('duplicateAsProposal', duplicateAsProposal);
 router.register('createFrame', createFrame);
 router.register('reparentNodes', reparentNodes);
+router.register('setLayout', setLayout);
 startEvents((event) => figma.ui.postMessage({ type: 'rpc-response', payload: event }));
 
 figma.ui.onmessage = async (raw: unknown) => {

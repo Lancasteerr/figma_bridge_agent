@@ -4,6 +4,7 @@ import {
   MutationResultSchema,
   ProposalResultSchema,
   ReparentNodesInputSchema,
+  SetLayoutInputSchema,
 } from '@figma-agent/protocol';
 import type { McpServer } from '@modelcontextprotocol/server';
 
@@ -84,6 +85,33 @@ export function registerMutationTools(server: McpServer, broker: PluginConnectio
         const parsed = ReparentNodesInputSchema.parse(input);
         return structuredResult(
           MutationResultSchema.parse(await broker.request('reparentNodes', parsed, 15_000)),
+        );
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    'figma_set_layout',
+    {
+      description:
+        'Set Auto Layout, padding, gap, alignment, sizing, or absolute positioning on a node inside one Proposal.',
+      inputSchema: SetLayoutInputSchema,
+      outputSchema: MutationResultSchema,
+      annotations: {
+        title: 'Set Proposal layout',
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const parsed = SetLayoutInputSchema.parse(input);
+        return structuredResult(
+          MutationResultSchema.parse(await broker.request('setLayout', parsed, 15_000)),
         );
       } catch (error) {
         return toolError(error);
