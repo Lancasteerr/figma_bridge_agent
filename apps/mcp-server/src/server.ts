@@ -5,6 +5,7 @@ import { PluginConnectionBroker } from './bridge/plugin-connection.js';
 import type { ServerConfig } from './config/store.js';
 import { registerReadTools } from './mcp/register-read-tools.js';
 import { registerMediaTools } from './mcp/register-media-tools.js';
+import { registerMutationTools } from './mcp/register-mutation-tools.js';
 import { registerStatusTool } from './mcp/register-status.js';
 
 export interface RunningServer {
@@ -23,6 +24,7 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
       registerStatusTool(server, broker);
       registerReadTools(server, broker);
       registerMediaTools(server, broker);
+      registerMutationTools(server, broker);
       return server;
     },
     { onerror: (error) => console.error(JSON.stringify({ level: 'error', message: error.message })) },
