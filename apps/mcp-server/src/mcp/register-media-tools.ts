@@ -1,8 +1,14 @@
-import { RenderNodeInputSchema, RenderResultSchema } from '@figma-agent/protocol';
+import {
+  ExportAssetInputSchema,
+  ExportResultSchema,
+  RenderNodeInputSchema,
+  RenderResultSchema,
+} from '@figma-agent/protocol';
 import type { McpServer } from '@modelcontextprotocol/server';
 
 import type { PluginConnectionBroker } from '../bridge/plugin-connection.js';
 import type { TempAssetStore } from '../temp/asset-store.js';
+import { sanitizeName } from '../temp/asset-store.js';
 import { toolError } from './result.js';
 
 export function registerMediaTools(
@@ -10,6 +16,46 @@ export function registerMediaTools(
   broker: PluginConnectionBroker,
   assets: TempAssetStore,
 ): void {
+  server.registerTool(
+    'figma_export_asset',
+    {
+      description:
+        'Export a node as PNG or SVG into the bridge temporary directory. Returns a sanitized local path and SHA-256, never writes into the user project.',
+      inputSchema: ExportAssetInputSchema,
+      outputSchema: ExportResultSchema,
+      annotations: {
+        title: 'Export Figma Asset',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const parsed = ExportAssetInputSchema.parse(input);
+        const result = ExportResultSchema.parse(
+          await broker.request('exportAsset', parsed, 60_000),
+        );
+        if (!result.data || !result.encoding) throw new Error('Plugin returned no export data.');
+        const data =
+          result.encoding === 'base64' ? Buffer.from(result.data, 'base64') : result.data;
+        const stored = await assets.write(sanitizeName(result.suggestedName), data);
+        const output = {
+          nodeId: result.nodeId,
+          format: result.format,
+          mimeType: result.mimeType,
+          suggestedName: sanitizeName(result.suggestedName),
+          fingerprint: result.fingerprint,
+          ...stored,
+        };
+        return { content: [{ type: 'text' as const, text: JSON.stringify(output) }], structuredContent: output };
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
   server.registerTool(
     'figma_render_node',
     {
