@@ -21,8 +21,7 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
   await assets.initialize();
   await broker.start();
 
-  let handle: StdioServerHandle | undefined;
-  handle = serveStdio(
+  const handle: StdioServerHandle = serveStdio(
     () => {
       const server = new McpServer({ name: 'figma-local-agent', version: '0.1.0' });
       registerStatusTool(server, broker);

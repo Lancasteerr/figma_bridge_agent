@@ -76,7 +76,7 @@ export async function reparentNodes(params: unknown): Promise<MutationResult> {
       y: node.absoluteTransform[1][2],
     }));
     const autoLayoutParent = 'layoutMode' in parent && parent.layoutMode !== 'NONE';
-    let index = Math.min(input.index ?? parent.children.length, parent.children.length);
+    const index = Math.min(input.index ?? parent.children.length, parent.children.length);
     for (let offset = 0; offset < nodes.length; offset += 1) {
       const node = nodes[offset]!;
       parent.insertChild(Math.min(index + offset, parent.children.length), node);

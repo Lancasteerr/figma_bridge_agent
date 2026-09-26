@@ -8,7 +8,6 @@ import {
   MAX_RPC_MESSAGE_BYTES,
   RpcEventSchema,
   RpcResponseSchema,
-  type RpcFailure,
   type RpcRequest,
   type RpcResponse,
 } from '@figma-agent/protocol';
@@ -202,7 +201,7 @@ export class PluginConnectionBroker {
     clearTimeout(pending.timer);
     this.#pending.delete(response.id);
     if (response.ok) pending.resolve(response.result);
-    else pending.reject(new BridgeFault((response as RpcFailure).error));
+    else pending.reject(new BridgeFault(response.error));
   }
 
   #rejectSocket(socket: WebSocket, code: 'AUTH_FAILED' | 'PLUGIN_ALREADY_CONNECTED', message: string): void {
@@ -220,7 +219,12 @@ export class PluginConnectionBroker {
 
   #parseJson(data: RawData): unknown {
     try {
-      return JSON.parse(data.toString());
+      const text = Buffer.isBuffer(data)
+        ? data.toString('utf8')
+        : data instanceof ArrayBuffer
+          ? Buffer.from(data).toString('utf8')
+          : Buffer.concat(data).toString('utf8');
+      return JSON.parse(text);
     } catch {
       return undefined;
     }

@@ -2,7 +2,7 @@ import type { NodeSnapshot } from '@figma-agent/protocol';
 
 import { fingerprintValue } from './fingerprint.js';
 import { toJsonValue } from './json.js';
-import { serializeGeometry, serializeNodeSummary } from './node-summary.js';
+import { serializeNodeSummary } from './node-summary.js';
 import { findPage, isSceneNode } from './resolve.js';
 
 export interface SerializeOptions {
@@ -122,4 +122,3 @@ export async function fingerprintNodeTree(nodes: readonly SceneNode[]): Promise<
   });
   return fingerprintValue(toJsonValue(await Promise.all(nodes.map((node) => visit(node)))));
 }
-
