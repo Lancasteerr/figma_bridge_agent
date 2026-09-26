@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+*.tsbuildinfo
+*.log
+.figma-plugin-id
+manifest.local.json
+.env
+.env.*
+!.env.example
+
