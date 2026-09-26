@@ -1,8 +1,10 @@
 import {
   EmptyInputSchema,
   GetNodeInputSchema,
+  GetTreeInputSchema,
   NodeSnapshotSchema,
   SelectionResultSchema,
+  TreeResultSchema,
 } from '@figma-agent/protocol';
 import type { McpServer } from '@modelcontextprotocol/server';
 
@@ -53,6 +55,31 @@ export function registerReadTools(server: McpServer, broker: PluginConnectionBro
         return structuredResult(
           NodeSnapshotSchema.parse(await broker.request('getNode', GetNodeInputSchema.parse(input))),
         );
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    'figma_get_tree',
+    {
+      description:
+        'Return a bounded normalized subtree from the current Figma page. Use depth and node limits to control context size.',
+      inputSchema: GetTreeInputSchema,
+      outputSchema: TreeResultSchema,
+      annotations: {
+        title: 'Get Figma subtree',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const parsed = GetTreeInputSchema.parse(input);
+        return structuredResult(TreeResultSchema.parse(await broker.request('getTree', parsed)));
       } catch (error) {
         return toolError(error);
       }

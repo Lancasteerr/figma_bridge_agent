@@ -107,6 +107,13 @@ export const SnapshotTreeNodeSchema: z.ZodType<SnapshotTreeNode> = NodeSnapshotS
   children: z.lazy(() => z.array(SnapshotTreeNodeSchema)),
 });
 
+export const TreeResultSchema = z.object({
+  root: SnapshotTreeNodeSchema,
+  nodeCount: z.number().int().positive(),
+  truncated: z.boolean(),
+});
+export type TreeResult = z.infer<typeof TreeResultSchema>;
+
 export const SelectionResultSchema = z.object({
   page: z.object({ id: z.string(), name: z.string() }),
   selection: z.array(NodeSummarySchema),
@@ -123,4 +130,3 @@ export const StatusResultSchema = z.object({
   capabilities: z.array(z.string()),
 });
 export type StatusResult = z.infer<typeof StatusResultSchema>;
-
