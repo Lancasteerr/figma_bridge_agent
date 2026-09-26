@@ -4,7 +4,7 @@ Run `pnpm check` before manual acceptance. Use a disposable Figma page for gener
 
 ## 1. Desktop smoke gate
 
-1. Build and import `apps/figma-plugin/dist/manifest.json` in Figma Desktop.
+1. Put the Figma-generated Development Plugin ID in `.figma-plugin-id`, build, and import `apps/figma-plugin/dist/manifest.json` in Figma Desktop. Do not use the CI placeholder ID.
 2. Start the plugin and paste the secret printed by `setup`.
 3. Select a visible Frame and click **Duplicate selection (smoke test)**.
 4. Confirm the original layer, hierarchy, and appearance are unchanged.

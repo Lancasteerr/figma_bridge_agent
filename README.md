@@ -19,13 +19,15 @@ pnpm check
 node apps/mcp-server/dist/cli.js setup
 ```
 
-Copy the printed pairing secret. Build the plugin:
+Copy the printed pairing secret. Create a local Development Plugin entry in Figma once, copy the generated manifest `id` into the gitignored repository-root file `.figma-plugin-id` (the file contains only the ID), then build:
 
 ```powershell
 pnpm --filter @figma-agent/figma-plugin build
 ```
 
 In Figma Desktop, choose **Plugins → Development → Import plugin from manifest**, then select `apps/figma-plugin/dist/manifest.json`. Start **Local Figma Agent Bridge**, paste the secret, and keep its status window open.
+
+When `.figma-plugin-id` is absent, CI builds use the non-installable placeholder `000000000000000000`; this keeps automated builds deterministic but is not a substitute for the local Figma-generated ID.
 
 The generated secret is stored in the operating-system user configuration directory. The plugin stores the pasted copy in Figma `clientStorage`. Neither value belongs in this repository.
 
