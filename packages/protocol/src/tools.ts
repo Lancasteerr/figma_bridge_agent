@@ -89,6 +89,9 @@ export const RenderResultSchema = z.object({
   width: z.number().positive(),
   height: z.number().positive(),
   fingerprint: z.string(),
+  localPath: z.string().optional(),
+  sha256: z.string().optional(),
+  bytes: z.number().int().nonnegative().optional(),
 });
 
 export const ExportResultSchema = z.object({
@@ -99,6 +102,9 @@ export const ExportResultSchema = z.object({
   encoding: z.enum(['base64', 'utf8']),
   suggestedName: z.string(),
   fingerprint: z.string(),
+  localPath: z.string().optional(),
+  sha256: z.string().optional(),
+  bytes: z.number().int().nonnegative().optional(),
 });
 
 export const CssResultSchema = z.object({

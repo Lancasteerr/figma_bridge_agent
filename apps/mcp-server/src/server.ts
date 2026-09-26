@@ -8,6 +8,7 @@ import { registerMediaTools } from './mcp/register-media-tools.js';
 import { registerLayoutTools } from './mcp/register-layout-tools.js';
 import { registerMutationTools } from './mcp/register-mutation-tools.js';
 import { registerStatusTool } from './mcp/register-status.js';
+import { TempAssetStore } from './temp/asset-store.js';
 
 export interface RunningServer {
   broker: PluginConnectionBroker;
@@ -16,6 +17,8 @@ export interface RunningServer {
 
 export async function startServer(config: ServerConfig): Promise<RunningServer> {
   const broker = new PluginConnectionBroker(config);
+  const assets = new TempAssetStore();
+  await assets.initialize();
   await broker.start();
 
   let handle: StdioServerHandle | undefined;
@@ -24,7 +27,7 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
       const server = new McpServer({ name: 'figma-local-agent', version: '0.1.0' });
       registerStatusTool(server, broker);
       registerReadTools(server, broker);
-      registerMediaTools(server, broker);
+      registerMediaTools(server, broker, assets);
       registerMutationTools(server, broker);
       registerLayoutTools(server, broker);
       return server;
@@ -37,6 +40,7 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
     async close() {
       await handle?.close();
       await broker.stop();
+      await assets.close();
     },
   };
 }
