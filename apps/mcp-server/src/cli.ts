@@ -19,12 +19,20 @@ async function doctor(): Promise<void> {
   await access(path);
   const config = await loadConfig(path);
   const port = await probeBridgePort(config);
-  console.log(JSON.stringify({ configPath: path, host: config.host, port: config.port, portState: port }, null, 2));
+  console.log(
+    JSON.stringify(
+      { configPath: path, host: config.host, port: config.port, portState: port },
+      null,
+      2,
+    ),
+  );
 }
 
 async function serve(): Promise<void> {
   const server = await startServer(await loadConfig());
-  console.error(JSON.stringify({ level: 'info', message: 'Figma bridge listening on 127.0.0.1:3900' }));
+  console.error(
+    JSON.stringify({ level: 'info', message: 'Figma bridge listening on 127.0.0.1:3900' }),
+  );
   const close = (): void => {
     void server.close().finally(() => process.exit(0));
   };

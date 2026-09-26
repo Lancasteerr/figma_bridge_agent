@@ -15,10 +15,7 @@ export interface RunningServer {
   close(): Promise<void>;
 }
 
-export function createMcpServer(
-  broker: PluginConnectionBroker,
-  assets: TempAssetStore,
-): McpServer {
+export function createMcpServer(broker: PluginConnectionBroker, assets: TempAssetStore): McpServer {
   const server = new McpServer({ name: 'figma-local-agent', version: '0.1.0' });
   registerStatusTool(server, broker);
   registerReadTools(server, broker);
@@ -34,10 +31,9 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
   await assets.initialize();
   await broker.start();
 
-  const handle: StdioServerHandle = serveStdio(
-    () => createMcpServer(broker, assets),
-    { onerror: (error) => console.error(JSON.stringify({ level: 'error', message: error.message })) },
-  );
+  const handle: StdioServerHandle = serveStdio(() => createMcpServer(broker, assets), {
+    onerror: (error) => console.error(JSON.stringify({ level: 'error', message: error.message })),
+  });
 
   return {
     broker,

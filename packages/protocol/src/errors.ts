@@ -56,4 +56,3 @@ export function toBridgeError(value: unknown): BridgeError {
   }
   return { code: 'INTERNAL_ERROR', message: String(value), retryable: false };
 }
-

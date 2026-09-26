@@ -7,11 +7,14 @@ const selection = document.querySelector<HTMLElement>('#selection');
 const secret = document.querySelector<HTMLInputElement>('#secret');
 const bridge = new BridgeSocketClient(
   (state) => parent.postMessage({ pluginMessage: { type: 'bridge-state', state } }, '*'),
-  (request) => parent.postMessage({ pluginMessage: { type: 'rpc-request', payload: request } }, '*'),
+  (request) =>
+    parent.postMessage({ pluginMessage: { type: 'rpc-request', payload: request } }, '*'),
 );
 
 window.onmessage = (event: MessageEvent<unknown>) => {
-  const parsed = MainToUiMessageSchema.safeParse((event.data as { pluginMessage?: unknown }).pluginMessage);
+  const parsed = MainToUiMessageSchema.safeParse(
+    (event.data as { pluginMessage?: unknown }).pluginMessage,
+  );
   if (!parsed.success) return;
   const message = parsed.data;
   if (message.type === 'plugin-state') {
@@ -21,7 +24,8 @@ window.onmessage = (event: MessageEvent<unknown>) => {
     }
     if (page) page.textContent = message.payload.page.name;
     if (selection) {
-      selection.textContent = message.payload.selection.map((node) => node.name).join(', ') || 'None';
+      selection.textContent =
+        message.payload.selection.map((node) => node.name).join(', ') || 'None';
     }
   } else if (message.type === 'client-secret' && secret) {
     secret.value = message.payload.secret;

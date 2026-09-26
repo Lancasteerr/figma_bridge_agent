@@ -44,9 +44,7 @@ export const LayoutSnapshotSchema = z.object({
   positioning: PositioningSchema.optional(),
   primaryAxisAlign: z.string().optional(),
   counterAxisAlign: z.string().optional(),
-  constraints: z
-    .object({ horizontal: z.string(), vertical: z.string() })
-    .optional(),
+  constraints: z.object({ horizontal: z.string(), vertical: z.string() }).optional(),
 });
 export type LayoutSnapshot = z.infer<typeof LayoutSnapshotSchema>;
 

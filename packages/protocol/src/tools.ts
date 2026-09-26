@@ -18,7 +18,12 @@ export const RenderNodeInputSchema = z.object({
 });
 export const GetCssInputSchema = GetNodeInputSchema;
 export const GetRawNodeInputSchema = GetNodeInputSchema.extend({
-  maxBytes: z.number().int().min(1_024).max(8 * 1024 * 1024).default(2 * 1024 * 1024),
+  maxBytes: z
+    .number()
+    .int()
+    .min(1_024)
+    .max(8 * 1024 * 1024)
+    .default(2 * 1024 * 1024),
 });
 export const GetVariablesInputSchema = z.object({
   cursor: z.number().int().nonnegative().default(0),
@@ -74,7 +79,9 @@ export const SetInstancePropertiesInputSchema = ProposalTargetSchema.extend({
   nodeId: z.string().min(1),
   properties: z.record(z.string(), z.union([z.string(), z.boolean()])),
 });
-export const CreateComponentInputSchema = ProposalTargetSchema.extend({ nodeId: z.string().min(1) });
+export const CreateComponentInputSchema = ProposalTargetSchema.extend({
+  nodeId: z.string().min(1),
+});
 export const DiscardProposalInputSchema = z.object({
   proposalRootId: z.string().min(1),
   expectedFingerprint: z.string().min(8),

@@ -32,4 +32,3 @@ export function startEvents(listener: (event: RpcEvent) => void): void {
     emit('currentPageChanged', { pageId: figma.currentPage.id, name: figma.currentPage.name });
   });
 }
-

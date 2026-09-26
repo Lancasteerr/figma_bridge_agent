@@ -11,4 +11,3 @@
   },
   "include": ["src/main/**/*.ts", "src/shared/**/*.ts"]
 }
-

@@ -14,4 +14,3 @@ export function defaultConfigDirectory(env: NodeJS.ProcessEnv = process.env): st
 export function defaultConfigPath(env: NodeJS.ProcessEnv = process.env): string {
   return join(defaultConfigDirectory(env), 'config.json');
 }
-

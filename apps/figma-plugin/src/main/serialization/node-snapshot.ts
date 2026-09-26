@@ -16,7 +16,8 @@ export async function serializeNode(
   const maxTextLength = options.maxTextLength ?? 2_000;
   const page = findPage(node);
   if (!page) throw new Error(`Node ${node.id} has no page.`);
-  const children = 'children' in node ? node.children.filter(isSceneNode).map(serializeNodeSummary) : [];
+  const children =
+    'children' in node ? node.children.filter(isSceneNode).map(serializeNodeSummary) : [];
 
   const base = {
     ...serializeNodeSummary(node),
@@ -60,7 +61,10 @@ function serializeLayout(node: SceneNode): Pick<NodeSnapshot, 'layout'> | Record
   return Object.keys(layout).length > 0 ? { layout } : {};
 }
 
-function serializeText(node: SceneNode, max: number): Pick<NodeSnapshot, 'text'> | Record<string, never> {
+function serializeText(
+  node: SceneNode,
+  max: number,
+): Pick<NodeSnapshot, 'text'> | Record<string, never> {
   if (node.type !== 'TEXT') return {};
   return {
     text: {
@@ -116,9 +120,10 @@ async function serializeComponent(
 export async function fingerprintNodeTree(nodes: readonly SceneNode[]): Promise<string> {
   const visit = async (node: SceneNode): Promise<unknown> => ({
     snapshot: await serializeNode(node),
-    children: 'children' in node
-      ? await Promise.all(node.children.filter(isSceneNode).map((child) => visit(child)))
-      : [],
+    children:
+      'children' in node
+        ? await Promise.all(node.children.filter(isSceneNode).map((child) => visit(child)))
+        : [],
   });
   return fingerprintValue(toJsonValue(await Promise.all(nodes.map((node) => visit(node)))));
 }

@@ -226,7 +226,11 @@ export class PluginConnectionBroker {
     }
   }
 
-  #rejectSocket(socket: WebSocket, code: 'AUTH_FAILED' | 'PLUGIN_ALREADY_CONNECTED', message: string): void {
+  #rejectSocket(
+    socket: WebSocket,
+    code: 'AUTH_FAILED' | 'PLUGIN_ALREADY_CONNECTED',
+    message: string,
+  ): void {
     socket.send(JSON.stringify({ type: 'auth.rejected', code, message }));
     socket.close(4003, message);
   }

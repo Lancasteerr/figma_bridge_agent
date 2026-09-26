@@ -85,7 +85,8 @@ async function placeItems(
   items: LayoutItem[],
   clones: Map<string, SceneNode>,
 ): Promise<void> {
-  if (!('appendChild' in parent)) throw invalid(`Node ${parent.id} cannot contain plan items.`, parent.id);
+  if (!('appendChild' in parent))
+    throw invalid(`Node ${parent.id} cannot contain plan items.`, parent.id);
   for (const item of items) {
     if (item.kind === 'existing') {
       const node = clones.get(item.sourceNodeId);

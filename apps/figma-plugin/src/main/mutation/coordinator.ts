@@ -13,7 +13,11 @@ export class MutationCoordinator {
     await previous;
     if (this.#active) {
       release?.();
-      throw new BridgeFault({ code: 'BUSY', message: 'Another mutation is active.', retryable: true });
+      throw new BridgeFault({
+        code: 'BUSY',
+        message: 'Another mutation is active.',
+        retryable: true,
+      });
     }
     this.#active = true;
     try {

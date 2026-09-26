@@ -112,7 +112,10 @@ function assertNotInsideInstance(root: SceneNode, node: SceneNode): void {
   }
 }
 
-function toLocalPoint(transform: Transform, point: { x: number; y: number }): { x: number; y: number } {
+function toLocalPoint(
+  transform: Transform,
+  point: { x: number; y: number },
+): { x: number; y: number } {
   const [[a, c, e], [b, d, f]] = transform;
   const determinant = a * d - b * c;
   if (Math.abs(determinant) < 1e-8) return { x: point.x - e, y: point.y - f };

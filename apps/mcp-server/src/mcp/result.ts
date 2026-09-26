@@ -14,4 +14,3 @@ export function toolError(value: unknown) {
     isError: true,
   };
 }
-

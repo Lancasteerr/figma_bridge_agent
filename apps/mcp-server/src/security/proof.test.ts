@@ -16,8 +16,11 @@ describe('mutual authentication proofs', () => {
 
   it('rejects a changed nonce or secret', () => {
     const proof = createPluginProof(secret, serverNonce, pluginNonce);
-    expect(verifyProof(proof, createPluginProof(secret, `${serverNonce}x`, pluginNonce))).toBe(false);
-    expect(verifyProof(proof, createPluginProof(`${secret}x`, serverNonce, pluginNonce))).toBe(false);
+    expect(verifyProof(proof, createPluginProof(secret, `${serverNonce}x`, pluginNonce))).toBe(
+      false,
+    );
+    expect(verifyProof(proof, createPluginProof(`${secret}x`, serverNonce, pluginNonce))).toBe(
+      false,
+    );
   });
 });
-

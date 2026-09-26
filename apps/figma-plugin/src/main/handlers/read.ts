@@ -47,7 +47,11 @@ export async function getTree(params: unknown): Promise<TreeResult> {
       }
     }
     const depthTruncated = depth === 0 && childNodes.length > 0;
-    return { ...snapshot, children: expanded, truncated: snapshot.truncated || depthTruncated || limitReached };
+    return {
+      ...snapshot,
+      children: expanded,
+      truncated: snapshot.truncated || depthTruncated || limitReached,
+    };
   };
 
   const tree = await visit(root, input.depth);

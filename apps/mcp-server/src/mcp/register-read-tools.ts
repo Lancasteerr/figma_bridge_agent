@@ -102,7 +102,8 @@ export function registerReadTools(server: McpServer, broker: PluginConnectionBro
   server.registerTool(
     'figma_get_selection',
     {
-      description: 'Return summaries for the nodes selected on the current page without traversing subtrees.',
+      description:
+        'Return summaries for the nodes selected on the current page without traversing subtrees.',
       inputSchema: EmptyInputSchema,
       outputSchema: SelectionResultSchema,
       annotations: {
@@ -140,7 +141,9 @@ export function registerReadTools(server: McpServer, broker: PluginConnectionBro
     async (input) => {
       try {
         return structuredResult(
-          NodeSnapshotSchema.parse(await broker.request('getNode', GetNodeInputSchema.parse(input))),
+          NodeSnapshotSchema.parse(
+            await broker.request('getNode', GetNodeInputSchema.parse(input)),
+          ),
         );
       } catch (error) {
         return toolError(error);

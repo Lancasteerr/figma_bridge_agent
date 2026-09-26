@@ -49,4 +49,3 @@ export type RpcEvent = z.infer<typeof RpcEventSchema>;
 
 export const RpcMessageSchema = z.union([RpcRequestSchema, RpcResponseSchema, RpcEventSchema]);
 export type RpcMessage = z.infer<typeof RpcMessageSchema>;
-

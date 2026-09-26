@@ -38,10 +38,7 @@ Project `.mcp.json`:
     "figma-local-agent": {
       "type": "stdio",
       "command": "node",
-      "args": [
-        "E:/absolute/path/figma_bridge_agent/apps/mcp-server/dist/cli.js",
-        "serve"
-      ],
+      "args": ["E:/absolute/path/figma_bridge_agent/apps/mcp-server/dist/cli.js", "serve"],
       "cwd": "E:/absolute/path/figma_bridge_agent"
     }
   }
@@ -57,10 +54,7 @@ Project `.cursor/mcp.json`:
   "mcpServers": {
     "figma-local-agent": {
       "command": "node",
-      "args": [
-        "E:/absolute/path/figma_bridge_agent/apps/mcp-server/dist/cli.js",
-        "serve"
-      ]
+      "args": ["E:/absolute/path/figma_bridge_agent/apps/mcp-server/dist/cli.js", "serve"]
     }
   }
 }

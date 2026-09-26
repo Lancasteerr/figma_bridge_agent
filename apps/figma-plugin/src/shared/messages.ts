@@ -21,7 +21,10 @@ export const MainToUiMessageSchema = z.discriminatedUnion('type', [
 
 export const UiToMainMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('ready') }),
-  z.object({ type: z.literal('bridge-state'), state: z.enum(['disconnected', 'connecting', 'authenticated']) }),
+  z.object({
+    type: z.literal('bridge-state'),
+    state: z.enum(['disconnected', 'connecting', 'authenticated']),
+  }),
   z.object({ type: z.literal('rpc-request'), payload: z.unknown() }),
   z.object({ type: z.literal('save-secret'), secret: z.string().min(16) }),
   z.object({ type: z.literal('smoke-duplicate') }),

@@ -6,18 +6,20 @@ export const WritableLayoutModeSchema = z.enum(['HORIZONTAL', 'VERTICAL']);
 export const PrimaryAxisAlignSchema = z.enum(['MIN', 'CENTER', 'MAX', 'SPACE_BETWEEN']);
 export const CounterAxisAlignSchema = z.enum(['MIN', 'CENTER', 'MAX']);
 
-export const LayoutSpecSchema = z.object({
-  mode: WritableLayoutModeSchema,
-  gap: z.number().min(0).max(10_000).default(0),
-  padding: z.object({
-    top: z.number().min(0).max(10_000),
-    right: z.number().min(0).max(10_000),
-    bottom: z.number().min(0).max(10_000),
-    left: z.number().min(0).max(10_000),
-  }),
-  primaryAxisAlign: PrimaryAxisAlignSchema.default('MIN'),
-  counterAxisAlign: CounterAxisAlignSchema.default('MIN'),
-}).strict();
+export const LayoutSpecSchema = z
+  .object({
+    mode: WritableLayoutModeSchema,
+    gap: z.number().min(0).max(10_000).default(0),
+    padding: z.object({
+      top: z.number().min(0).max(10_000),
+      right: z.number().min(0).max(10_000),
+      bottom: z.number().min(0).max(10_000),
+      left: z.number().min(0).max(10_000),
+    }),
+    primaryAxisAlign: PrimaryAxisAlignSchema.default('MIN'),
+    counterAxisAlign: CounterAxisAlignSchema.default('MIN'),
+  })
+  .strict();
 export type LayoutSpec = z.infer<typeof LayoutSpecSchema>;
 
 export const SizingSpecSchema = z.object({

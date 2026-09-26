@@ -112,4 +112,3 @@ export class BridgeSocketClient {
     this.#retryTimer = window.setTimeout(() => this.#connect(generation), delay);
   }
 }
-

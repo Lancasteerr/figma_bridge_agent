@@ -49,7 +49,10 @@ export function registerMediaTools(
           fingerprint: result.fingerprint,
           ...stored,
         };
-        return { content: [{ type: 'text' as const, text: JSON.stringify(output) }], structuredContent: output };
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(output) }],
+          structuredContent: output,
+        };
       } catch (error) {
         return toolError(error);
       }
@@ -75,7 +78,10 @@ export function registerMediaTools(
       try {
         const parsed = RenderNodeInputSchema.parse(input);
         const result = RenderResultSchema.parse(await broker.request('renderNode', parsed, 30_000));
-        const stored = await assets.write(`${result.nodeId}.png`, Buffer.from(result.data, 'base64'));
+        const stored = await assets.write(
+          `${result.nodeId}.png`,
+          Buffer.from(result.data, 'base64'),
+        );
         const metadata = {
           nodeId: result.nodeId,
           mimeType: result.mimeType,

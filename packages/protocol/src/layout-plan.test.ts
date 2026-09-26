@@ -39,6 +39,8 @@ describe('LayoutPlan v1 schema', () => {
         root: { ...plan.root, layout: { ...plan.root.layout, wrap: 'WRAP' } },
       }),
     ).toThrow();
-    expect(() => LayoutPlanSchema.parse({ ...plan, root: { ...plan.root, children: [] } })).toThrow();
+    expect(() =>
+      LayoutPlanSchema.parse({ ...plan, root: { ...plan.root, children: [] } }),
+    ).toThrow();
   });
 });

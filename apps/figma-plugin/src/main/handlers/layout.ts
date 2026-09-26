@@ -1,8 +1,4 @@
-import {
-  BridgeFault,
-  SetLayoutInputSchema,
-  type MutationResult,
-} from '@figma-agent/protocol';
+import { BridgeFault, SetLayoutInputSchema, type MutationResult } from '@figma-agent/protocol';
 
 import { atomicMutation } from '../mutation/coordinator.js';
 import { assertProposalTargets } from '../proposal/marker.js';
@@ -34,7 +30,8 @@ export async function setLayout(params: unknown): Promise<MutationResult> {
       if (input.sizing.horizontal) node.layoutSizingHorizontal = input.sizing.horizontal;
       if (input.sizing.vertical) node.layoutSizingVertical = input.sizing.vertical;
     }
-    if (input.positioning && 'layoutPositioning' in node) node.layoutPositioning = input.positioning;
+    if (input.positioning && 'layoutPositioning' in node)
+      node.layoutPositioning = input.positioning;
     if (input.absolute) {
       node.x = input.absolute.x;
       node.y = input.absolute.y;
@@ -51,7 +48,10 @@ type SetLayoutInput = ReturnType<typeof SetLayoutInputSchema.parse>;
 
 function validateLayoutInput(node: SceneNode, input: SetLayoutInput): void {
   if (input.layout && !hasWritableAutoLayout(node)) {
-    throw invalid(node, 'Only Frame, Component, and Component Set nodes support v1 Auto Layout writes.');
+    throw invalid(
+      node,
+      'Only Frame, Component, and Component Set nodes support v1 Auto Layout writes.',
+    );
   }
   if (input.sizing && !('layoutSizingHorizontal' in node)) {
     throw invalid(node, 'This node does not support layout sizing.');

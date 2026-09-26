@@ -17,4 +17,3 @@ export function mapClonedSubtree(
   }
   return output;
 }
-

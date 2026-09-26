@@ -52,7 +52,10 @@ async function preflightFonts(node: TextNode, requested?: FontName): Promise<voi
   try {
     await Promise.all([...unique.values()].map((font) => figma.loadFontAsync(font)));
   } catch (error) {
-    throw missing(node, error instanceof Error ? error.message : 'A required font could not be loaded.');
+    throw missing(
+      node,
+      error instanceof Error ? error.message : 'A required font could not be loaded.',
+    );
   }
 }
 

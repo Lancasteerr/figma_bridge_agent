@@ -19,7 +19,10 @@ export async function renderNode(params: unknown): Promise<RenderResult> {
   const node = await resolveCurrentPageNode(input.nodeId);
   const largestDimension = Math.max(node.width, node.height, 1);
   const scale = Math.min(input.scale, input.maxDimension / largestDimension);
-  const data = await node.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: scale } });
+  const data = await node.exportAsync({
+    format: 'PNG',
+    constraint: { type: 'SCALE', value: scale },
+  });
   if (data.byteLength > MAX_RAW_PNG_BYTES) {
     throw new BridgeFault({
       code: 'PAYLOAD_TOO_LARGE',

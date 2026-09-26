@@ -17,4 +17,3 @@ export async function probeBridgePort(config: ServerConfig): Promise<'available'
     });
   });
 }
-

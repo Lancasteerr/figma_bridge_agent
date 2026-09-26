@@ -17,7 +17,11 @@ export class FakePluginClient {
     private readonly handler: FakeRpcHandler,
   ) {}
 
-  static async connect(url: string, secret: string, handler: FakeRpcHandler): Promise<FakePluginClient> {
+  static async connect(
+    url: string,
+    secret: string,
+    handler: FakeRpcHandler,
+  ): Promise<FakePluginClient> {
     const socket = new WebSocket(url);
     const client = new FakePluginClient(socket, handler);
     await client.authenticate(secret);
@@ -42,10 +46,7 @@ export class FakePluginClient {
       }),
     );
     const proof = AuthServerProofSchema.parse(await nextMessage(this.socket));
-    const expected = hmac(
-      secret,
-      `figma-agent/server/v1|${challenge.serverNonce}|${pluginNonce}`,
-    );
+    const expected = hmac(secret, `figma-agent/server/v1|${challenge.serverNonce}|${pluginNonce}`);
     if (proof.proof !== expected) throw new Error('Server proof did not match.');
     this.socket.on('message', (data) => void this.onMessage(data.toString()));
   }

@@ -32,4 +32,3 @@ export async function loadConfig(path = defaultConfigPath()): Promise<ServerConf
   const raw = await readFile(path, 'utf8');
   return ServerConfigSchema.parse(JSON.parse(raw));
 }
-

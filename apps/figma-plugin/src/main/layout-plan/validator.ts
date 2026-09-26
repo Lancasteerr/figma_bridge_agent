@@ -40,7 +40,9 @@ export async function validateLayoutTopology(plan: LayoutPlan): Promise<Validate
     assertCompleteCoverage(root, [...referencedNodes.values()]);
   } else {
     const referencedRootIds = new Set(
-      [...referencedNodes.values()].filter((node) => roots.some((root) => root.id === node.id)).map((node) => node.id),
+      [...referencedNodes.values()]
+        .filter((node) => roots.some((root) => root.id === node.id))
+        .map((node) => node.id),
     );
     for (const root of roots) {
       if (!referencedRootIds.has(root.id)) {
@@ -80,7 +82,10 @@ function assertNoAncestorPairs(nodes: SceneNode[]): void {
   for (const node of nodes) {
     for (const other of nodes) {
       if (node !== other && isInside(other, node)) {
-        throw invalid('Layout items cannot reference both an ancestor and its descendant.', node.id);
+        throw invalid(
+          'Layout items cannot reference both an ancestor and its descendant.',
+          node.id,
+        );
       }
     }
   }

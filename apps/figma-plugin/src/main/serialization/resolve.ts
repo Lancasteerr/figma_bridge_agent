@@ -30,4 +30,3 @@ export async function resolveCurrentPageNode(nodeId: string): Promise<SceneNode>
   }
   return node;
 }
-

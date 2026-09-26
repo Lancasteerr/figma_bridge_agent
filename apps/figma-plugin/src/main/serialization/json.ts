@@ -1,4 +1,5 @@
-export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
+export type JsonValue =
+  null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
 export function toJsonValue(value: unknown, depth = 0, seen = new WeakSet<object>()): JsonValue {
   if (value === null || typeof value === 'boolean' || typeof value === 'string') return value;
@@ -20,4 +21,3 @@ export function toJsonValue(value: unknown, depth = 0, seen = new WeakSet<object
   seen.delete(value);
   return result;
 }
-

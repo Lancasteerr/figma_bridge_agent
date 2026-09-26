@@ -107,7 +107,10 @@ async function duplicateMultiple(
       clone.x = sourceBounds.x - minX;
       clone.y = sourceBounds.y - minY;
     }
-    markProposal(wrapper, sources.map((source) => source.id));
+    markProposal(
+      wrapper,
+      sources.map((source) => source.id),
+    );
     wrapper.visible = true;
     figma.currentPage.selection = [wrapper];
     figma.viewport.scrollAndZoomIntoView([wrapper]);
@@ -127,7 +130,11 @@ async function duplicateMultiple(
 function assertNonOverlapping(nodes: SceneNode[]): void {
   const ids = new Set(nodes.map((node) => node.id));
   if (ids.size !== nodes.length) {
-    throw new BridgeFault({ code: 'INVALID_LAYOUT', message: 'Duplicate source node IDs.', retryable: false });
+    throw new BridgeFault({
+      code: 'INVALID_LAYOUT',
+      message: 'Duplicate source node IDs.',
+      retryable: false,
+    });
   }
   for (const node of nodes) {
     for (const candidate of nodes) {

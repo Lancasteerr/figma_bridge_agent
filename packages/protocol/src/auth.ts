@@ -38,4 +38,3 @@ export const AuthMessageSchema = z.union([
   AuthRejectedSchema,
 ]);
 export type AuthMessage = z.infer<typeof AuthMessageSchema>;
-

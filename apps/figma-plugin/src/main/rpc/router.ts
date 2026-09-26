@@ -62,8 +62,8 @@ export class RpcRouter {
   }
 
   #requestId(raw: unknown): string {
-    if (typeof raw === 'object' && raw !== null && 'id' in raw && typeof raw.id === 'string') return raw.id;
+    if (typeof raw === 'object' && raw !== null && 'id' in raw && typeof raw.id === 'string')
+      return raw.id;
     return 'invalid-request';
   }
 }
-

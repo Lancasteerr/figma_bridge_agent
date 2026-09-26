@@ -48,7 +48,8 @@ export function registerMutationTools(server: McpServer, broker: PluginConnectio
   server.registerTool(
     'figma_create_frame',
     {
-      description: 'Create one ordinary Frame inside a bridge-marked Proposal. Original design nodes are rejected.',
+      description:
+        'Create one ordinary Frame inside a bridge-marked Proposal. Original design nodes are rejected.',
       inputSchema: CreateFrameInputSchema,
       outputSchema: MutationResultSchema,
       annotations: {
@@ -173,9 +174,7 @@ export function registerMutationTools(server: McpServer, broker: PluginConnectio
       try {
         const parsed = SetInstancePropertiesInputSchema.parse(input);
         return structuredResult(
-          MutationResultSchema.parse(
-            await broker.request('setInstanceProperties', parsed, 30_000),
-          ),
+          MutationResultSchema.parse(await broker.request('setInstanceProperties', parsed, 30_000)),
         );
       } catch (error) {
         return toolError(error);
@@ -229,7 +228,9 @@ export function registerMutationTools(server: McpServer, broker: PluginConnectio
       try {
         const parsed = DiscardProposalInputSchema.parse(input);
         return structuredResult(
-          DiscardProposalResultSchema.parse(await broker.request('discardProposal', parsed, 15_000)),
+          DiscardProposalResultSchema.parse(
+            await broker.request('discardProposal', parsed, 15_000),
+          ),
         );
       } catch (error) {
         return toolError(error);

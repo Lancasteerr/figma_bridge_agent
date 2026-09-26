@@ -39,7 +39,11 @@ export async function createComponentFromNode(params: unknown): Promise<CreateCo
 function assertNoComponentBoundary(node: FrameNode, proposalRoot: SceneNode): void {
   let current = node.parent;
   while (current && current.id !== proposalRoot.id) {
-    if (current.type === 'COMPONENT' || current.type === 'COMPONENT_SET' || current.type === 'INSTANCE') {
+    if (
+      current.type === 'COMPONENT' ||
+      current.type === 'COMPONENT_SET' ||
+      current.type === 'INSTANCE'
+    ) {
       throw unsupported(node, `Cannot create a Component inside ${current.type}.`);
     }
     current = current.parent;

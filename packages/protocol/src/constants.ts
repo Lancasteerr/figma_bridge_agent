@@ -4,4 +4,3 @@ export const DEFAULT_BRIDGE_PORT = 3900;
 export const DEFAULT_REQUEST_TIMEOUT_MS = 5_000;
 export const LONG_REQUEST_TIMEOUT_MS = 60_000;
 export const MAX_RPC_MESSAGE_BYTES = 16 * 1024 * 1024;
-

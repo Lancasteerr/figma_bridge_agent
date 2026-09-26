@@ -20,4 +20,3 @@ export function fingerprintValue(value: JsonValue): string {
   }
   return `${(left >>> 0).toString(16).padStart(8, '0')}${(right >>> 0).toString(16).padStart(8, '0')}`;
 }
-
