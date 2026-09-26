@@ -7,6 +7,7 @@ import {
   ProposalResultSchema,
   ReparentNodesInputSchema,
   SetLayoutInputSchema,
+  UpdateTextInputSchema,
 } from '@figma-agent/protocol';
 import type { McpServer } from '@modelcontextprotocol/server';
 
@@ -114,6 +115,33 @@ export function registerMutationTools(server: McpServer, broker: PluginConnectio
         const parsed = SetLayoutInputSchema.parse(input);
         return structuredResult(
           MutationResultSchema.parse(await broker.request('setLayout', parsed, 15_000)),
+        );
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    'figma_update_text',
+    {
+      description:
+        'Atomically update text inside a Proposal after preloading every required font. Missing fonts leave the node unchanged.',
+      inputSchema: UpdateTextInputSchema,
+      outputSchema: MutationResultSchema,
+      annotations: {
+        title: 'Update Proposal Text',
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const parsed = UpdateTextInputSchema.parse(input);
+        return structuredResult(
+          MutationResultSchema.parse(await broker.request('updateText', parsed, 30_000)),
         );
       } catch (error) {
         return toolError(error);
