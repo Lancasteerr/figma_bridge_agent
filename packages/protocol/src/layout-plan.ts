@@ -17,7 +17,7 @@ export const LayoutSpecSchema = z.object({
   }),
   primaryAxisAlign: PrimaryAxisAlignSchema.default('MIN'),
   counterAxisAlign: CounterAxisAlignSchema.default('MIN'),
-});
+}).strict();
 export type LayoutSpec = z.infer<typeof LayoutSpecSchema>;
 
 export const SizingSpecSchema = z.object({
