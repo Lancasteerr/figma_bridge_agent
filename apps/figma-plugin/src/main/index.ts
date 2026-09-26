@@ -6,7 +6,7 @@ import { renderNode } from './handlers/render.js';
 import { discardProposal, duplicateAsProposal } from './handlers/proposal.js';
 import { createFrame, reparentNodes } from './handlers/structural.js';
 import { setLayout } from './handlers/layout.js';
-import { validateLayoutPlan } from './handlers/layout-plan.js';
+import { applyLayoutPlan, validateLayoutPlan } from './handlers/layout-plan.js';
 import { RpcRouter } from './rpc/router.js';
 import { publishPluginState, setBridgeState } from './state.js';
 
@@ -24,6 +24,7 @@ router.register('createFrame', createFrame);
 router.register('reparentNodes', reparentNodes);
 router.register('setLayout', setLayout);
 router.register('validateLayoutPlan', validateLayoutPlan);
+router.register('applyLayoutPlan', applyLayoutPlan);
 startEvents((event) => figma.ui.postMessage({ type: 'rpc-response', payload: event }));
 
 figma.ui.onmessage = async (raw: unknown) => {
