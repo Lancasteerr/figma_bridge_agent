@@ -1,5 +1,7 @@
 import {
+  CssResultSchema,
   EmptyInputSchema,
+  GetCssInputSchema,
   GetNodeInputSchema,
   GetTreeInputSchema,
   NodeSnapshotSchema,
@@ -12,6 +14,33 @@ import type { PluginConnectionBroker } from '../bridge/plugin-connection.js';
 import { structuredResult, toolError } from './result.js';
 
 export function registerReadTools(server: McpServer, broker: PluginConnectionBroker): void {
+  server.registerTool(
+    'figma_get_css',
+    {
+      description:
+        'Return Figma Inspect CSS for a node as a code-generation hint. NodeSnapshot remains the structural source of truth.',
+      inputSchema: GetCssInputSchema,
+      outputSchema: CssResultSchema,
+      annotations: {
+        title: 'Get Figma CSS Hint',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const parsed = GetCssInputSchema.parse(input);
+        return structuredResult(
+          CssResultSchema.parse(await broker.request('getCss', parsed, 15_000)),
+        );
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
   server.registerTool(
     'figma_get_selection',
     {

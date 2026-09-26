@@ -101,3 +101,22 @@ export const ExportResultSchema = z.object({
   fingerprint: z.string(),
 });
 
+export const CssResultSchema = z.object({
+  nodeId: z.string(),
+  hintOnly: z.literal(true),
+  properties: z.record(z.string(), z.string()),
+});
+
+export const VariablesResultSchema = z.object({
+  cursor: z.number().int().nonnegative(),
+  nextCursor: z.number().int().nonnegative().optional(),
+  total: z.number().int().nonnegative(),
+  variables: z.array(z.unknown()),
+  collections: z.array(z.unknown()),
+});
+
+export const RawNodeResultSchema = z.object({
+  nodeId: z.string(),
+  json: z.string(),
+  bytes: z.number().int().nonnegative(),
+});
