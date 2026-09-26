@@ -7,6 +7,7 @@ import {
   ProposalResultSchema,
   ReparentNodesInputSchema,
   SetLayoutInputSchema,
+  SetInstancePropertiesInputSchema,
   UpdateTextInputSchema,
 } from '@figma-agent/protocol';
 import type { McpServer } from '@modelcontextprotocol/server';
@@ -115,6 +116,35 @@ export function registerMutationTools(server: McpServer, broker: PluginConnectio
         const parsed = SetLayoutInputSchema.parse(input);
         return structuredResult(
           MutationResultSchema.parse(await broker.request('setLayout', parsed, 15_000)),
+        );
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    'figma_set_instance_properties',
+    {
+      description:
+        'Set exposed text, boolean, variant, or instance-swap properties on an Instance inside a Proposal without detaching it.',
+      inputSchema: SetInstancePropertiesInputSchema,
+      outputSchema: MutationResultSchema,
+      annotations: {
+        title: 'Set Instance Properties',
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const parsed = SetInstancePropertiesInputSchema.parse(input);
+        return structuredResult(
+          MutationResultSchema.parse(
+            await broker.request('setInstanceProperties', parsed, 30_000),
+          ),
         );
       } catch (error) {
         return toolError(error);
