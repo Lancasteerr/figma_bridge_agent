@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body { margin: 0; padding: 16px; color: var(--figma-color-text); background: var(--figma-color-bg); font: 12px Inter, sans-serif; }
+      h1 { margin: 0 0 16px; font-size: 15px; }
+      dl { display: grid; grid-template-columns: 76px 1fr; gap: 8px; margin: 0 0 16px; }
+      dt { color: var(--figma-color-text-secondary); }
+      dd { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .row { display: flex; gap: 8px; margin-top: 8px; }
+      input { flex: 1; min-width: 0; }
+      button, input { border: 1px solid var(--figma-color-border); border-radius: 4px; padding: 7px 8px; color: inherit; background: var(--figma-color-bg-secondary); }
+      button { cursor: pointer; }
+      #connection[data-state='authenticated'] { color: var(--figma-color-text-success); }
+    </style>
+  </head>
+  <body>
+    <h1>Local Figma Agent Bridge</h1>
+    <dl>
+      <dt>Bridge</dt><dd id="connection">Disconnected</dd>
+      <dt>Page</dt><dd id="page">—</dd>
+      <dt>Selection</dt><dd id="selection">None</dd>
+    </dl>
+    <div class="row"><input id="secret" type="password" placeholder="Pairing secret" /><button id="save-secret">Save</button></div>
+    <div class="row"><button id="smoke">Duplicate selection (smoke test)</button></div>
+    <!-- SCRIPT -->
+  </body>
+</html>
+
