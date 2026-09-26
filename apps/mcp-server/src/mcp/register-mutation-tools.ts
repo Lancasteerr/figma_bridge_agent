@@ -3,6 +3,7 @@ import {
   DuplicateProposalInputSchema,
   MutationResultSchema,
   ProposalResultSchema,
+  ReparentNodesInputSchema,
 } from '@figma-agent/protocol';
 import type { McpServer } from '@modelcontextprotocol/server';
 
@@ -56,6 +57,33 @@ export function registerMutationTools(server: McpServer, broker: PluginConnectio
         const parsed = CreateFrameInputSchema.parse(input);
         return structuredResult(
           MutationResultSchema.parse(await broker.request('createFrame', parsed, 15_000)),
+        );
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    'figma_reparent_nodes',
+    {
+      description:
+        'Move nodes within one bridge-marked Proposal. FLOW participates in Auto Layout; ABSOLUTE stays outside the layout flow.',
+      inputSchema: ReparentNodesInputSchema,
+      outputSchema: MutationResultSchema,
+      annotations: {
+        title: 'Reparent Proposal nodes',
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const parsed = ReparentNodesInputSchema.parse(input);
+        return structuredResult(
+          MutationResultSchema.parse(await broker.request('reparentNodes', parsed, 15_000)),
         );
       } catch (error) {
         return toolError(error);
