@@ -1,9 +1,14 @@
 import { MainToUiMessageSchema } from '../shared/messages.js';
+import { BridgeSocketClient } from './socket-client.js';
 
 const connection = document.querySelector<HTMLElement>('#connection');
 const page = document.querySelector<HTMLElement>('#page');
 const selection = document.querySelector<HTMLElement>('#selection');
 const secret = document.querySelector<HTMLInputElement>('#secret');
+const bridge = new BridgeSocketClient(
+  (state) => parent.postMessage({ pluginMessage: { type: 'bridge-state', state } }, '*'),
+  (request) => parent.postMessage({ pluginMessage: { type: 'rpc-request', payload: request } }, '*'),
+);
 
 window.onmessage = (event: MessageEvent<unknown>) => {
   const parsed = MainToUiMessageSchema.safeParse((event.data as { pluginMessage?: unknown }).pluginMessage);
@@ -20,11 +25,17 @@ window.onmessage = (event: MessageEvent<unknown>) => {
     }
   } else if (message.type === 'client-secret' && secret) {
     secret.value = message.payload.secret;
+    bridge.start(message.payload.secret);
+  } else if (message.type === 'rpc-response') {
+    bridge.send(message.payload);
   }
 };
 
 document.querySelector('#save-secret')?.addEventListener('click', () => {
-  if (secret?.value) parent.postMessage({ pluginMessage: { type: 'save-secret', secret: secret.value } }, '*');
+  if (secret?.value) {
+    parent.postMessage({ pluginMessage: { type: 'save-secret', secret: secret.value } }, '*');
+    bridge.start(secret.value);
+  }
 });
 
 document.querySelector('#smoke')?.addEventListener('click', () => {
@@ -32,4 +43,3 @@ document.querySelector('#smoke')?.addEventListener('click', () => {
 });
 
 parent.postMessage({ pluginMessage: { type: 'ready' } }, '*');
-
