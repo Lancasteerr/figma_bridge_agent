@@ -138,6 +138,10 @@ export class BridgeDaemon {
     if (this.#idleTimer) clearTimeout(this.#idleTimer);
     this.#idleTimer = undefined;
     for (const socket of this.#sockets) socket.close(1001, 'Bridge daemon stopping');
+    // 对端若不完成 WebSocket close 握手，短暂宽限后强制释放监听资源。
+    const terminationTimer = setTimeout(() => {
+      for (const socket of this.#sockets) socket.terminate();
+    }, 250);
     this.#clients.clear();
     await this.#broker.stop();
     const httpServer = this.#httpServer;
@@ -151,6 +155,7 @@ export class BridgeDaemon {
     ]);
     this.#pluginServer = undefined;
     this.#clientServer = undefined;
+    clearTimeout(terminationTimer);
     this.#log({ level: 'info', event: 'daemon_stopped', pid: process.pid });
     this.#resolveStopped?.();
     this.#resolveStopped = undefined;
