@@ -5,13 +5,12 @@ import {
   BRIDGE_PROTOCOL_VERSION,
   BridgeFault,
   DEFAULT_REQUEST_TIMEOUT_MS,
-  MAX_RPC_MESSAGE_BYTES,
   RpcEventSchema,
   RpcResponseSchema,
   type RpcRequest,
   type RpcResponse,
 } from '@figma-agent/protocol';
-import { WebSocket, WebSocketServer, type RawData } from 'ws';
+import { WebSocket, type RawData } from 'ws';
 
 import type { ServerConfig } from '../config/store.js';
 import { createPluginProof, createServerProof, verifyProof } from '../security/proof.js';
@@ -31,7 +30,6 @@ export class PluginConnectionBroker implements BridgeTransport {
   readonly #config: ServerConfig;
   readonly #pending = new Map<string, PendingRequest>();
   readonly #eventListeners = new Set<(event: BridgeEvent) => void>();
-  #server: WebSocketServer | undefined;
   #plugin: WebSocket | undefined;
   #pluginVersion: string | undefined;
 
@@ -55,31 +53,17 @@ export class PluginConnectionBroker implements BridgeTransport {
     return () => this.#eventListeners.delete(listener);
   }
 
-  /** 启动仅监听本机的 WebSocket 服务；重复启动保持幂等。 */
-  async start(): Promise<void> {
-    if (this.#server) return;
-    const server = new WebSocketServer({
-      host: this.#config.host,
-      port: this.#config.port,
-      maxPayload: MAX_RPC_MESSAGE_BYTES,
-      perMessageDeflate: false,
-    });
-    this.#server = server;
-    server.on('connection', (socket) => this.#authenticate(socket));
-    await new Promise<void>((resolve, reject) => {
-      server.once('listening', resolve);
-      server.once('error', reject);
-    });
+  /** Gateway 接受连接后交给 Broker 完成挑战、鉴权和升级。 */
+  accept(socket: WebSocket): void {
+    this.#authenticate(socket);
   }
 
-  /** 先拒绝所有挂起 RPC，再关闭插件和 WebSocket server，避免 Promise 永久等待。 */
+  /** 先拒绝所有挂起 RPC，再关闭插件连接，避免 Promise 永久等待。 */
   async stop(): Promise<void> {
     this.#plugin?.close(1001, 'Server stopping');
+    this.#plugin = undefined;
+    this.#pluginVersion = undefined;
     this.#rejectPending('PLUGIN_NOT_CONNECTED', 'Bridge server stopped');
-    const server = this.#server;
-    this.#server = undefined;
-    if (!server) return;
-    await new Promise<void>((resolve) => server.close(() => resolve()));
   }
 
   /** 与抽象 BridgeTransport 对齐；旧调用仍可继续使用 stop。 */

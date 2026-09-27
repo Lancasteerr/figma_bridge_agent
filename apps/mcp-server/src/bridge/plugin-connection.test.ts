@@ -5,13 +5,16 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import type { ServerConfig } from '../config/store.js';
 import { PluginConnectionBroker } from './plugin-connection.js';
+import { PluginGateway } from './plugin-gateway.js';
 
 const openBrokers: PluginConnectionBroker[] = [];
+const openGateways: PluginGateway[] = [];
 const openClients: FakePluginClient[] = [];
 
 // 每个测试都可能创建真实 TCP/WebSocket 资源，统一在测试后关闭以避免端口泄漏。
 afterEach(async () => {
   for (const client of openClients.splice(0)) client.close();
+  for (const gateway of openGateways.splice(0)) await gateway.close();
   for (const broker of openBrokers.splice(0)) await broker.stop();
 });
 
@@ -40,7 +43,9 @@ describe('PluginConnectionBroker', () => {
   it('documents the fixed-port conflict between two legacy server sessions', async () => {
     const { config } = await startBroker();
     const competingBroker = new PluginConnectionBroker(config);
-    await expect(competingBroker.start()).rejects.toMatchObject({ code: 'EADDRINUSE' });
+    const competingGateway = new PluginGateway(config, competingBroker);
+    openGateways.push(competingGateway);
+    await expect(competingGateway.start()).rejects.toMatchObject({ code: 'EADDRINUSE' });
   });
 
   it('rejects an invalid secret and a second active plugin', async () => {
@@ -74,8 +79,10 @@ async function startBroker(): Promise<{
   const secret = Buffer.alloc(32, 11).toString('base64url');
   const config: ServerConfig = { version: 1, host: '127.0.0.1', port, secret };
   const broker = new PluginConnectionBroker(config);
+  const gateway = new PluginGateway(config, broker);
   openBrokers.push(broker);
-  await broker.start();
+  openGateways.push(gateway);
+  await gateway.start();
   return { broker, url: `ws://127.0.0.1:${port}`, secret, config };
 }
 

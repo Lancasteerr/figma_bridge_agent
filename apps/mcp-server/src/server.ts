@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/server';
 import { serveStdio, type StdioServerHandle } from '@modelcontextprotocol/server/stdio';
 
 import { PluginConnectionBroker } from './bridge/plugin-connection.js';
+import { PluginGateway } from './bridge/plugin-gateway.js';
 import type { BridgeTransport } from './bridge/transport.js';
 import type { ServerConfig } from './config/store.js';
 import { registerReadTools } from './mcp/register-read-tools.js';
@@ -31,9 +32,10 @@ export function createMcpServer(broker: BridgeTransport, assets: TempAssetStore)
 /** 按依赖顺序初始化资源：临时目录、WebSocket broker，最后才接收 stdio MCP 请求。 */
 export async function startServer(config: ServerConfig): Promise<RunningServer> {
   const broker = new PluginConnectionBroker(config);
+  const gateway = new PluginGateway(config, broker);
   const assets = new TempAssetStore();
   await assets.initialize();
-  await broker.start();
+  await gateway.start();
 
   const handle: StdioServerHandle = serveStdio(() => createMcpServer(broker, assets), {
     onerror: (error) => console.error(JSON.stringify({ level: 'error', message: error.message })),
@@ -43,6 +45,7 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
     broker,
     async close() {
       await handle?.close();
+      await gateway.close();
       await broker.stop();
       await assets.close();
     },
