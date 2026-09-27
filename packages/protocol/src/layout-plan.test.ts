@@ -21,12 +21,14 @@ const plan = {
   convertToComponent: false,
 };
 
+// 这组 fixture 代表最小但完整的 v1 计划，后续测试只覆盖边界差异。
 describe('LayoutPlan v1 schema', () => {
   it('accepts a canonical bounded plan', () => {
     expect(LayoutPlanSchema.parse(plan)).toMatchObject(plan);
   });
 
   it('rejects grid, wrap, and empty container children', () => {
+    // v1 刻意限制为可安全映射到 Auto Layout 的能力集合。
     expect(() =>
       LayoutPlanSchema.parse({
         ...plan,

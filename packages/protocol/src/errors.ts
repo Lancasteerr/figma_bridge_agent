@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+/**
+ * 跨越 MCP、WebSocket 和插件边界的稳定错误码集合。
+ * retryable 不由调用方猜测，而由产生错误的一侧明确声明。
+ */
 export const bridgeErrorCodes = [
   'PLUGIN_NOT_CONNECTED',
   'AUTH_REQUIRED',
@@ -28,8 +32,10 @@ export const bridgeErrorCodes = [
 ] as const;
 
 export const BridgeErrorCodeSchema = z.enum(bridgeErrorCodes);
+/** 桥接错误码的 TypeScript 联合类型。 */
 export type BridgeErrorCode = z.infer<typeof BridgeErrorCodeSchema>;
 
+/** 对外返回的错误 wire shape；details 可承载诊断信息，但不改变主错误码。 */
 export const BridgeErrorSchema = z.object({
   code: BridgeErrorCodeSchema,
   message: z.string().min(1),
@@ -37,8 +43,10 @@ export const BridgeErrorSchema = z.object({
   nodeId: z.string().optional(),
   details: z.unknown().optional(),
 });
+/** 所有跨进程传递的标准错误结构。 */
 export type BridgeError = z.infer<typeof BridgeErrorSchema>;
 
+/** 在插件内部保留结构化错误，并在跨边界时转换为 BridgeError。 */
 export class BridgeFault extends Error {
   readonly bridgeError: BridgeError;
 
@@ -49,6 +57,7 @@ export class BridgeFault extends Error {
   }
 }
 
+/** 将任意异常归一化为不会泄漏实现细节的桥接错误。 */
 export function toBridgeError(value: unknown): BridgeError {
   if (value instanceof BridgeFault) return value.bridgeError;
   if (value instanceof Error) {
