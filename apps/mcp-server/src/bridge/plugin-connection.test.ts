@@ -37,6 +37,12 @@ describe('PluginConnectionBroker', () => {
     });
   });
 
+  it('documents the fixed-port conflict between two legacy server sessions', async () => {
+    const { config } = await startBroker();
+    const competingBroker = new PluginConnectionBroker(config);
+    await expect(competingBroker.start()).rejects.toMatchObject({ code: 'EADDRINUSE' });
+  });
+
   it('rejects an invalid secret and a second active plugin', async () => {
     const { url, secret } = await startBroker();
     await expect(FakePluginClient.connect(url, `${secret}-wrong`, () => ({}))).rejects.toThrow();
@@ -61,6 +67,7 @@ async function startBroker(): Promise<{
   broker: PluginConnectionBroker;
   url: string;
   secret: string;
+  config: ServerConfig;
 }> {
   // 使用随机空闲端口，使测试可以并行运行且不依赖默认桥接端口。
   const port = await freePort();
@@ -69,7 +76,7 @@ async function startBroker(): Promise<{
   const broker = new PluginConnectionBroker(config);
   openBrokers.push(broker);
   await broker.start();
-  return { broker, url: `ws://127.0.0.1:${port}`, secret };
+  return { broker, url: `ws://127.0.0.1:${port}`, secret, config };
 }
 
 async function freePort(): Promise<number> {
