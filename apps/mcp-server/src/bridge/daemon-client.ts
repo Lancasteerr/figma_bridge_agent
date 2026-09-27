@@ -229,8 +229,15 @@ export class DaemonBridgeClient implements BridgeTransport {
       }, this.#connectTimeoutMs);
 
       socket.on('message', (data) => {
+        if (this.#socket !== socket) return;
         const value = this.#parseJson(data);
         if (!this.#authenticated) {
+          if (this.#hasWrongDaemonProtocol(value)) {
+            this.#lastFailure = 'protocol-mismatch';
+            socket.close(4002, 'Daemon protocol mismatch');
+            finishError(new Error('Daemon protocol version is not supported.'));
+            return;
+          }
           const legacy = AuthChallengeSchema.safeParse(value);
           if (legacy.success) {
             this.#lastFailure = 'legacy';
@@ -286,6 +293,7 @@ export class DaemonBridgeClient implements BridgeTransport {
       });
       socket.once('error', (error) => {
         clearTimeout(timer);
+        if (this.#socket !== socket) return;
         if (this.#lastFailure !== 'legacy') {
           const code = 'code' in error ? String(error.code) : '';
           this.#lastFailure = code === 'ECONNREFUSED' ? 'stopped' : 'port-occupied';
@@ -294,13 +302,15 @@ export class DaemonBridgeClient implements BridgeTransport {
       });
       socket.once('unexpected-response', (_request, response) => {
         clearTimeout(timer);
+        if (this.#socket !== socket) return;
         this.#lastFailure = 'port-occupied';
         response.destroy();
         finishError(new Error('Bridge port returned a non-WebSocket response.'));
       });
       socket.once('close', () => {
         clearTimeout(timer);
-        if (this.#socket === socket) this.#socket = undefined;
+        if (this.#socket !== socket) return;
+        this.#socket = undefined;
         const wasAuthenticated = this.#authenticated;
         this.#authenticated = false;
         this.#state = undefined;
@@ -376,6 +386,18 @@ export class DaemonBridgeClient implements BridgeTransport {
       this.#lastFailure === 'legacy' ||
       this.#lastFailure === 'auth-failed' ||
       this.#lastFailure === 'protocol-mismatch'
+    );
+  }
+
+  #hasWrongDaemonProtocol(value: unknown): boolean {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      'type' in value &&
+      typeof value.type === 'string' &&
+      value.type.startsWith('daemon.auth.') &&
+      'protocolVersion' in value &&
+      value.protocolVersion !== BRIDGE_PROTOCOL_VERSION
     );
   }
 

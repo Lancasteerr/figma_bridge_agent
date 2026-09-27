@@ -3,6 +3,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import {
   BRIDGE_PROTOCOL_VERSION,
   DaemonAuthChallengeSchema,
+  DaemonAuthRejectedSchema,
   DaemonServerProofSchema,
   RpcResponseSchema,
 } from '@figma-agent/protocol';
@@ -58,6 +59,34 @@ describe('BridgeDaemon', () => {
     await expect(
       connectDaemonClient(daemon.port, 'wrong-secret-value-that-is-long-enough'),
     ).rejects.toThrow('Daemon authentication rejected');
+  });
+
+  it('reports a protocol mismatch during daemon client authentication', async () => {
+    const { daemon } = await startDaemon();
+    const socket = new WebSocket(`ws://127.0.0.1:${daemon.port}/mcp`);
+    sockets.push(socket);
+    const rejection = await new Promise<unknown>((resolve, reject) => {
+      socket.on('message', (data) => {
+        const value: unknown = JSON.parse(data.toString());
+        const challenge = DaemonAuthChallengeSchema.safeParse(value);
+        if (challenge.success) {
+          socket.send(
+            JSON.stringify({
+              type: 'daemon.auth.client-proof',
+              protocolVersion: 999,
+              daemonNonce: challenge.data.daemonNonce,
+              clientNonce: randomBytes(24).toString('base64url'),
+              proof: 'invalid-but-long-enough',
+              clientVersion: 'future-client',
+            }),
+          );
+          return;
+        }
+        if (DaemonAuthRejectedSchema.safeParse(value).success) resolve(value);
+      });
+      socket.once('error', reject);
+    });
+    expect(DaemonAuthRejectedSchema.parse(rejection).code).toBe('PROTOCOL_MISMATCH');
   });
 
   it('exits after the configured idle window', async () => {

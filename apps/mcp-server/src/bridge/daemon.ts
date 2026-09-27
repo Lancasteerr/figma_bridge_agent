@@ -173,7 +173,16 @@ export class BridgeDaemon {
     );
     socket.on('message', (data) => {
       if (authenticated) return;
-      const parsed = DaemonClientProofSchema.safeParse(this.#parseJson(data));
+      const value = this.#parseJson(data);
+      if (this.#hasWrongProtocol(value, 'daemon.auth.client-proof')) {
+        this.#rejectClient(
+          socket,
+          'PROTOCOL_MISMATCH',
+          'Daemon protocol version is not supported.',
+        );
+        return;
+      }
+      const parsed = DaemonClientProofSchema.safeParse(value);
       if (!parsed.success || parsed.data.daemonNonce !== daemonNonce) {
         this.#rejectClient(socket, 'AUTH_FAILED', 'Invalid daemon authentication response.');
         return;
@@ -322,6 +331,17 @@ export class BridgeDaemon {
     } catch {
       return undefined;
     }
+  }
+
+  #hasWrongProtocol(value: unknown, type: string): boolean {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      'type' in value &&
+      value.type === type &&
+      'protocolVersion' in value &&
+      value.protocolVersion !== BRIDGE_PROTOCOL_VERSION
+    );
   }
 
   async #closeWebSocketServer(server: WebSocketServer | undefined): Promise<void> {
