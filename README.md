@@ -47,6 +47,8 @@ Use `doctor` to check the configuration and fixed WebSocket port:
 node apps/mcp-server/dist/cli.js doctor
 ```
 
+The first MCP session automatically starts a singleton Bridge Daemon. Multiple local MCP hosts can share the same authenticated Figma plugin. Use `bridge status`, `bridge start`, or `bridge stop` for explicit lifecycle management.
+
 See [host configuration](docs/hosts.md), [architecture and safety](docs/architecture.md), and the [acceptance runbook](docs/acceptance.md).
 
 ## Tool surface
@@ -74,4 +76,4 @@ pnpm build
 
 ## Scope
 
-Version 0.1 supports one local MCP host, one active Figma plugin, and the current page of the current Design file. It does not expose arbitrary JavaScript, source-node writes, general deletion, instance detach, remote transport, OAuth, cloud sync, GRID/WRAP layout writes, or framework-specific code generation.
+Version 0.1 supports multiple local MCP host sessions, one active Figma plugin, and the current page of the current Design file. It does not expose arbitrary JavaScript, source-node writes, general deletion, instance detach, remote transport, OAuth, cloud sync, GRID/WRAP layout writes, or framework-specific code generation.

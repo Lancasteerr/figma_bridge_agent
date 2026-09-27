@@ -21,8 +21,10 @@ Do not continue acceptance if this gate fails.
 2. Call `figma_status`; confirm authenticated protocol v1, file/page metadata, and selection summary.
 3. Close the plugin and call it again; confirm `PLUGIN_NOT_CONNECTED` returns in about one second rather than hanging.
 4. Reopen the plugin and confirm automatic reconnection.
-5. Select the rough ArticleCard and call selection, node, tree, and render tools.
-6. Confirm the normalized tree plus image is sufficient to identify row/column relationships and the overlay.
+5. Open two additional Codex tasks. Confirm all three tasks discover the same 19 tools and can call `figma_status` through the same plugin.
+6. Close one task and confirm the other two remain connected. Run `bridge status` and confirm the client count changes without disconnecting the plugin.
+7. Select the rough ArticleCard and call selection, node, tree, and render tools.
+8. Confirm the normalized tree plus image is sufficient to identify row/column relationships and the overlay.
 
 ## 3. Primitive Proposal path
 

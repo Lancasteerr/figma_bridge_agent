@@ -5,10 +5,12 @@
 ## Process boundary
 
 ```text
-MCP host
-  ↕ stdio (stdout is MCP only)
-apps/mcp-server
-  ↕ authenticated ws://127.0.0.1:3900
+MCP hosts (Codex / Claude Code / Cursor)
+  ↕ independent stdio sessions (stdout is MCP only)
+per-session MCP adapters
+  ↕ authenticated ws://127.0.0.1:3900/mcp
+single Bridge Daemon
+  ↕ authenticated ws://127.0.0.1:3900/
 Figma plugin UI
   ↕ validated postMessage
 Figma plugin main
@@ -16,14 +18,16 @@ Figma plugin main
 current Design page
 ```
 
-`packages/protocol` owns transport-independent Zod schemas. The MCP server owns stdio, the loopback broker, temporary files, and diagnostics. Plugin UI owns authentication and reconnect behavior. Plugin main is the only process allowed to hold Figma objects.
+`packages/protocol` owns transport-independent Zod schemas. Each MCP adapter owns one stdio session and its temporary files. The automatically managed Bridge Daemon owns the loopback listener and multiplexes any number of authenticated MCP adapters onto one plugin connection. Plugin UI owns plugin-side authentication and reconnect behavior. Plugin main is the only process allowed to hold Figma objects.
+
+The first adapter starts the Daemon when needed. Closing one host only closes its adapter. The Daemon exits after both the last adapter and the plugin have been disconnected for 30 seconds.
 
 ## Trust boundaries
 
-- The WebSocket server binds only to `127.0.0.1` and permits one authenticated plugin.
-- Pairing uses fresh server and plugin nonces plus directional HMAC-SHA-256 proofs. The secret is never sent over the socket.
+- The WebSocket server binds only to `127.0.0.1`, permits one authenticated plugin, and accepts multiple authenticated MCP adapters on a separate path.
+- Plugin and MCP-client pairing use fresh nonces plus role- and direction-specific HMAC-SHA-256 proofs. Proofs cannot be replayed across roles, and the secret is never sent over the socket.
 - RPC envelopes and every UI/main message are schema-validated and size-limited.
-- Logs go to stderr and contain request ID, RPC method, duration, and outcome only. Secrets, image base64, and raw node JSON are excluded.
+- Adapter logs go to stderr. The detached Daemon writes a bounded `bridge.log` in the user configuration directory and retains one rotated file. Logs contain only request ID, RPC method, duration, and outcome; secrets, image base64, and raw node JSON are excluded.
 - Exported files go to an isolated directory under `%TEMP%/figma-agent-mcp/<session>/`, have sanitized names and SHA-256 metadata, and are removed at shutdown. Startup removes sessions older than 24 hours.
 
 ## Source immutability

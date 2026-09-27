@@ -67,6 +67,11 @@ Claude Code and Cursor examples express standard stdio MCP configuration, but v0
 ## Expected startup behavior
 
 - The MCP process owns stdout; diagnostic JSON is written to stderr.
-- The MCP server can start before the Figma plugin. Tool discovery still works, while calls return `PLUGIN_NOT_CONNECTED` promptly.
+- Each host gets its own stdio adapter. Adapters share one automatically started Bridge Daemon, so several Codex tasks or supported hosts can use the same plugin concurrently.
+- Tool discovery always succeeds. A missing Daemon returns retryable `BRIDGE_UNAVAILABLE`; a running Daemon without a plugin returns `PLUGIN_NOT_CONNECTED` promptly.
 - Only one plugin can authenticate. Starting a second plugin window returns `PLUGIN_ALREADY_CONNECTED`.
 - The plugin must remain open because its UI is the WebSocket-capable process.
+
+Use `node apps/mcp-server/dist/cli.js bridge status|start|stop` for explicit lifecycle management. `doctor` distinguishes a healthy Daemon, a stopped Daemon, a pre-Daemon legacy process, and an unrelated port owner.
+
+After upgrading from the single-process bridge, close old MCP tasks once so the legacy process releases port 3900, rebuild, and reopen the tasks. The host configuration command does not change.

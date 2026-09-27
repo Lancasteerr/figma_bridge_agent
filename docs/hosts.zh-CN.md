@@ -67,6 +67,11 @@ Claude Code 和 Cursor 示例采用标准 stdio MCP 配置，但 v0.1 版本的�
 ## 预期的启动行为
 
 - MCP 进程独占 stdout；诊断 JSON 会写入 stderr。
-- Figma 插件未启动时，MCP 服务器仍可先启动，工具发现仍然可用，但调用会快速返回 `PLUGIN_NOT_CONNECTED`。
+- 每个主机拥有独立的 stdio Adapter。所有 Adapter 共享自动启动的单例 Bridge Daemon，因此多个 Codex 任务或受支持主机可以并发使用同一插件。
+- 工具发现始终成功。Daemon 不可用时返回可重试的 `BRIDGE_UNAVAILABLE`；Daemon 已运行但插件未启动时快速返回 `PLUGIN_NOT_CONNECTED`。
 - 只有一个插件可以完成身份验证。启动第二个插件窗口会返回 `PLUGIN_ALREADY_CONNECTED`。
 - 插件必须保持打开，因为它的 UI 进程支持 WebSocket。
+
+可使用 `node apps/mcp-server/dist/cli.js bridge status|start|stop` 显式管理生命周期。`doctor` 会区分健康 Daemon、已停止 Daemon、升级前的旧版进程和无关端口占用者。
+
+从单进程桥接升级后，需要一次性关闭旧 MCP 任务以释放旧进程占用的 3900 端口，重新构建后再打开任务。主机配置命令无需修改。

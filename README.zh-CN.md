@@ -47,6 +47,8 @@ node E:/absolute/path/figma_bridge_agent/apps/mcp-server/dist/cli.js serve
 node apps/mcp-server/dist/cli.js doctor
 ```
 
+首个 MCP 会话会自动启动单例 Bridge Daemon。多个本地 MCP 主机可以共享同一个已认证 Figma 插件；也可使用 `bridge status`、`bridge start` 或 `bridge stop` 显式管理生命周期。
+
 参见[主机配置](docs/hosts.zh-CN.md)、[架构与安全](docs/architecture.zh-CN.md)以及[验收运行手册](docs/acceptance.zh-CN.md)。
 
 ## 工具列表
@@ -74,4 +76,4 @@ pnpm build
 
 ## 范围
 
-0.1 版本支持一个本地 MCP 主机、一个活动中的 Figma 插件，以及当前 Design 文件的当前页面。它不提供任意 JavaScript、源节点写入、通用删除、分离 Instance、远程传输、OAuth、云同步、GRID/WRAP 布局写入或特定框架的代码生成。
+0.1 版本支持多个本地 MCP 主机会话、一个活动中的 Figma 插件，以及当前 Design 文件的当前页面。它不提供任意 JavaScript、源节点写入、通用删除、分离 Instance、远程传输、OAuth、云同步、GRID/WRAP 布局写入或特定框架的代码生成。

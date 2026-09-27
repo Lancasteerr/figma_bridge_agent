@@ -21,8 +21,10 @@
 2. 调用 `figma_status`；确认协议 v1 已认证，并返回文件/页面元数据和选择摘要。
 3. 关闭插件并再次调用；确认约一秒内返回 `PLUGIN_NOT_CONNECTED`，而不是一直挂起。
 4. 重新打开插件，确认能够自动重连。
-5. 选择粗略的 ArticleCard，并调用 selection、node、tree 和 render 工具。
-6. 确认规范化树和图像足以识别行/列关系以及覆盖层。
+5. 再打开两个 Codex 任务，确认三个任务都发现相同的 19 个工具，并能通过同一插件调用 `figma_status`。
+6. 关闭其中一个任务，确认另两个任务仍保持连接。运行 `bridge status`，确认客户端数量变化且插件不断线。
+7. 选择粗略的 ArticleCard，并调用 selection、node、tree 和 render 工具。
+8. 确认规范化树和图像足以识别行/列关系以及覆盖层。
 
 ## 3. 基础 Proposal 路径
 
