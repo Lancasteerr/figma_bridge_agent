@@ -4,7 +4,7 @@ import { access } from 'node:fs/promises';
 import { BridgeDaemon } from './bridge/daemon.js';
 import { DaemonBridgeClient } from './bridge/daemon-client.js';
 import { DaemonLog } from './bridge/daemon-log.js';
-import { probeBridgePort } from './config/doctor.js';
+import { inspectBridge } from './config/doctor.js';
 import { defaultConfigPath, defaultDaemonLogPath } from './config/paths.js';
 import { createConfig, loadConfig } from './config/store.js';
 import { startServer } from './server.js';
@@ -23,14 +23,17 @@ async function doctor(): Promise<void> {
   const path = defaultConfigPath();
   await access(path);
   const config = await loadConfig(path);
-  const port = await probeBridgePort(config);
+  const diagnostic = await inspectBridge(config);
   console.log(
     JSON.stringify(
-      { configPath: path, host: config.host, port: config.port, portState: port },
+      { configPath: path, host: config.host, port: config.port, ...diagnostic },
       null,
       2,
     ),
   );
+  if (diagnostic.daemonState === 'legacy' || diagnostic.daemonState === 'port-occupied') {
+    process.exitCode = 1;
+  }
 }
 
 /** 启动 stdio MCP 服务和本地 WebSocket 桥接，并统一处理进程退出信号。 */

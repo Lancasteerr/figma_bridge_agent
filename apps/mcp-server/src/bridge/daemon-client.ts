@@ -170,7 +170,11 @@ export class DaemonBridgeClient implements BridgeTransport {
     this.#rejectPending();
     this.#authenticated = false;
     this.#state = undefined;
-    this.#socket?.close(1000, 'MCP client stopping');
+    if (this.#socket?.readyState === WebSocket.OPEN) {
+      this.#socket.close(1000, 'MCP client stopping');
+    } else {
+      this.#socket?.terminate();
+    }
     this.#socket = undefined;
   }
 
@@ -286,8 +290,17 @@ export class DaemonBridgeClient implements BridgeTransport {
       });
       socket.once('error', (error) => {
         clearTimeout(timer);
-        if (this.#lastFailure !== 'legacy') this.#lastFailure = 'stopped';
+        if (this.#lastFailure !== 'legacy') {
+          const code = 'code' in error ? String(error.code) : '';
+          this.#lastFailure = code === 'ECONNREFUSED' ? 'stopped' : 'port-occupied';
+        }
         finishError(error);
+      });
+      socket.once('unexpected-response', (_request, response) => {
+        clearTimeout(timer);
+        this.#lastFailure = 'port-occupied';
+        response.destroy();
+        finishError(new Error('Bridge port returned a non-WebSocket response.'));
       });
       socket.once('close', () => {
         clearTimeout(timer);
