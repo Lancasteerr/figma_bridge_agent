@@ -8,6 +8,7 @@ const workspaceRoot = resolve(root, '../..');
 const dist = resolve(root, 'dist');
 const watch = process.argv.includes('--watch');
 
+// dist 是可重复生成目录；manifest 使用本地 ID（若缺失则使用不可安装的占位 ID）。
 await mkdir(dist, { recursive: true });
 
 const baseManifest = JSON.parse(await readFile(resolve(root, 'manifest.base.json'), 'utf8'));
@@ -38,6 +39,7 @@ const uiOptions = {
   sourcemap: true,
 };
 
+/** 将 HTML 模板中的占位符替换为已打包的 UI 脚本。 */
 async function buildUiHtml() {
   const template = await readFile(resolve(root, 'src/ui/index.html'), 'utf8');
   const script = await readFile(resolve(dist, 'ui.js'), 'utf8');
@@ -48,6 +50,7 @@ async function buildUiHtml() {
 }
 
 if (watch) {
+  // watch 模式让 UI bundle 的 onEnd 钩子同步刷新 ui.html。
   const mainContext = await context(mainOptions);
   const uiContext = await context({
     ...uiOptions,

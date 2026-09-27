@@ -1,6 +1,7 @@
 import { MainToUiMessageSchema } from '../shared/messages.js';
 import { BridgeSocketClient } from './socket-client.js';
 
+// UI 只负责渲染状态和转发消息；所有 Figma 写操作仍由 Main 线程执行。
 const connection = document.querySelector<HTMLElement>('#connection');
 const page = document.querySelector<HTMLElement>('#page');
 const selection = document.querySelector<HTMLElement>('#selection');
@@ -12,6 +13,7 @@ const bridge = new BridgeSocketClient(
 );
 
 window.onmessage = (event: MessageEvent<unknown>) => {
+  // parent.postMessage 的内容不假定可信，先按 MainToUiMessage 做判别式校验。
   const parsed = MainToUiMessageSchema.safeParse(
     (event.data as { pluginMessage?: unknown }).pluginMessage,
   );

@@ -58,6 +58,7 @@
     </style>
   </head>
   <body>
+    <!-- 页面只提供轻量状态面板，UI 行为由构建阶段注入的 ui.js 接管。 -->
     <h1>Local Figma Agent Bridge</h1>
     <dl>
       <dt>Bridge</dt>
@@ -74,6 +75,7 @@
     </div>
     <div class="row"><button id="smoke">Duplicate selection (smoke test)</button></div>
     <div class="row"><button id="fixtures">Generate development fixtures</button></div>
+    <!-- 构建脚本把打包后的 ui.js 注入下面的占位符，源模板本身保持可读。 -->
     <!-- SCRIPT -->
   </body>
 </html>

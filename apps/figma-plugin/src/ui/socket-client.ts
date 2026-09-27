@@ -10,6 +10,9 @@ import { createPluginProof, createServerProof, equalProof, randomNonce } from '.
 
 type ConnectionState = 'disconnected' | 'connecting' | 'authenticated';
 
+/**
+ * UI 线程的 WebSocket 客户端：负责鉴权、重连和协议消息转发，不直接访问 Figma API。
+ */
 export class BridgeSocketClient {
   readonly #onState: (state: ConnectionState) => void;
   readonly #onRequest: (request: unknown) => void;
@@ -24,6 +27,7 @@ export class BridgeSocketClient {
     this.#onRequest = onRequest;
   }
 
+  /** 重新开始一代连接；generation 用于忽略旧 socket 的迟到 close 事件。 */
   start(secret: string): void {
     this.stop();
     this.#secret = secret;
@@ -31,6 +35,7 @@ export class BridgeSocketClient {
     if (secret) this.#connect(this.#generation);
   }
 
+  /** 取消重连计时器并关闭当前 socket。 */
   stop(): void {
     this.#generation += 1;
     if (this.#retryTimer !== undefined) window.clearTimeout(this.#retryTimer);
@@ -40,6 +45,7 @@ export class BridgeSocketClient {
     this.#onState('disconnected');
   }
 
+  /** 只有已认证的 OPEN socket 才发送响应，断线期间静默丢弃待发送消息。 */
   send(value: unknown): void {
     if (this.#socket?.readyState === WebSocket.OPEN) this.#socket.send(JSON.stringify(value));
   }
@@ -75,6 +81,7 @@ export class BridgeSocketClient {
           }
           const proof = AuthServerProofSchema.safeParse(value);
           if (proof.success) {
+            // 收到 server proof 后才切换为 authenticated，避免未完成双向鉴权就转发 RPC。
             const expected = await createServerProof(this.#secret, serverNonce, pluginNonce);
             if (!equalProof(proof.data.proof, expected)) {
               socket.close(4003, 'Server proof failed');
@@ -93,6 +100,7 @@ export class BridgeSocketClient {
         }
 
         const request = RpcRequestSchema.safeParse(value);
+        // 服务端发来的内容必须先过请求 schema，再交给 UI/Main 边界。
         if (request.success) this.#onRequest(request.data);
       })().catch(() => socket.close(4002, 'Invalid bridge message'));
     };
@@ -100,12 +108,14 @@ export class BridgeSocketClient {
     socket.onclose = () => {
       if (this.#socket === socket) this.#socket = undefined;
       this.#onState('disconnected');
+      // 只有当前 generation 且仍保留 secret 时才自动重连，stop() 不会被旧事件复活。
       if (this.#secret && generation === this.#generation) this.#scheduleReconnect(generation);
     };
     socket.onerror = () => socket.close();
   }
 
   #scheduleReconnect(generation: number): void {
+    // 指数退避加少量抖动，避免服务端重启时多个插件同时撞击端口。
     const base = Math.min(10_000, 500 * 2 ** this.#retry);
     this.#retry += 1;
     const delay = base + Math.floor(Math.random() * 250);
