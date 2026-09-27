@@ -31,6 +31,7 @@ const EXPECTED_TOOLS = [
   'figma_validate_layout_plan',
 ];
 
+// 该列表刻意形成 closed-world 契约：新增或误删工具都必须显式更新测试和文档。
 const servers: ReturnType<typeof createMcpServer>[] = [];
 
 afterEach(async () => {
@@ -49,6 +50,7 @@ describe('MCP tool contract', () => {
     servers.push(mcp);
     const tools = await listTools(mcp);
 
+    // 除名称外还检查 schema 和注解，防止工具虽然注册成功但失去客户端元数据。
     expect(tools.map((tool) => tool.name).sort()).toEqual(EXPECTED_TOOLS);
     expect(tools).toHaveLength(19);
     for (const tool of tools) {

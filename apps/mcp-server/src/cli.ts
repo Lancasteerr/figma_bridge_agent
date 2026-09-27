@@ -6,6 +6,7 @@ import { defaultConfigPath } from './config/paths.js';
 import { createConfig, loadConfig } from './config/store.js';
 import { startServer } from './server.js';
 
+/** 生成本地配置和一次性配对密钥，供用户粘贴到 Figma 插件。 */
 async function setup(): Promise<void> {
   const path = defaultConfigPath();
   const config = await createConfig(path);
@@ -14,6 +15,7 @@ async function setup(): Promise<void> {
   console.log(config.secret);
 }
 
+/** 检查配置是否可读，并探测桥接端口是否已被占用。 */
 async function doctor(): Promise<void> {
   const path = defaultConfigPath();
   await access(path);
@@ -28,6 +30,7 @@ async function doctor(): Promise<void> {
   );
 }
 
+/** 启动 stdio MCP 服务和本地 WebSocket 桥接，并统一处理进程退出信号。 */
 async function serve(): Promise<void> {
   const server = await startServer(await loadConfig());
   console.error(
@@ -41,6 +44,7 @@ async function serve(): Promise<void> {
   process.stdin.once('end', close);
 }
 
+/** CLI 只暴露 setup、doctor、serve 三个封闭命令。 */
 async function main(): Promise<void> {
   const command = process.argv[2];
   if (command === 'setup') await setup();

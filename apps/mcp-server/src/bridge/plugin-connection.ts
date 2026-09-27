@@ -17,6 +17,7 @@ import type { ServerConfig } from '../config/store.js';
 import { createPluginProof, createServerProof, verifyProof } from '../security/proof.js';
 
 interface PendingRequest {
+  /** 这些字段同时用于响应匹配、超时清理和脱敏诊断日志。 */
   id: string;
   method: string;
   startedAt: number;
@@ -26,6 +27,7 @@ interface PendingRequest {
 }
 
 export interface BrokerEvent {
+  /** 插件主动推送的事件只在认证后的连接上转发。 */
   event: string;
   sequence: number;
   payload: unknown;
@@ -43,19 +45,23 @@ export class PluginConnectionBroker {
     this.#config = config;
   }
 
+  /** 当前是否存在已经完成鉴权且仍处于 OPEN 状态的插件。 */
   get connected(): boolean {
     return this.#plugin?.readyState === WebSocket.OPEN;
   }
 
+  /** 最近一次认证成功的插件版本，未连接时返回 undefined。 */
   get pluginVersion(): string | undefined {
     return this.#pluginVersion;
   }
 
+  /** 注册事件监听器并返回可撤销的取消函数。 */
   onEvent(listener: (event: BrokerEvent) => void): () => void {
     this.#eventListeners.add(listener);
     return () => this.#eventListeners.delete(listener);
   }
 
+  /** 启动仅监听本机的 WebSocket 服务；重复启动保持幂等。 */
   async start(): Promise<void> {
     if (this.#server) return;
     const server = new WebSocketServer({
@@ -72,6 +78,7 @@ export class PluginConnectionBroker {
     });
   }
 
+  /** 先拒绝所有挂起 RPC，再关闭插件和 WebSocket server，避免 Promise 永久等待。 */
   async stop(): Promise<void> {
     this.#plugin?.close(1001, 'Server stopping');
     this.#rejectPending('PLUGIN_NOT_CONNECTED', 'Bridge server stopped');
@@ -81,6 +88,7 @@ export class PluginConnectionBroker {
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
 
+  /** 向唯一已认证插件发送 RPC，并把响应生命周期登记到 #pending。 */
   async request<T = unknown>(
     method: string,
     params?: unknown,
@@ -106,6 +114,7 @@ export class PluginConnectionBroker {
 
     return await new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
+        // 超时必须从 pending 移除，否则迟到响应会继续占用内存并产生错误日志。
         this.#pending.delete(id);
         this.#logRequest(id, method, Date.now() - startedAt, 'RPC_TIMEOUT');
         reject(
@@ -164,6 +173,7 @@ export class PluginConnectionBroker {
         return;
       }
       const expected = createPluginProof(this.#config.secret, serverNonce, parsed.data.pluginNonce);
+      // 只有 proof 校验成功后才把 socket 提升为可处理 RPC 的插件连接。
       if (!verifyProof(parsed.data.proof, expected)) {
         this.#rejectSocket(socket, 'AUTH_FAILED', 'Pairing secret is not valid.');
         return;
@@ -236,6 +246,7 @@ export class PluginConnectionBroker {
   }
 
   #rejectPending(code: 'PLUGIN_NOT_CONNECTED', message: string): void {
+    // 断线和停止服务都走同一条清理路径，保证每个请求只结算一次。
     for (const pending of this.#pending.values()) {
       clearTimeout(pending.timer);
       pending.reject(new BridgeFault({ code, message, retryable: true }));

@@ -9,6 +9,7 @@ import type { McpServer } from '@modelcontextprotocol/server';
 import type { PluginConnectionBroker } from '../bridge/plugin-connection.js';
 import { structuredResult, toolError } from './result.js';
 
+/** 注册布局计划的只读验证和长超时原子应用工具。 */
 export function registerLayoutTools(server: McpServer, broker: PluginConnectionBroker): void {
   server.registerTool(
     'figma_validate_layout_plan',

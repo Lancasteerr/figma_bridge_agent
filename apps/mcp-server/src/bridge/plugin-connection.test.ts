@@ -9,6 +9,7 @@ import { PluginConnectionBroker } from './plugin-connection.js';
 const openBrokers: PluginConnectionBroker[] = [];
 const openClients: FakePluginClient[] = [];
 
+// 每个测试都可能创建真实 TCP/WebSocket 资源，统一在测试后关闭以避免端口泄漏。
 afterEach(async () => {
   for (const client of openClients.splice(0)) client.close();
   for (const broker of openBrokers.splice(0)) await broker.stop();
@@ -61,6 +62,7 @@ async function startBroker(): Promise<{
   url: string;
   secret: string;
 }> {
+  // 使用随机空闲端口，使测试可以并行运行且不依赖默认桥接端口。
   const port = await freePort();
   const secret = Buffer.alloc(32, 11).toString('base64url');
   const config: ServerConfig = { version: 1, host: '127.0.0.1', port, secret };

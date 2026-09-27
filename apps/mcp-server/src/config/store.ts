@@ -13,8 +13,10 @@ const ServerConfigSchema = z.object({
   host: z.literal(DEFAULT_BRIDGE_HOST),
   port: z.number().int().positive().max(65_535),
 });
+/** 经过校验的本地服务配置；host 固定为 loopback，secret 只用于本机配对。 */
 export type ServerConfig = z.infer<typeof ServerConfigSchema>;
 
+/** 创建随机 256-bit 配对密钥，并尽量以仅用户可读权限保存配置。 */
 export async function createConfig(path = defaultConfigPath()): Promise<ServerConfig> {
   const config: ServerConfig = {
     version: 1,
@@ -28,6 +30,7 @@ export async function createConfig(path = defaultConfigPath()): Promise<ServerCo
   return config;
 }
 
+/** 读取并校验配置，避免无效端口或短密钥进入桥接服务。 */
 export async function loadConfig(path = defaultConfigPath()): Promise<ServerConfig> {
   const raw = await readFile(path, 'utf8');
   return ServerConfigSchema.parse(JSON.parse(raw));

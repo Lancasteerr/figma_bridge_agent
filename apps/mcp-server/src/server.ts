@@ -10,11 +10,13 @@ import { registerMutationTools } from './mcp/register-mutation-tools.js';
 import { registerStatusTool } from './mcp/register-status.js';
 import { TempAssetStore } from './temp/asset-store.js';
 
+/** MCP server 运行期间需要同时关闭 stdio、桥接和临时资源。 */
 export interface RunningServer {
   broker: PluginConnectionBroker;
   close(): Promise<void>;
 }
 
+/** 创建 MCP 工具集合；工具按读、媒体、Proposal 写入和布局计划分组注册。 */
 export function createMcpServer(broker: PluginConnectionBroker, assets: TempAssetStore): McpServer {
   const server = new McpServer({ name: 'figma-local-agent', version: '0.1.0' });
   registerStatusTool(server, broker);
@@ -25,6 +27,7 @@ export function createMcpServer(broker: PluginConnectionBroker, assets: TempAsse
   return server;
 }
 
+/** 按依赖顺序初始化资源：临时目录、WebSocket broker，最后才接收 stdio MCP 请求。 */
 export async function startServer(config: ServerConfig): Promise<RunningServer> {
   const broker = new PluginConnectionBroker(config);
   const assets = new TempAssetStore();

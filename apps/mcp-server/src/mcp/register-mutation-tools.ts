@@ -17,6 +17,7 @@ import type { McpServer } from '@modelcontextprotocol/server';
 import type { PluginConnectionBroker } from '../bridge/plugin-connection.js';
 import { structuredResult, toolError } from './result.js';
 
+/** 注册所有 Proposal 内部写操作，并为每个工具声明输入、输出和 destructive hints。 */
 export function registerMutationTools(server: McpServer, broker: PluginConnectionBroker): void {
   server.registerTool(
     'figma_duplicate_as_proposal',

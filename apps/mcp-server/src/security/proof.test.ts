@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { createPluginProof, createServerProof, verifyProof } from './proof.js';
 
 describe('mutual authentication proofs', () => {
+  // 测试同时覆盖方向隔离、nonce/secret 绑定和 Web Crypto 兼容的 key 解码。
   const secret = Buffer.alloc(32, 7).toString('base64url');
   const serverNonce = 'server-nonce-123456';
   const pluginNonce = 'plugin-nonce-123456';
