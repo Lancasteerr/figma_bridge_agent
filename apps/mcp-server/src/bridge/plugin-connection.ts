@@ -30,6 +30,7 @@ export class PluginConnectionBroker implements BridgeTransport {
   readonly #config: ServerConfig;
   readonly #pending = new Map<string, PendingRequest>();
   readonly #eventListeners = new Set<(event: BridgeEvent) => void>();
+  readonly #stateListeners = new Set<() => void>();
   #plugin: WebSocket | undefined;
   #pluginVersion: string | undefined;
 
@@ -47,10 +48,21 @@ export class PluginConnectionBroker implements BridgeTransport {
     return this.#pluginVersion;
   }
 
+  /** Daemon 用该计数决定是否仍有必须等待的插件调用。 */
+  get pendingCount(): number {
+    return this.#pending.size;
+  }
+
   /** 注册事件监听器并返回可撤销的取消函数。 */
   onEvent(listener: (event: BridgeEvent) => void): () => void {
     this.#eventListeners.add(listener);
     return () => this.#eventListeners.delete(listener);
+  }
+
+  /** 插件连接和 pending 数量变化时通知 Daemon 刷新状态与空闲计时。 */
+  onStateChange(listener: () => void): () => void {
+    this.#stateListeners.add(listener);
+    return () => this.#stateListeners.delete(listener);
   }
 
   /** Gateway 接受连接后交给 Broker 完成挑战、鉴权和升级。 */
@@ -64,6 +76,7 @@ export class PluginConnectionBroker implements BridgeTransport {
     this.#plugin = undefined;
     this.#pluginVersion = undefined;
     this.#rejectPending('PLUGIN_NOT_CONNECTED', 'Bridge server stopped');
+    this.#notifyState();
   }
 
   /** 与抽象 BridgeTransport 对齐；旧调用仍可继续使用 stop。 */
@@ -99,6 +112,7 @@ export class PluginConnectionBroker implements BridgeTransport {
       const timer = setTimeout(() => {
         // 超时必须从 pending 移除，否则迟到响应会继续占用内存并产生错误日志。
         this.#pending.delete(id);
+        this.#notifyState();
         this.#logRequest(id, method, Date.now() - startedAt, 'RPC_TIMEOUT');
         reject(
           new BridgeFault({
@@ -117,12 +131,14 @@ export class PluginConnectionBroker implements BridgeTransport {
         reject,
         timer,
       });
+      this.#notifyState();
       socket.send(JSON.stringify(request), (error) => {
         if (!error) return;
         const pending = this.#pending.get(id);
         if (!pending) return;
         clearTimeout(pending.timer);
         this.#pending.delete(id);
+        this.#notifyState();
         reject(error);
       });
     });
@@ -166,6 +182,7 @@ export class PluginConnectionBroker implements BridgeTransport {
       authenticated = true;
       this.#plugin = socket;
       this.#pluginVersion = parsed.data.pluginVersion;
+      this.#notifyState();
       socket.send(
         JSON.stringify({
           type: 'auth.server-proof',
@@ -183,6 +200,7 @@ export class PluginConnectionBroker implements BridgeTransport {
         this.#plugin = undefined;
         this.#pluginVersion = undefined;
         this.#rejectPending('PLUGIN_NOT_CONNECTED', 'Figma plugin disconnected.');
+        this.#notifyState();
       }
     });
   }
@@ -205,6 +223,7 @@ export class PluginConnectionBroker implements BridgeTransport {
     if (!pending) return;
     clearTimeout(pending.timer);
     this.#pending.delete(response.id);
+    this.#notifyState();
     if (response.ok) {
       this.#logRequest(pending.id, pending.method, Date.now() - pending.startedAt, 'OK');
       pending.resolve(response.result);
@@ -235,6 +254,11 @@ export class PluginConnectionBroker implements BridgeTransport {
       pending.reject(new BridgeFault({ code, message, retryable: true }));
     }
     this.#pending.clear();
+    this.#notifyState();
+  }
+
+  #notifyState(): void {
+    for (const listener of this.#stateListeners) listener();
   }
 
   #logRequest(id: string, method: string, durationMs: number, outcome: string): void {
