@@ -38,9 +38,10 @@ window.onmessage = (event: MessageEvent<unknown>) => {
 };
 
 document.querySelector('#save-secret')?.addEventListener('click', () => {
-  if (secret?.value) {
-    parent.postMessage({ pluginMessage: { type: 'save-secret', secret: secret.value } }, '*');
-    bridge.start(secret.value);
+  const value = secret?.value.trim();
+  if (value) {
+    // 由 Main 持久化后回传 client-secret，再统一启动连接，避免同一密钥并发创建两个 socket。
+    parent.postMessage({ pluginMessage: { type: 'save-secret', secret: value } }, '*');
   }
 });
 

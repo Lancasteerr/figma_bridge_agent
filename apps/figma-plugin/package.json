@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@figma-agent/protocol": "workspace:*",
+    "@noble/hashes": "^2.4.0",
     "zod": "^4.1.11"
   },
   "devDependencies": {

@@ -10,6 +10,9 @@ import { createPluginProof, createServerProof, equalProof, randomNonce } from '.
 
 type ConnectionState = 'disconnected' | 'connecting' | 'authenticated';
 
+// Figma 的 manifest 仅接受 localhost 作为本地开发域名；它会解析到服务端绑定的回环地址。
+const BRIDGE_URL = 'ws://localhost:3900';
+
 /**
  * UI 线程的 WebSocket 客户端：负责鉴权、重连和协议消息转发，不直接访问 Figma API。
  */
@@ -29,10 +32,19 @@ export class BridgeSocketClient {
 
   /** 重新开始一代连接；generation 用于忽略旧 socket 的迟到 close 事件。 */
   start(secret: string): void {
+    const normalizedSecret = secret.trim();
+    // Main 保存密钥后会回传一次；相同密钥已有活动连接时保持幂等，避免双连接竞态。
+    if (
+      normalizedSecret === this.#secret &&
+      (this.#socket?.readyState === WebSocket.CONNECTING ||
+        this.#socket?.readyState === WebSocket.OPEN)
+    ) {
+      return;
+    }
     this.stop();
-    this.#secret = secret;
+    this.#secret = normalizedSecret;
     this.#generation += 1;
-    if (secret) this.#connect(this.#generation);
+    if (normalizedSecret) this.#connect(this.#generation);
   }
 
   /** 取消重连计时器并关闭当前 socket。 */
@@ -53,7 +65,7 @@ export class BridgeSocketClient {
   #connect(generation: number): void {
     if (generation !== this.#generation) return;
     this.#onState('connecting');
-    const socket = new WebSocket('ws://localhost:3900');
+    const socket = new WebSocket(BRIDGE_URL);
     this.#socket = socket;
     let authenticated = false;
     let serverNonce = '';
@@ -92,9 +104,12 @@ export class BridgeSocketClient {
             this.#onState('authenticated');
             return;
           }
-          if (AuthRejectedSchema.safeParse(value).success) {
-            this.#secret = '';
-            socket.close(4003, 'Authentication rejected');
+          const rejection = AuthRejectedSchema.safeParse(value);
+          if (rejection.success) {
+            console.error(`[Figma bridge] ${rejection.data.code}: ${rejection.data.message}`);
+            // 只有临时的连接占用值得重试；错误密钥和协议不兼容都需要用户处理。
+            if (rejection.data.code !== 'PLUGIN_ALREADY_CONNECTED') this.#secret = '';
+            socket.close(4003, rejection.data.code);
           }
           return;
         }
@@ -102,16 +117,28 @@ export class BridgeSocketClient {
         const request = RpcRequestSchema.safeParse(value);
         // 服务端发来的内容必须先过请求 schema，再交给 UI/Main 边界。
         if (request.success) this.#onRequest(request.data);
-      })().catch(() => socket.close(4002, 'Invalid bridge message'));
+      })().catch((error: unknown) => {
+        console.error('[Figma bridge] Failed to process bridge message.', error);
+        socket.close(4002, 'Invalid bridge message');
+      });
     };
 
-    socket.onclose = () => {
-      if (this.#socket === socket) this.#socket = undefined;
+    socket.onclose = (event) => {
+      // 已被新一代连接替换的 socket 不得覆盖新连接的 UI 状态或启动额外重连。
+      if (generation !== this.#generation || this.#socket !== socket) return;
+      this.#socket = undefined;
+      if (event.code !== 1000 && event.code !== 1001) {
+        console.warn(
+          `[Figma bridge] WebSocket closed (${event.code || 'no-code'}): ${event.reason || 'no reason'}`,
+        );
+      }
       this.#onState('disconnected');
-      // 只有当前 generation 且仍保留 secret 时才自动重连，stop() 不会被旧事件复活。
-      if (this.#secret && generation === this.#generation) this.#scheduleReconnect(generation);
+      if (this.#secret) this.#scheduleReconnect(generation);
     };
-    socket.onerror = () => socket.close();
+    socket.onerror = (event) => {
+      console.error('[Figma bridge] WebSocket transport error.', event);
+      socket.close();
+    };
   }
 
   #scheduleReconnect(generation: number): void {

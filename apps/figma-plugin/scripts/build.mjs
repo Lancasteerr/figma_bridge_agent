@@ -38,7 +38,8 @@ const uiOptions = {
   format: 'iife',
   target: 'es2022',
   platform: 'browser',
-  sourcemap: true,
+  // UI bundle 会被内联进 ui.html；不写 sourceMappingURL，避免 Figma 将相对 map 地址解析到设计页域名。
+  sourcemap: 'external',
   // UI bundle 也需要移除可能触发 Figma 动态导入检查的注释。
   minifyWhitespace: true,
 };
@@ -49,7 +50,8 @@ async function buildUiHtml() {
   const script = await readFile(resolve(dist, 'ui.js'), 'utf8');
   await writeFile(
     resolve(dist, 'ui.html'),
-    template.replace('<!-- SCRIPT -->', `<script>${script}</script>`),
+    // 使用替换回调，避免 bundle 中的 `$&`、`$'` 等字符被 String.replace 误解释。
+    template.replace('<!-- SCRIPT -->', () => `<script>${script}</script>`),
   );
 }
 
