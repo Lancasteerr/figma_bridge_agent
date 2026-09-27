@@ -27,6 +27,8 @@ const mainOptions = {
   target: 'es2022',
   platform: 'browser',
   sourcemap: true,
+  // Figma 运行时会误将依赖注释中的 import() 识别为动态导入；压缩空白会移除这类注释。
+  minifyWhitespace: true,
 };
 
 const uiOptions = {
@@ -37,6 +39,8 @@ const uiOptions = {
   target: 'es2022',
   platform: 'browser',
   sourcemap: true,
+  // UI bundle 也需要移除可能触发 Figma 动态导入检查的注释。
+  minifyWhitespace: true,
 };
 
 /** 将 HTML 模板中的占位符替换为已打包的 UI 脚本。 */

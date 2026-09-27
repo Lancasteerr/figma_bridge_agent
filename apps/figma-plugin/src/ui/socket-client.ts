@@ -53,7 +53,7 @@ export class BridgeSocketClient {
   #connect(generation: number): void {
     if (generation !== this.#generation) return;
     this.#onState('connecting');
-    const socket = new WebSocket('ws://127.0.0.1:3900');
+    const socket = new WebSocket('ws://localhost:3900');
     this.#socket = socket;
     let authenticated = false;
     let serverNonce = '';

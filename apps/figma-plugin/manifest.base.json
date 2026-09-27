@@ -7,6 +7,6 @@
   "documentAccess": "dynamic-page",
   "networkAccess": {
     "allowedDomains": ["none"],
-    "devAllowedDomains": ["ws://127.0.0.1:3900"]
+    "devAllowedDomains": ["ws://localhost:3900"]
   }
 }
