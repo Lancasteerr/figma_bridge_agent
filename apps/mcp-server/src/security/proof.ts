@@ -2,6 +2,8 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 const PLUGIN_CONTEXT = 'figma-agent/plugin/v1';
 const SERVER_CONTEXT = 'figma-agent/server/v1';
+const DAEMON_CLIENT_CONTEXT = 'figma-agent/daemon-client/v1';
+const DAEMON_SERVER_CONTEXT = 'figma-agent/daemon-server/v1';
 
 /** secret 以 base64url 保存，解码后作为 HMAC-SHA256 的 256-bit key 使用。 */
 function hmac(secret: string, value: string): string {
@@ -24,6 +26,24 @@ export function createServerProof(
   pluginNonce: string,
 ): string {
   return hmac(secret, `${SERVER_CONTEXT}|${serverNonce}|${pluginNonce}`);
+}
+
+/** MCP 客户端到 Daemon 的 proof 与插件 proof 做域分离，禁止跨角色复用。 */
+export function createDaemonClientProof(
+  secret: string,
+  daemonNonce: string,
+  clientNonce: string,
+): string {
+  return hmac(secret, `${DAEMON_CLIENT_CONTEXT}|${daemonNonce}|${clientNonce}`);
+}
+
+/** Daemon 返回独立方向的 proof，供本机 MCP 客户端确认服务身份。 */
+export function createDaemonServerProof(
+  secret: string,
+  daemonNonce: string,
+  clientNonce: string,
+): string {
+  return hmac(secret, `${DAEMON_SERVER_CONTEXT}|${daemonNonce}|${clientNonce}`);
 }
 
 /** 先比较长度再使用 timingSafeEqual，避免不同长度输入触发异常。 */

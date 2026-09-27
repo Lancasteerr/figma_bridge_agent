@@ -5,6 +5,7 @@ import { z } from 'zod';
  * retryable 不由调用方猜测，而由产生错误的一侧明确声明。
  */
 export const bridgeErrorCodes = [
+  'BRIDGE_UNAVAILABLE',
   'PLUGIN_NOT_CONNECTED',
   'AUTH_REQUIRED',
   'AUTH_FAILED',

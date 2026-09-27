@@ -2,7 +2,13 @@ import { createHmac } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
-import { createPluginProof, createServerProof, verifyProof } from './proof.js';
+import {
+  createDaemonClientProof,
+  createDaemonServerProof,
+  createPluginProof,
+  createServerProof,
+  verifyProof,
+} from './proof.js';
 
 describe('mutual authentication proofs', () => {
   // 测试同时覆盖方向隔离、nonce/secret 绑定和 Web Crypto 兼容的 key 解码。
@@ -15,6 +21,13 @@ describe('mutual authentication proofs', () => {
     const server = createServerProof(secret, serverNonce, pluginNonce);
     expect(plugin).not.toBe(server);
     expect(verifyProof(plugin, createPluginProof(secret, serverNonce, pluginNonce))).toBe(true);
+  });
+
+  it('separates daemon client proofs from plugin proofs and server proofs', () => {
+    const plugin = createPluginProof(secret, serverNonce, pluginNonce);
+    const daemonClient = createDaemonClientProof(secret, serverNonce, pluginNonce);
+    const daemonServer = createDaemonServerProof(secret, serverNonce, pluginNonce);
+    expect(new Set([plugin, daemonClient, daemonServer]).size).toBe(3);
   });
 
   it('rejects a changed nonce or secret', () => {
