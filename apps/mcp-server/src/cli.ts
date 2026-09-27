@@ -115,8 +115,7 @@ async function main(): Promise<void> {
   else if (command === 'bridge-run') await bridgeRun();
   else if (command === 'bridge' && ['start', 'status', 'stop'].includes(process.argv[3] ?? '')) {
     await bridge(process.argv[3]);
-  }
-  else {
+  } else {
     console.error('Usage: figma-agent-mcp <setup|doctor|serve|bridge start|status|stop>');
     process.exitCode = 2;
   }

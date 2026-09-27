@@ -197,11 +197,7 @@ export class BridgeDaemon {
           protocolVersion: BRIDGE_PROTOCOL_VERSION,
           daemonNonce,
           clientNonce: parsed.data.clientNonce,
-          proof: createDaemonServerProof(
-            this.#config.secret,
-            daemonNonce,
-            parsed.data.clientNonce,
-          ),
+          proof: createDaemonServerProof(this.#config.secret, daemonNonce, parsed.data.clientNonce),
         }),
       );
       socket.send(JSON.stringify(this.state));
@@ -266,8 +262,15 @@ export class BridgeDaemon {
   }
 
   #statusResult(): Omit<DaemonState, 'type'> {
-    const { type: _type, ...status } = this.state;
-    return status;
+    const state = this.state;
+    return {
+      protocolVersion: state.protocolVersion,
+      pid: state.pid,
+      clientCount: state.clientCount,
+      pluginConnected: state.pluginConnected,
+      ...(state.pluginVersion ? { pluginVersion: state.pluginVersion } : {}),
+      pendingCount: state.pendingCount,
+    };
   }
 
   #sendSuccess(socket: WebSocket, id: string, result: unknown): void {

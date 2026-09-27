@@ -17,7 +17,9 @@ export class DaemonLog {
 
   async initialize(): Promise<void> {
     await mkdir(dirname(this.#path), { recursive: true });
-    this.#bytes = await stat(this.#path).then((value) => value.size).catch(() => 0);
+    this.#bytes = await stat(this.#path)
+      .then((value) => value.size)
+      .catch(() => 0);
     if (this.#bytes >= this.#maxBytes) await this.#rotate();
   }
 

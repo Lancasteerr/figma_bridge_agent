@@ -1,5 +1,5 @@
 import { MAX_RPC_MESSAGE_BYTES } from '@figma-agent/protocol';
-import { WebSocket, WebSocketServer } from 'ws';
+import { WebSocketServer, type WebSocket } from 'ws';
 
 import type { ServerConfig } from '../config/store.js';
 import type { PluginConnectionBroker } from './plugin-connection.js';

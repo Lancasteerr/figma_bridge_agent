@@ -55,9 +55,9 @@ describe('BridgeDaemon', () => {
 
   it('rejects a daemon client with the wrong secret', async () => {
     const { daemon } = await startDaemon();
-    await expect(connectDaemonClient(daemon.port, 'wrong-secret-value-that-is-long-enough')).rejects.toThrow(
-      'Daemon authentication rejected',
-    );
+    await expect(
+      connectDaemonClient(daemon.port, 'wrong-secret-value-that-is-long-enough'),
+    ).rejects.toThrow('Daemon authentication rejected');
   });
 
   it('exits after the configured idle window', async () => {
@@ -86,7 +86,12 @@ async function connectDaemonClient(port: number, secret: string): Promise<WebSoc
     let clientNonce = '';
     socket.on('message', (data) => {
       const value: unknown = JSON.parse(data.toString());
-      if (typeof value === 'object' && value && 'type' in value && value.type === 'daemon.auth.rejected') {
+      if (
+        typeof value === 'object' &&
+        value &&
+        'type' in value &&
+        value.type === 'daemon.auth.rejected'
+      ) {
         reject(new Error('Daemon authentication rejected'));
         return;
       }
@@ -108,7 +113,9 @@ async function connectDaemonClient(port: number, secret: string): Promise<WebSoc
       }
       const proof = DaemonServerProofSchema.safeParse(value);
       if (proof.success) {
-        if (!verifyProof(proof.data.proof, createDaemonServerProof(secret, daemonNonce, clientNonce))) {
+        if (
+          !verifyProof(proof.data.proof, createDaemonServerProof(secret, daemonNonce, clientNonce))
+        ) {
           reject(new Error('Daemon server proof did not match'));
           return;
         }

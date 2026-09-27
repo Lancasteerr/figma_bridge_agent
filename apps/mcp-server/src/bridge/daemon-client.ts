@@ -32,11 +32,7 @@ interface PendingRequest {
 }
 
 export type DaemonFailureKind =
-  | 'stopped'
-  | 'legacy'
-  | 'port-occupied'
-  | 'auth-failed'
-  | 'protocol-mismatch';
+  'stopped' | 'legacy' | 'port-occupied' | 'auth-failed' | 'protocol-mismatch';
 
 export interface DaemonBridgeClientOptions {
   autoStart?: boolean;
