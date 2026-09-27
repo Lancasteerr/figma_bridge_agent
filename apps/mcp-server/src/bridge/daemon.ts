@@ -54,10 +54,10 @@ export class BridgeDaemon {
 
   constructor(config: ServerConfig, options: BridgeDaemonOptions = {}) {
     this.#config = config;
-    this.#broker = new PluginConnectionBroker(config);
     this.#idleTimeoutMs = options.idleTimeoutMs ?? 30_000;
     this.#stopTimeoutMs = options.stopTimeoutMs ?? 5_000;
     this.#log = options.log ?? (() => undefined);
+    this.#broker = new PluginConnectionBroker(config, (entry) => this.#log(entry));
     this.#broker.onStateChange(() => this.#stateChanged());
     this.#broker.onEvent((event) => {
       this.#broadcast({ version: BRIDGE_PROTOCOL_VERSION, ...event });

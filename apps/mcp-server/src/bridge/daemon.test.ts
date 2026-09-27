@@ -31,7 +31,7 @@ afterEach(async () => {
 
 describe('BridgeDaemon', () => {
   it('routes requests for multiple MCP clients through one plugin connection', async () => {
-    const { daemon, secret } = await startDaemon();
+    const { daemon, secret, logs } = await startDaemon();
     const plugin = await FakePluginClient.connect(
       `ws://127.0.0.1:${daemon.port}`,
       secret,
@@ -52,6 +52,7 @@ describe('BridgeDaemon', () => {
 
     first.close();
     await expect(call(second, 'still-alive')).resolves.toEqual({ method: 'still-alive' });
+    expect(logs.filter((entry) => entry.event === 'figma_rpc')).toHaveLength(3);
   });
 
   it('rejects a daemon client with the wrong secret', async () => {
@@ -98,13 +99,15 @@ describe('BridgeDaemon', () => {
 async function startDaemon(idleTimeoutMs = 5_000): Promise<{
   daemon: BridgeDaemon;
   secret: string;
+  logs: Array<Record<string, unknown>>;
 }> {
   const secret = Buffer.alloc(32, 13).toString('base64url');
   const config: ServerConfig = { version: 1, host: '127.0.0.1', port: 0, secret };
-  const daemon = new BridgeDaemon(config, { idleTimeoutMs });
+  const logs: Array<Record<string, unknown>> = [];
+  const daemon = new BridgeDaemon(config, { idleTimeoutMs, log: (entry) => logs.push(entry) });
   daemons.push(daemon);
   await daemon.start();
-  return { daemon, secret };
+  return { daemon, secret, logs };
 }
 
 async function connectDaemonClient(port: number, secret: string): Promise<WebSocket> {

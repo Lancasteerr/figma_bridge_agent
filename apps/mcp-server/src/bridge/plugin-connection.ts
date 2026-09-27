@@ -28,14 +28,19 @@ interface PendingRequest {
 
 export class PluginConnectionBroker implements BridgeTransport {
   readonly #config: ServerConfig;
+  readonly #log: (entry: Record<string, unknown>) => void;
   readonly #pending = new Map<string, PendingRequest>();
   readonly #eventListeners = new Set<(event: BridgeEvent) => void>();
   readonly #stateListeners = new Set<() => void>();
   #plugin: WebSocket | undefined;
   #pluginVersion: string | undefined;
 
-  constructor(config: ServerConfig) {
+  constructor(
+    config: ServerConfig,
+    log: (entry: Record<string, unknown>) => void = (entry) => console.error(JSON.stringify(entry)),
+  ) {
     this.#config = config;
+    this.#log = log;
   }
 
   /** 当前是否存在已经完成鉴权且仍处于 OPEN 状态的插件。 */
@@ -262,16 +267,14 @@ export class PluginConnectionBroker implements BridgeTransport {
   }
 
   #logRequest(id: string, method: string, durationMs: number, outcome: string): void {
-    console.error(
-      JSON.stringify({
-        level: outcome === 'OK' ? 'info' : 'warn',
-        event: 'figma_rpc',
-        requestId: id,
-        method,
-        durationMs,
-        outcome,
-      }),
-    );
+    this.#log({
+      level: outcome === 'OK' ? 'info' : 'warn',
+      event: 'figma_rpc',
+      requestId: id,
+      method,
+      durationMs,
+      outcome,
+    });
   }
 
   #parseJson(data: RawData): unknown {
