@@ -10,3 +10,4 @@ manifest.local.json
 .env.*
 !.env.example
 .idea/
+/AGENTS.md
