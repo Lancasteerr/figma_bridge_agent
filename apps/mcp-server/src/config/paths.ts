@@ -16,3 +16,8 @@ export function defaultConfigDirectory(env: NodeJS.ProcessEnv = process.env): st
 export function defaultConfigPath(env: NodeJS.ProcessEnv = process.env): string {
   return join(defaultConfigDirectory(env), 'config.json');
 }
+
+/** 后台 Daemon 的结构化诊断日志与配置放在同一用户级目录。 */
+export function defaultDaemonLogPath(env: NodeJS.ProcessEnv = process.env): string {
+  return join(defaultConfigDirectory(env), 'bridge.log');
+}
