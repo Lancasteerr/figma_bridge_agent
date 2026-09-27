@@ -6,7 +6,7 @@ import {
 } from '@figma-agent/protocol';
 import type { McpServer } from '@modelcontextprotocol/server';
 
-import type { PluginConnectionBroker } from '../bridge/plugin-connection.js';
+import type { BridgeTransport } from '../bridge/transport.js';
 import type { TempAssetStore } from '../temp/asset-store.js';
 import { sanitizeName } from '../temp/asset-store.js';
 import { toolError } from './result.js';
@@ -14,7 +14,7 @@ import { toolError } from './result.js';
 /** 注册导出和渲染工具；媒体结果统一落到临时资源目录，不写入用户项目。 */
 export function registerMediaTools(
   server: McpServer,
-  broker: PluginConnectionBroker,
+  broker: BridgeTransport,
   assets: TempAssetStore,
 ): void {
   server.registerTool(

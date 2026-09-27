@@ -2,11 +2,11 @@ import { StatusResultSchema } from '@figma-agent/protocol';
 import type { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 
-import type { PluginConnectionBroker } from '../bridge/plugin-connection.js';
+import type { BridgeTransport } from '../bridge/transport.js';
 import { structuredResult, toolError } from './result.js';
 
 /** 注册只读状态工具，作为 MCP 侧判断桥接是否可用的入口。 */
-export function registerStatusTool(server: McpServer, broker: PluginConnectionBroker): void {
+export function registerStatusTool(server: McpServer, broker: BridgeTransport): void {
   server.registerTool(
     'figma_status',
     {

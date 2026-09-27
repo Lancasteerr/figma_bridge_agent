@@ -14,11 +14,11 @@ import {
 } from '@figma-agent/protocol';
 import type { McpServer } from '@modelcontextprotocol/server';
 
-import type { PluginConnectionBroker } from '../bridge/plugin-connection.js';
+import type { BridgeTransport } from '../bridge/transport.js';
 import { structuredResult, toolError } from './result.js';
 
 /** 注册节点、树、变量、CSS 和原始 JSON 等只读工具。 */
-export function registerReadTools(server: McpServer, broker: PluginConnectionBroker): void {
+export function registerReadTools(server: McpServer, broker: BridgeTransport): void {
   server.registerTool(
     'figma_get_raw_node',
     {

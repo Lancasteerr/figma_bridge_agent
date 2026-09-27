@@ -15,6 +15,7 @@ import { WebSocket, WebSocketServer, type RawData } from 'ws';
 
 import type { ServerConfig } from '../config/store.js';
 import { createPluginProof, createServerProof, verifyProof } from '../security/proof.js';
+import type { BridgeEvent, BridgeTransport } from './transport.js';
 
 interface PendingRequest {
   /** 这些字段同时用于响应匹配、超时清理和脱敏诊断日志。 */
@@ -26,17 +27,10 @@ interface PendingRequest {
   timer: NodeJS.Timeout;
 }
 
-export interface BrokerEvent {
-  /** 插件主动推送的事件只在认证后的连接上转发。 */
-  event: string;
-  sequence: number;
-  payload: unknown;
-}
-
-export class PluginConnectionBroker {
+export class PluginConnectionBroker implements BridgeTransport {
   readonly #config: ServerConfig;
   readonly #pending = new Map<string, PendingRequest>();
-  readonly #eventListeners = new Set<(event: BrokerEvent) => void>();
+  readonly #eventListeners = new Set<(event: BridgeEvent) => void>();
   #server: WebSocketServer | undefined;
   #plugin: WebSocket | undefined;
   #pluginVersion: string | undefined;
@@ -56,7 +50,7 @@ export class PluginConnectionBroker {
   }
 
   /** 注册事件监听器并返回可撤销的取消函数。 */
-  onEvent(listener: (event: BrokerEvent) => void): () => void {
+  onEvent(listener: (event: BridgeEvent) => void): () => void {
     this.#eventListeners.add(listener);
     return () => this.#eventListeners.delete(listener);
   }
@@ -86,6 +80,11 @@ export class PluginConnectionBroker {
     this.#server = undefined;
     if (!server) return;
     await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+
+  /** 与抽象 BridgeTransport 对齐；旧调用仍可继续使用 stop。 */
+  async close(): Promise<void> {
+    await this.stop();
   }
 
   /** 向唯一已认证插件发送 RPC，并把响应生命周期登记到 #pending。 */

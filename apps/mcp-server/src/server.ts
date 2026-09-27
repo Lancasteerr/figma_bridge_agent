@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/server';
 import { serveStdio, type StdioServerHandle } from '@modelcontextprotocol/server/stdio';
 
 import { PluginConnectionBroker } from './bridge/plugin-connection.js';
+import type { BridgeTransport } from './bridge/transport.js';
 import type { ServerConfig } from './config/store.js';
 import { registerReadTools } from './mcp/register-read-tools.js';
 import { registerMediaTools } from './mcp/register-media-tools.js';
@@ -12,12 +13,12 @@ import { TempAssetStore } from './temp/asset-store.js';
 
 /** MCP server 运行期间需要同时关闭 stdio、桥接和临时资源。 */
 export interface RunningServer {
-  broker: PluginConnectionBroker;
+  broker: BridgeTransport;
   close(): Promise<void>;
 }
 
 /** 创建 MCP 工具集合；工具按读、媒体、Proposal 写入和布局计划分组注册。 */
-export function createMcpServer(broker: PluginConnectionBroker, assets: TempAssetStore): McpServer {
+export function createMcpServer(broker: BridgeTransport, assets: TempAssetStore): McpServer {
   const server = new McpServer({ name: 'figma-local-agent', version: '0.1.0' });
   registerStatusTool(server, broker);
   registerReadTools(server, broker);
