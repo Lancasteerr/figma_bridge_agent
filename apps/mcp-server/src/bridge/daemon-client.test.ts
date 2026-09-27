@@ -65,6 +65,57 @@ describe('DaemonBridgeClient', () => {
     await first.close();
     await expect(second.request('getSelection')).resolves.toBe('getSelection');
   });
+
+  it('auto-starts one shared daemon for concurrent clients', async () => {
+    const port = await freePort();
+    const config: ServerConfig = {
+      version: 1,
+      host: '127.0.0.1',
+      port,
+      secret: Buffer.alloc(32, 23).toString('base64url'),
+    };
+    let daemon: BridgeDaemon | undefined;
+    let starting: Promise<void> | undefined;
+    const spawnDaemon = (): void => {
+      if (starting) return;
+      daemon = new BridgeDaemon(config, { idleTimeoutMs: 5_000 });
+      daemons.push(daemon);
+      starting = daemon.start();
+    };
+    const first = new DaemonBridgeClient(config, { spawnDaemon, connectTimeoutMs: 1_000 });
+    const second = new DaemonBridgeClient(config, { spawnDaemon, connectTimeoutMs: 1_000 });
+    clients.push(first, second);
+    first.start();
+    second.start();
+
+    await Promise.all([first.waitUntilReady(), second.waitUntilReady(), starting]);
+    expect(daemon).toBeDefined();
+    await expect(first.request('$daemon.status')).resolves.toMatchObject({ clientCount: 2 });
+  });
+
+  it('reconnects after the daemon is restarted', async () => {
+    const { daemon, config } = await startDaemon();
+    const clientConfig = { ...config, port: daemon.port };
+    const client = createClient(clientConfig, 250);
+    client.start();
+    await client.waitUntilReady();
+    await daemon.close();
+
+    const replacement = new BridgeDaemon(clientConfig, { idleTimeoutMs: 5_000 });
+    daemons.push(replacement);
+    await replacement.start();
+    await expect.poll(() => client.daemonConnected, { timeout: 2_000 }).toBe(true);
+    await expect(client.request('$daemon.status')).resolves.toMatchObject({ pid: process.pid });
+  });
+
+  it('stops the daemon through the authenticated control method', async () => {
+    const { daemon, config } = await startDaemon();
+    const client = createClient({ ...config, port: daemon.port });
+    client.start();
+    await client.waitUntilReady();
+    await client.request('$daemon.stop');
+    await daemon.waitUntilStopped();
+  });
 });
 
 async function startDaemon(): Promise<{ daemon: BridgeDaemon; config: ServerConfig }> {
