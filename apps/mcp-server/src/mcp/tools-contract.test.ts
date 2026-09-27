@@ -5,6 +5,7 @@ import {
 } from '@modelcontextprotocol/server';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { DaemonBridgeClient } from '../bridge/daemon-client.js';
 import { PluginConnectionBroker } from '../bridge/plugin-connection.js';
 import { TempAssetStore } from '../temp/asset-store.js';
 import { createMcpServer } from '../server.js';
@@ -33,9 +34,11 @@ const EXPECTED_TOOLS = [
 
 // 该列表刻意形成 closed-world 契约：新增或误删工具都必须显式更新测试和文档。
 const servers: ReturnType<typeof createMcpServer>[] = [];
+const daemonClients: DaemonBridgeClient[] = [];
 
 afterEach(async () => {
   for (const server of servers.splice(0)) await server.close();
+  for (const client of daemonClients.splice(0)) await client.close();
 });
 
 describe('MCP tool contract', () => {
@@ -61,6 +64,28 @@ describe('MCP tool contract', () => {
     expect(tools.find((tool) => tool.name === 'figma_discard_proposal')?.annotations).toMatchObject(
       { destructiveHint: true },
     );
+  });
+
+  it('advertises all tools for three independent MCP sessions before the daemon is ready', async () => {
+    const toolSets = await Promise.all(
+      Array.from({ length: 3 }, async () => {
+        const client = new DaemonBridgeClient(
+          {
+            version: 1,
+            host: '127.0.0.1',
+            port: 39_099,
+            secret: Buffer.alloc(32, 29).toString('base64url'),
+          },
+          { autoStart: false, connectTimeoutMs: 20, spawnDaemon: () => undefined },
+        );
+        daemonClients.push(client);
+        const mcp = createMcpServer(client, new TempAssetStore());
+        servers.push(mcp);
+        return (await listTools(mcp)).map((tool) => tool.name).sort();
+      }),
+    );
+
+    for (const tools of toolSets) expect(tools).toEqual(EXPECTED_TOOLS);
   });
 });
 
