@@ -4,10 +4,15 @@ import { isInside } from '../proposal/marker.js';
 import { resolveCurrentPageNode } from '../serialization/resolve.js';
 
 export interface ValidatedLayoutSource {
+  /** 声明的源根和计划实际引用的节点，供执行阶段复用同一解析结果。 */
   roots: SceneNode[];
   referencedNodes: Map<string, SceneNode>;
 }
 
+/**
+ * 校验布局计划与当前 Figma 拓扑的一致性。
+ * 这里不修改文档，只确认来源范围、引用覆盖和容器边界满足执行前提。
+ */
 export async function validateLayoutTopology(plan: LayoutPlan): Promise<ValidatedLayoutSource> {
   const roots = await Promise.all(plan.source.rootNodeIds.map(resolveCurrentPageNode));
   assertUnique(plan.source.rootNodeIds, 'source root');
@@ -55,6 +60,7 @@ export async function validateLayoutTopology(plan: LayoutPlan): Promise<Validate
 }
 
 function collectReferences(items: LayoutItem[]): string[] {
+  // 只收集 existing 节点；frame ref 属于计划内部名称，不能直接解析为 Figma ID。
   return items.flatMap((item) =>
     item.kind === 'existing' ? [item.sourceNodeId] : collectReferences(item.children),
   );
@@ -101,6 +107,7 @@ function assertFrameRefsUnique(items: LayoutItem[], seen = new Set<string>()): v
 }
 
 function assertCompleteCoverage(container: SceneNode, referenced: SceneNode[]): void {
+  // existing-container 模式必须覆盖容器的全部直接内容，避免静默丢失未声明节点。
   if (!('children' in container)) return;
   for (const child of container.children) {
     if (!('x' in child)) continue;
@@ -110,6 +117,7 @@ function assertCompleteCoverage(container: SceneNode, referenced: SceneNode[]): 
 }
 
 function hasInstanceAncestorWithinRoots(node: SceneNode, roots: SceneNode[]): boolean {
+  // Instance 内部节点不能被重新挂载；到达声明 root 即可停止向外检查。
   let current = node.parent;
   while (current) {
     if (current.type === 'INSTANCE') return true;

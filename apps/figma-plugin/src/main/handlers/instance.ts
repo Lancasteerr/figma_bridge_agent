@@ -8,6 +8,7 @@ import { atomicMutation } from '../mutation/coordinator.js';
 import { assertProposalTargets } from '../proposal/marker.js';
 import { fingerprintNodeTree } from '../serialization/node-snapshot.js';
 
+/** 在不 detach Instance 的前提下修改其暴露属性。 */
 export async function setInstanceProperties(params: unknown): Promise<MutationResult> {
   const input = SetInstancePropertiesInputSchema.parse(params);
   return await atomicMutation(async () => {
@@ -28,6 +29,7 @@ export async function setInstanceProperties(params: unknown): Promise<MutationRe
     try {
       node.setProperties(input.properties);
     } catch (error) {
+      // Figma 对属性名称和值有自己的校验，转换为稳定错误后交给 atomicMutation 回滚。
       throw new BridgeFault({
         code: 'INVALID_LAYOUT',
         message: error instanceof Error ? error.message : 'Instance properties were rejected.',

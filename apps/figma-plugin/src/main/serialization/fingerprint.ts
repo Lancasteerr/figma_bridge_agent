@@ -1,5 +1,6 @@
 import type { JsonValue } from './json.js';
 
+/** 对对象 key 排序后序列化，使插入顺序不会影响快照指纹。 */
 export function stableStringify(value: JsonValue): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
@@ -9,6 +10,7 @@ export function stableStringify(value: JsonValue): string {
     .join(',')}}`;
 }
 
+/** 使用两个 32-bit 累积值生成短指纹，供 Proposal 和布局计划做乐观并发校验。 */
 export function fingerprintValue(value: JsonValue): string {
   const text = stableStringify(value);
   let left = 0x811c9dc5;

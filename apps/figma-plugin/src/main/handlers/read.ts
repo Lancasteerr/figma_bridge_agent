@@ -14,6 +14,7 @@ import { isSceneNode } from '../serialization/resolve.js';
 
 type SelectionResult = z.infer<typeof SelectionResultSchema>;
 
+/** 返回当前页面和选区摘要，不递归读取节点子树。 */
 export function getSelection(): SelectionResult {
   return {
     page: { id: figma.currentPage.id, name: figma.currentPage.name },
@@ -21,11 +22,13 @@ export function getSelection(): SelectionResult {
   };
 }
 
+/** 返回单节点完整规范化快照。 */
 export async function getNode(params: unknown) {
   const { nodeId } = GetNodeInputSchema.parse(params);
   return await serializeNode(await resolveCurrentPageNode(nodeId));
 }
 
+/** 按深度、节点数和文本长度上限递归读取当前页子树。 */
 export async function getTree(params: unknown): Promise<TreeResult> {
   const input = GetTreeInputSchema.parse(params);
   const root = await resolveCurrentPageNode(input.nodeId);
@@ -39,6 +42,7 @@ export async function getTree(params: unknown): Promise<TreeResult> {
     const expanded: SnapshotTreeNode[] = [];
     if (depth > 0) {
       for (const child of childNodes) {
+        // 计数在递归前检查，保证结果不会超过调用方声明的 maxNodes。
         if (nodeCount >= input.maxNodes) {
           limitReached = true;
           break;

@@ -4,6 +4,7 @@ import { atomicMutation } from '../mutation/coordinator.js';
 import { assertProposalTargets } from '../proposal/marker.js';
 import { fingerprintNodeTree } from '../serialization/node-snapshot.js';
 
+/** 在 Proposal 节点上写入 v1 支持的 Auto Layout、尺寸和定位字段。 */
 export async function setLayout(params: unknown): Promise<MutationResult> {
   const input = SetLayoutInputSchema.parse(params);
   return await atomicMutation(async () => {
@@ -46,6 +47,7 @@ export async function setLayout(params: unknown): Promise<MutationResult> {
 
 type SetLayoutInput = ReturnType<typeof SetLayoutInputSchema.parse>;
 
+/** 在触碰 Figma 属性前校验节点能力和 FILL/HUG/ABSOLUTE 的父子约束。 */
 function validateLayoutInput(node: SceneNode, input: SetLayoutInput): void {
   if (input.layout && !hasWritableAutoLayout(node)) {
     throw invalid(

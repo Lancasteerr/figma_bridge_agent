@@ -1,8 +1,10 @@
 export type JsonValue =
   null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
+/** 将 Figma 对象归一化为有限深度、无函数、可 JSON 序列化的值。 */
 export function toJsonValue(value: unknown, depth = 0, seen = new WeakSet<object>()): JsonValue {
   if (value === null || typeof value === 'boolean' || typeof value === 'string') return value;
+  // 非有限数字、symbol、函数和循环引用都必须转换，否则指纹和 MCP JSON 会失真或失败。
   if (typeof value === 'number') return Number.isFinite(value) ? value : String(value);
   if (typeof value === 'symbol') return 'mixed';
   if (typeof value === 'undefined' || typeof value === 'function') return null;

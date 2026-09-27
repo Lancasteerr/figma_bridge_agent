@@ -1,3 +1,4 @@
+/** 生成覆盖布局、叠加层、Instance、字体和非法组件边界的开发夹具。 */
 export async function generateDevelopmentFixtures(): Promise<SceneNode[]> {
   await figma.loadFontAsync({ family: 'Inter', style: 'Regular' });
   const fixtures: SceneNode[] = [];
@@ -87,6 +88,7 @@ async function createMixedFontFixture(): Promise<TextNode> {
     await figma.loadFontAsync(bold);
     node.setRangeFontName(12, 16, bold);
   } catch {
+    // 开发夹具不能因为本机缺少 Bold 字体而阻止其余场景生成。
     node.name += ' (bold unavailable)';
   }
   return node;

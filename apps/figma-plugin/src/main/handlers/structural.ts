@@ -9,6 +9,7 @@ import { atomicMutation } from '../mutation/coordinator.js';
 import { assertProposalTargets, isInside } from '../proposal/marker.js';
 import { fingerprintNodeTree } from '../serialization/node-snapshot.js';
 
+/** 在 Proposal 内创建普通 Frame，不允许把原稿节点作为父级。 */
 export async function createFrame(params: unknown): Promise<MutationResult> {
   const input = CreateFrameInputSchema.parse(params);
   return await atomicMutation(async () => {
@@ -41,6 +42,7 @@ export async function createFrame(params: unknown): Promise<MutationResult> {
   });
 }
 
+/** 在同一 Proposal 内移动节点，并在需要时保持绝对坐标。 */
 export async function reparentNodes(params: unknown): Promise<MutationResult> {
   const input = ReparentNodesInputSchema.parse(params);
   return await atomicMutation(async () => {
@@ -84,6 +86,7 @@ export async function reparentNodes(params: unknown): Promise<MutationResult> {
         node.layoutPositioning = input.placement === 'ABSOLUTE' ? 'ABSOLUTE' : 'AUTO';
       }
       if (input.preserveAbsolutePosition && (!autoLayoutParent || input.placement === 'ABSOLUTE')) {
+        // Figma 插入新父级后会重算 local x/y，因此用父级逆变换恢复用户要求的绝对位置。
         const local = toLocalPoint(parent.absoluteTransform, origins[offset]!);
         node.x = local.x;
         node.y = local.y;
@@ -116,6 +119,7 @@ function toLocalPoint(
   transform: Transform,
   point: { x: number; y: number },
 ): { x: number; y: number } {
+  // 只处理 2D 仿射矩阵；退化矩阵无法求逆时退回平移近似，避免抛出 NaN。
   const [[a, c, e], [b, d, f]] = transform;
   const determinant = a * d - b * c;
   if (Math.abs(determinant) < 1e-8) return { x: point.x - e, y: point.y - f };

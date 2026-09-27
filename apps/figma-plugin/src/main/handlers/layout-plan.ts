@@ -12,11 +12,13 @@ import { validateLayoutTopology } from '../layout-plan/validator.js';
 import { atomicMutation } from '../mutation/coordinator.js';
 import { fingerprintNodeTree } from '../serialization/node-snapshot.js';
 
+/** 只读验证布局计划，并缓存五分钟内可单次消费的 validationId。 */
 export async function validateLayoutPlan(params: unknown): Promise<LayoutPlanValidationResult> {
   const { plan } = ValidateLayoutPlanInputSchema.parse(params);
   try {
     const { roots } = await validateLayoutTopology(plan);
     const actual = await fingerprintNodeTree(roots);
+    // 拓扑正确但指纹过期同样不能缓存，否则应用时会基于用户新修改的文档执行。
     if (actual !== plan.source.fingerprint) {
       throw new BridgeFault({
         code: 'PLAN_STALE',
@@ -44,12 +46,14 @@ export async function validateLayoutPlan(params: unknown): Promise<LayoutPlanVal
   }
 }
 
+/** 消费 validationId，重新验证拓扑和指纹后，在 Proposal 副本上原子执行计划。 */
 export async function applyLayoutPlan(params: unknown): Promise<LayoutPlanApplyResult> {
   const { validationId } = ApplyLayoutPlanInputSchema.parse(params);
   const plan = layoutValidationCache.take(validationId);
   return await atomicMutation(async () => {
     const source = await validateLayoutTopology(plan);
     const actual = await fingerprintNodeTree(source.roots);
+    // 验证到应用之间仍可能有用户编辑，因此必须在 mutation 内第二次核对指纹。
     if (actual !== plan.source.fingerprint) {
       throw new BridgeFault({
         code: 'PLAN_STALE',

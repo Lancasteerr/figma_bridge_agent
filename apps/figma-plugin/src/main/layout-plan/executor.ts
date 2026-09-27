@@ -12,11 +12,16 @@ import { markProposal } from '../proposal/marker.js';
 import type { ValidatedLayoutSource } from './validator.js';
 
 export interface ExecutedLayoutPlan {
+  /** 执行后的 Proposal 根、源到副本映射和可选 Component ID。 */
   root: SceneNode;
   idMap: Record<string, string>;
   componentId?: string;
 }
 
+/**
+ * 在源节点副本上执行已验证的布局计划。
+ * 所有中间节点先隐藏，失败时删除唯一根节点，确保原稿和半成品都不被留下。
+ */
 export async function executeLayoutPlan(
   plan: LayoutPlan,
   source: ValidatedLayoutSource,
@@ -62,6 +67,7 @@ export async function executeLayoutPlan(
       }
       const previousId = root.id;
       const component = figma.createComponentFromNode(root);
+      // 根 Frame 被替换后，idMap 中指向旧根的值也必须指向新 Component。
       root = component;
       for (const [sourceId, cloneId] of Object.entries(idMap)) {
         if (cloneId === previousId) idMap[sourceId] = component.id;
@@ -85,6 +91,7 @@ async function placeItems(
   items: LayoutItem[],
   clones: Map<string, SceneNode>,
 ): Promise<void> {
+  // 深度优先放置，先建立父容器再应用其布局，保持声明式树的顺序。
   if (!('appendChild' in parent))
     throw invalid(`Node ${parent.id} cannot contain plan items.`, parent.id);
   for (const item of items) {
@@ -132,6 +139,7 @@ function applyChildLayout(
   positioning?: 'AUTO' | 'ABSOLUTE',
   absolute?: { x: number; y: number },
 ): void {
+  // ABSOLUTE 节点脱离 Auto Layout 流，但仍可通过 absolute 恢复指定的 local 坐标。
   if (positioning && 'layoutPositioning' in node) node.layoutPositioning = positioning;
   if (absolute) {
     node.x = absolute.x;
@@ -151,6 +159,7 @@ function indexCloneMap(
   clone: SceneNode,
   output: Map<string, SceneNode>,
 ): void {
+  // Figma clone 保留子节点顺序，因此可以递归建立同构映射。
   output.set(original.id, clone);
   if (!('children' in original) || !('children' in clone)) return;
   const originals = original.children.filter(isScene);
@@ -166,6 +175,7 @@ function positionBesideSources(
   offsetX: number,
   offsetY: number,
 ): void {
+  // 使用所有源节点的绝对包围盒，把 Proposal 放到源内容右侧并保留 y 基线。
   const boxes = sources.map((node) => node.absoluteBoundingBox ?? node);
   root.x = Math.max(...boxes.map((box) => box.x + box.width)) + offsetX;
   root.y = Math.min(...boxes.map((box) => box.y)) + offsetY;

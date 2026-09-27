@@ -11,6 +11,7 @@ import {
 import { toJsonValue } from '../serialization/json.js';
 import { resolveCurrentPageNode } from '../serialization/resolve.js';
 
+/** 返回 Figma Inspect CSS 提示；它不是完整结构快照的替代品。 */
 export async function getCss(params: unknown): Promise<ReturnType<typeof CssResultSchema.parse>> {
   const { nodeId } = GetCssInputSchema.parse(params);
   const node = await resolveCurrentPageNode(nodeId);
@@ -21,6 +22,7 @@ export async function getCss(params: unknown): Promise<ReturnType<typeof CssResu
   });
 }
 
+/** 按稳定 ID 排序并分页返回本地变量与集合，避免顺序和分页漂移。 */
 export async function getVariables(
   params: unknown,
 ): Promise<ReturnType<typeof VariablesResultSchema.parse>> {
@@ -65,6 +67,7 @@ export async function getVariables(
   });
 }
 
+/** 返回受 maxBytes 限制的 JSON_REST_V1 原始节点数据。 */
 export async function getRawNode(
   params: unknown,
 ): Promise<ReturnType<typeof RawNodeResultSchema.parse>> {
@@ -85,6 +88,7 @@ export async function getRawNode(
   return RawNodeResultSchema.parse({ nodeId, json, bytes });
 }
 
+/** 按 UTF-8 字节数计算长度，而不是按 JavaScript UTF-16 code unit 计数。 */
 function utf8ByteLength(value: string): number {
   let bytes = 0;
   for (const character of value) {

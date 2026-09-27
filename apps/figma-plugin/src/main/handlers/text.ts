@@ -4,6 +4,7 @@ import { atomicMutation } from '../mutation/coordinator.js';
 import { assertProposalTargets } from '../proposal/marker.js';
 import { fingerprintNodeTree } from '../serialization/node-snapshot.js';
 
+/** 预加载字体后原子更新 Proposal 中的 Text 节点，避免半更新文本。 */
 export async function updateText(params: unknown): Promise<MutationResult> {
   const input = UpdateTextInputSchema.parse(params);
   const { root, targets } = await assertProposalTargets(
@@ -38,6 +39,7 @@ export async function updateText(params: unknown): Promise<MutationResult> {
 }
 
 async function preflightFonts(node: TextNode, requested?: FontName): Promise<void> {
+  // Figma 要求所有将被写入或保留的字体先 load，否则 characters/fontName 修改可能失败。
   if (node.hasMissingFont) {
     throw missing(node, 'The Text node contains a missing font.');
   }

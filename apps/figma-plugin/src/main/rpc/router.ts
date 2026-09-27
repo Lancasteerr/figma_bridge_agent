@@ -8,6 +8,7 @@ import {
 
 type Handler = (params: unknown) => unknown | Promise<unknown>;
 
+/** Main 线程 RPC 路由器，集中处理 schema 校验、方法查找和错误归一化。 */
 export class RpcRouter {
   readonly #handlers = new Map<string, Handler>();
 
@@ -16,6 +17,7 @@ export class RpcRouter {
     this.#handlers.set(method, handler);
   }
 
+  /** 将未知 UI payload 转换为稳定 RpcResponse，始终回传可匹配的 request id。 */
   async route(raw: unknown): Promise<RpcResponse> {
     const parsed = RpcRequestSchema.safeParse(raw);
     if (!parsed.success) {
@@ -52,6 +54,7 @@ export class RpcRouter {
       const result = await handler(request.params);
       return { version: BRIDGE_PROTOCOL_VERSION, id: request.id, ok: true, result };
     } catch (error) {
+      // handler 的异常不能穿过 UI 边界，统一转换为 BridgeError。
       return {
         version: BRIDGE_PROTOCOL_VERSION,
         id: request.id,

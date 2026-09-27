@@ -1,5 +1,6 @@
 import { BRIDGE_PROTOCOL_VERSION, type StatusResult } from '@figma-agent/protocol';
 
+/** 返回桥接版本、当前页面、选区和插件支持的能力集合。 */
 export function getStatus(): StatusResult {
   return {
     connected: true,

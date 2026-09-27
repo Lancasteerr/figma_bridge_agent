@@ -8,6 +8,7 @@ import { atomicMutation } from '../mutation/coordinator.js';
 import { assertProposalTargets, markProposal, readProposalMarker } from '../proposal/marker.js';
 import { fingerprintNodeTree } from '../serialization/node-snapshot.js';
 
+/** 将 Proposal 内的 Frame 转为 Component，并在根节点被替换时重新写入 Proposal 标记。 */
 export async function createComponentFromNode(params: unknown): Promise<CreateComponentResult> {
   const input = CreateComponentInputSchema.parse(params);
   return await atomicMutation(async () => {
@@ -25,6 +26,7 @@ export async function createComponentFromNode(params: unknown): Promise<CreateCo
     const replacesRoot = node.id === root.id;
     const marker = replacesRoot ? readProposalMarker(root) : undefined;
     const component = figma.createComponentFromNode(node);
+    // createComponentFromNode 会替换原 Frame，因此根 Proposal 的 marker 不能依赖旧节点。
     const proposalRoot = replacesRoot ? component : root;
     if (marker) markProposal(component, marker.sourceNodeIds);
     return {
@@ -37,6 +39,7 @@ export async function createComponentFromNode(params: unknown): Promise<CreateCo
 }
 
 function assertNoComponentBoundary(node: FrameNode, proposalRoot: SceneNode): void {
+  // Component/Instance 边界会改变可编辑范围，v1 不允许跨边界转换。
   let current = node.parent;
   while (current && current.id !== proposalRoot.id) {
     if (

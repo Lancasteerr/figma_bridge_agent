@@ -14,6 +14,7 @@ type RenderResult = z.infer<typeof RenderResultSchema>;
 type ExportResult = z.infer<typeof ExportResultSchema>;
 const MAX_RAW_PNG_BYTES = 9 * 1024 * 1024;
 
+/** 按最大尺寸压缩 PNG 渲染，并返回渲染时对应的节点指纹。 */
 export async function renderNode(params: unknown): Promise<RenderResult> {
   const input = RenderNodeInputSchema.parse(params);
   const node = await resolveCurrentPageNode(input.nodeId);
@@ -42,6 +43,7 @@ export async function renderNode(params: unknown): Promise<RenderResult> {
   };
 }
 
+/** 导出 PNG/SVG；二进制大小超限时在进入 MCP 传输前返回可重试错误。 */
 export async function exportAsset(params: unknown): Promise<ExportResult> {
   const input = ExportAssetInputSchema.parse(params);
   const node = await resolveCurrentPageNode(input.nodeId);

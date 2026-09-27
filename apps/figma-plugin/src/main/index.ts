@@ -15,6 +15,7 @@ import { RpcRouter } from './rpc/router.js';
 import { publishPluginState, setBridgeState } from './state.js';
 import { generateDevelopmentFixtures } from './dev-fixtures.js';
 
+// Main 线程只负责组装路由和边界事件；具体读写逻辑保持在独立 handler 中。
 figma.showUI(__html__, { width: 340, height: 280, themeColors: true });
 
 const router = new RpcRouter();
@@ -39,6 +40,7 @@ router.register('validateLayoutPlan', validateLayoutPlan);
 router.register('applyLayoutPlan', applyLayoutPlan);
 startEvents((event) => figma.ui.postMessage({ type: 'rpc-response', payload: event }));
 
+// UI 消息先过 shared schema，再根据 type 分发，避免不可信 payload 直接触碰 Figma API。
 figma.ui.onmessage = async (raw: unknown) => {
   const parsed = UiToMainMessageSchema.safeParse(raw);
   if (!parsed.success) {
@@ -63,6 +65,7 @@ figma.ui.onmessage = async (raw: unknown) => {
     const response = await router.route(message.payload);
     figma.ui.postMessage({ type: 'rpc-response', payload: response });
   } else if (message.type === 'smoke-duplicate') {
+    // 该分支只用于本地冒烟验证，仍然保持“复制后操作”而不修改原节点。
     const selected = figma.currentPage.selection[0];
     if (!selected) {
       figma.notify('Select one node first', { error: true });

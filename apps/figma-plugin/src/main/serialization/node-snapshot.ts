@@ -6,9 +6,14 @@ import { serializeNodeSummary } from './node-summary.js';
 import { findPage, isSceneNode } from './resolve.js';
 
 export interface SerializeOptions {
+  /** 文本限制只影响快照，不会修改 Figma 中的原始 characters。 */
   maxTextLength?: number;
 }
 
+/**
+ * 生成包含布局、文本、视觉和组件信息的规范化节点快照。
+ * children 只保留摘要，完整子树由 getTree 按调用方限制递归展开。
+ */
 export async function serializeNode(
   node: SceneNode,
   options: SerializeOptions = {},
@@ -35,6 +40,7 @@ export async function serializeNode(
   return { ...base, fingerprint: fingerprintValue(toJsonValue(base)) };
 }
 
+/** 只读取 Figma 实际支持的布局属性，避免对不同节点类型做危险的强制访问。 */
 function serializeLayout(node: SceneNode): Pick<NodeSnapshot, 'layout'> | Record<string, never> {
   const layout: NonNullable<NodeSnapshot['layout']> = {};
   if ('layoutMode' in node) {
@@ -65,6 +71,7 @@ function serializeText(
   node: SceneNode,
   max: number,
 ): Pick<NodeSnapshot, 'text'> | Record<string, never> {
+  // Figma 的 mixed 值和缺失字体都通过 toJsonValue/标志位保留在快照中。
   if (node.type !== 'TEXT') return {};
   return {
     text: {
@@ -96,6 +103,7 @@ function serializeVisual(node: SceneNode): Pick<NodeSnapshot, 'visual'> {
 async function serializeComponent(
   node: SceneNode,
 ): Promise<Pick<NodeSnapshot, 'component'> | Record<string, never>> {
+  // Instance 的 main component 需要异步解析；普通节点不应触发额外 API 调用。
   if (node.type === 'INSTANCE') {
     const main = await node.getMainComponentAsync();
     return {
@@ -117,6 +125,7 @@ async function serializeComponent(
   return {};
 }
 
+/** 深度遍历节点和所有场景子节点，生成 Proposal 变更前后的稳定指纹。 */
 export async function fingerprintNodeTree(nodes: readonly SceneNode[]): Promise<string> {
   const visit = async (node: SceneNode): Promise<unknown> => ({
     snapshot: await serializeNode(node),
