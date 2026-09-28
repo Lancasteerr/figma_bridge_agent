@@ -22,7 +22,7 @@ describe('DaemonBridgeClient', () => {
     const { daemon, config } = await startDaemon();
     const plugin = await FakePluginClient.connect(
       `ws://127.0.0.1:${daemon.port}`,
-      config.secret,
+      pluginAuth(config),
       (request) => ({ method: request.method }),
     );
     plugins.push(plugin);
@@ -39,10 +39,7 @@ describe('DaemonBridgeClient', () => {
 
   it('returns BRIDGE_UNAVAILABLE while no daemon is listening', async () => {
     const port = await freePort();
-    const client = createClient(
-      { version: 1, host: '127.0.0.1', port, secret: Buffer.alloc(32, 5).toString('base64url') },
-      50,
-    );
+    const client = createClient(testConfig(port, 5, false), 50);
     await expect(client.request('status')).rejects.toMatchObject({
       bridgeError: { code: 'BRIDGE_UNAVAILABLE', retryable: true },
     });
@@ -52,7 +49,7 @@ describe('DaemonBridgeClient', () => {
     const { daemon, config } = await startDaemon();
     const plugin = await FakePluginClient.connect(
       `ws://127.0.0.1:${daemon.port}`,
-      config.secret,
+      pluginAuth(config),
       (request) => request.method,
     );
     plugins.push(plugin);
@@ -68,12 +65,7 @@ describe('DaemonBridgeClient', () => {
 
   it('auto-starts one shared daemon for concurrent clients', async () => {
     const port = await freePort();
-    const config: ServerConfig = {
-      version: 1,
-      host: '127.0.0.1',
-      port,
-      secret: Buffer.alloc(32, 23).toString('base64url'),
-    };
+    const config = testConfig(port, 23, false);
     let daemon: BridgeDaemon | undefined;
     let starting: Promise<void> | undefined;
     const spawnDaemon = (): void => {
@@ -119,16 +111,40 @@ describe('DaemonBridgeClient', () => {
 });
 
 async function startDaemon(): Promise<{ daemon: BridgeDaemon; config: ServerConfig }> {
-  const config: ServerConfig = {
-    version: 1,
-    host: '127.0.0.1',
-    port: 0,
-    secret: Buffer.alloc(32, 17).toString('base64url'),
-  };
+  const config = testConfig(0, 17, true);
   const daemon = new BridgeDaemon(config, { idleTimeoutMs: 5_000 });
   daemons.push(daemon);
   await daemon.start();
   return { daemon, config };
+}
+
+function testConfig(port: number, seed: number, withPlugin: boolean): ServerConfig {
+  const deviceId = '22222222-2222-4222-8222-222222222222';
+  const token = Buffer.alloc(32, seed + 1).toString('base64url');
+  const timestamp = '2026-01-01T00:00:00.000Z';
+  return {
+    version: 2,
+    serverId: '11111111-1111-4111-8111-111111111111',
+    daemonSecret: Buffer.alloc(32, seed).toString('base64url'),
+    host: '127.0.0.1',
+    port,
+    pairedClients: withPlugin
+      ? {
+          [deviceId]: {
+            token,
+            createdAt: timestamp,
+            lastSeenAt: timestamp,
+            pluginVersion: 'test-plugin',
+          },
+        }
+      : {},
+  };
+}
+
+function pluginAuth(config: ServerConfig): { serverId: string; deviceId: string; token: string } {
+  const entry = Object.entries(config.pairedClients)[0];
+  if (!entry) throw new Error('Test config has no paired plugin.');
+  return { serverId: config.serverId, deviceId: entry[0], token: entry[1].token };
 }
 
 function createClient(config: ServerConfig, connectTimeoutMs = 500): DaemonBridgeClient {

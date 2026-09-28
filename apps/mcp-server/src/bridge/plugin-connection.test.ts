@@ -20,8 +20,8 @@ afterEach(async () => {
 
 describe('PluginConnectionBroker', () => {
   it('authenticates a plugin and resolves RPC responses', async () => {
-    const { broker, url, secret } = await startBroker();
-    const client = await FakePluginClient.connect(url, secret, (request) => ({
+    const { broker, url, auth } = await startBroker();
+    const client = await FakePluginClient.connect(url, auth, (request) => ({
       method: request.method,
       params: request.params,
     }));
@@ -49,16 +49,18 @@ describe('PluginConnectionBroker', () => {
   });
 
   it('rejects an invalid secret and a second active plugin', async () => {
-    const { url, secret } = await startBroker();
-    await expect(FakePluginClient.connect(url, `${secret}-wrong`, () => ({}))).rejects.toThrow();
-    const first = await FakePluginClient.connect(url, secret, () => ({}));
+    const { url, auth } = await startBroker();
+    await expect(
+      FakePluginClient.connect(url, { ...auth, token: `${auth.token}-wrong` }, () => ({})),
+    ).rejects.toThrow();
+    const first = await FakePluginClient.connect(url, auth, () => ({}));
     openClients.push(first);
-    await expect(FakePluginClient.connect(url, secret, () => ({}))).rejects.toThrow();
+    await expect(FakePluginClient.connect(url, auth, () => ({}))).rejects.toThrow();
   });
 
   it('times out a request without leaking the connection', async () => {
-    const { broker, url, secret } = await startBroker();
-    const client = await FakePluginClient.connect(url, secret, async () => {
+    const { broker, url, auth } = await startBroker();
+    const client = await FakePluginClient.connect(url, auth, async () => {
       await new Promise(() => undefined);
     });
     openClients.push(client);
@@ -71,19 +73,40 @@ describe('PluginConnectionBroker', () => {
 async function startBroker(): Promise<{
   broker: PluginConnectionBroker;
   url: string;
-  secret: string;
+  auth: { serverId: string; deviceId: string; token: string };
   config: ServerConfig;
 }> {
   // 使用随机空闲端口，使测试可以并行运行且不依赖默认桥接端口。
   const port = await freePort();
   const secret = Buffer.alloc(32, 11).toString('base64url');
-  const config: ServerConfig = { version: 1, host: '127.0.0.1', port, secret };
+  const serverId = '11111111-1111-4111-8111-111111111111';
+  const deviceId = '22222222-2222-4222-8222-222222222222';
+  const config: ServerConfig = {
+    version: 2,
+    serverId,
+    daemonSecret: Buffer.alloc(32, 12).toString('base64url'),
+    host: '127.0.0.1',
+    port,
+    pairedClients: {
+      [deviceId]: {
+        token: secret,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        lastSeenAt: '2026-01-01T00:00:00.000Z',
+        pluginVersion: 'test-plugin',
+      },
+    },
+  };
   const broker = new PluginConnectionBroker(config);
   const gateway = new PluginGateway(config, broker);
   openBrokers.push(broker);
   openGateways.push(gateway);
   await gateway.start();
-  return { broker, url: `ws://127.0.0.1:${port}`, secret, config };
+  return {
+    broker,
+    url: `ws://127.0.0.1:${port}`,
+    auth: { serverId, deviceId, token: secret },
+    config,
+  };
 }
 
 async function freePort(): Promise<number> {

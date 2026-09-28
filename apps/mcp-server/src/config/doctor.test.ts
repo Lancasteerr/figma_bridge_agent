@@ -64,10 +64,12 @@ describe('inspectBridge', () => {
 
 async function testConfig(): Promise<ServerConfig> {
   return {
-    version: 1,
+    version: 2,
+    serverId: '11111111-1111-4111-8111-111111111111',
     host: '127.0.0.1',
     port: await freePort(),
-    secret: Buffer.alloc(32, 19).toString('base64url'),
+    daemonSecret: Buffer.alloc(32, 19).toString('base64url'),
+    pairedClients: {},
   };
 }
 

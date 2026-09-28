@@ -13,6 +13,7 @@ import {
 import { WebSocket, type RawData } from 'ws';
 
 import type { ServerConfig } from '../config/store.js';
+import { updateConfig } from '../config/store.js';
 import { createPluginProof, createServerProof, verifyProof } from '../security/proof.js';
 import type { BridgeEvent, BridgeTransport } from './transport.js';
 
@@ -28,19 +29,23 @@ interface PendingRequest {
 
 export class PluginConnectionBroker implements BridgeTransport {
   readonly #config: ServerConfig;
+  readonly #configPath: string | undefined;
   readonly #log: (entry: Record<string, unknown>) => void;
   readonly #pending = new Map<string, PendingRequest>();
   readonly #eventListeners = new Set<(event: BridgeEvent) => void>();
   readonly #stateListeners = new Set<() => void>();
   #plugin: WebSocket | undefined;
   #pluginVersion: string | undefined;
+  #deviceId: string | undefined;
 
   constructor(
     config: ServerConfig,
     log: (entry: Record<string, unknown>) => void = (entry) => console.error(JSON.stringify(entry)),
+    options: { configPath?: string } = {},
   ) {
     this.#config = config;
     this.#log = log;
+    this.#configPath = options.configPath;
   }
 
   /** 当前是否存在已经完成鉴权且仍处于 OPEN 状态的插件。 */
@@ -51,6 +56,15 @@ export class PluginConnectionBroker implements BridgeTransport {
   /** 最近一次认证成功的插件版本，未连接时返回 undefined。 */
   get pluginVersion(): string | undefined {
     return this.#pluginVersion;
+  }
+
+  get deviceId(): string | undefined {
+    return this.#deviceId;
+  }
+
+  /** 撤销当前设备时立即切断活动连接，避免凭据在本次会话继续生效。 */
+  revokeCurrentDevice(): void {
+    this.#plugin?.close(4003, 'DEVICE_REVOKED');
   }
 
   /** Daemon 用该计数决定是否仍有必须等待的插件调用。 */
@@ -80,6 +94,7 @@ export class PluginConnectionBroker implements BridgeTransport {
     this.#plugin?.close(1001, 'Server stopping');
     this.#plugin = undefined;
     this.#pluginVersion = undefined;
+    this.#deviceId = undefined;
     this.#rejectPending('PLUGIN_NOT_CONNECTED', 'Bridge server stopped');
     this.#notifyState();
   }
@@ -158,6 +173,7 @@ export class PluginConnectionBroker implements BridgeTransport {
       JSON.stringify({
         type: 'auth.challenge',
         protocolVersion: BRIDGE_PROTOCOL_VERSION,
+        serverId: this.#config.serverId,
         serverNonce,
       }),
     );
@@ -167,7 +183,16 @@ export class PluginConnectionBroker implements BridgeTransport {
         this.#handlePluginMessage(data);
         return;
       }
-      const parsed = AuthPluginProofSchema.safeParse(this.#parseJson(data));
+      const value = this.#parseJson(data);
+      if (this.#hasWrongProtocol(value)) {
+        this.#rejectSocket(
+          socket,
+          'PROTOCOL_MISMATCH',
+          'Plugin protocol version is not supported.',
+        );
+        return;
+      }
+      const parsed = AuthPluginProofSchema.safeParse(value);
       if (!parsed.success || parsed.data.serverNonce !== serverNonce) {
         this.#rejectSocket(socket, 'AUTH_FAILED', 'Invalid authentication response.');
         return;
@@ -176,7 +201,22 @@ export class PluginConnectionBroker implements BridgeTransport {
         this.#rejectSocket(socket, 'PLUGIN_ALREADY_CONNECTED', 'Another Figma plugin is active.');
         return;
       }
-      const expected = createPluginProof(this.#config.secret, serverNonce, parsed.data.pluginNonce);
+      if (parsed.data.serverId !== this.#config.serverId) {
+        this.#rejectSocket(socket, 'SERVER_CHANGED', 'The local bridge identity has changed.');
+        return;
+      }
+      const device = this.#config.pairedClients[parsed.data.deviceId];
+      if (!device) {
+        this.#rejectSocket(socket, 'UNKNOWN_DEVICE', 'This plugin must be paired again.');
+        return;
+      }
+      const expected = createPluginProof(
+        device.token,
+        this.#config.serverId,
+        parsed.data.deviceId,
+        serverNonce,
+        parsed.data.pluginNonce,
+      );
       // 只有 proof 校验成功后才把 socket 提升为可处理 RPC 的插件连接。
       if (!verifyProof(parsed.data.proof, expected)) {
         this.#rejectSocket(socket, 'AUTH_FAILED', 'Pairing secret is not valid.');
@@ -187,16 +227,26 @@ export class PluginConnectionBroker implements BridgeTransport {
       authenticated = true;
       this.#plugin = socket;
       this.#pluginVersion = parsed.data.pluginVersion;
+      this.#deviceId = parsed.data.deviceId;
       this.#notifyState();
       socket.send(
         JSON.stringify({
           type: 'auth.server-proof',
           protocolVersion: BRIDGE_PROTOCOL_VERSION,
+          serverId: this.#config.serverId,
+          deviceId: parsed.data.deviceId,
           serverNonce,
           pluginNonce: parsed.data.pluginNonce,
-          proof: createServerProof(this.#config.secret, serverNonce, parsed.data.pluginNonce),
+          proof: createServerProof(
+            device.token,
+            this.#config.serverId,
+            parsed.data.deviceId,
+            serverNonce,
+            parsed.data.pluginNonce,
+          ),
         }),
       );
+      void this.#touchDevice(parsed.data.deviceId, parsed.data.pluginVersion);
     });
 
     socket.on('close', () => {
@@ -204,6 +254,7 @@ export class PluginConnectionBroker implements BridgeTransport {
       if (this.#plugin === socket) {
         this.#plugin = undefined;
         this.#pluginVersion = undefined;
+        this.#deviceId = undefined;
         this.#rejectPending('PLUGIN_NOT_CONNECTED', 'Figma plugin disconnected.');
         this.#notifyState();
       }
@@ -245,7 +296,12 @@ export class PluginConnectionBroker implements BridgeTransport {
 
   #rejectSocket(
     socket: WebSocket,
-    code: 'AUTH_FAILED' | 'PLUGIN_ALREADY_CONNECTED',
+    code:
+      | 'AUTH_FAILED'
+      | 'PROTOCOL_MISMATCH'
+      | 'PLUGIN_ALREADY_CONNECTED'
+      | 'UNKNOWN_DEVICE'
+      | 'SERVER_CHANGED',
     message: string,
   ): void {
     socket.send(JSON.stringify({ type: 'auth.rejected', code, message }));
@@ -287,6 +343,48 @@ export class PluginConnectionBroker implements BridgeTransport {
       return JSON.parse(text);
     } catch {
       return undefined;
+    }
+  }
+
+  #hasWrongProtocol(value: unknown): boolean {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      'type' in value &&
+      value.type === 'auth.plugin-proof' &&
+      'protocolVersion' in value &&
+      value.protocolVersion !== BRIDGE_PROTOCOL_VERSION
+    );
+  }
+
+  async #touchDevice(deviceId: string, pluginVersion: string): Promise<void> {
+    try {
+      if (!this.#configPath) {
+        const device = this.#config.pairedClients[deviceId];
+        if (device) {
+          device.lastSeenAt = new Date().toISOString();
+          device.pluginVersion = pluginVersion;
+        }
+        return;
+      }
+      const updated = await updateConfig((config) => {
+        const device = config.pairedClients[deviceId];
+        if (!device) return config;
+        return {
+          ...config,
+          pairedClients: {
+            ...config.pairedClients,
+            [deviceId]: { ...device, lastSeenAt: new Date().toISOString(), pluginVersion },
+          },
+        };
+      }, this.#configPath);
+      Object.assign(this.#config, updated);
+    } catch (error) {
+      this.#log({
+        level: 'warn',
+        event: 'device_last_seen_update_failed',
+        message: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 }

@@ -3,6 +3,7 @@ import { createServer, type Server as HttpServer } from 'node:http';
 
 import {
   BRIDGE_PROTOCOL_VERSION,
+  BridgeFault,
   DaemonClientProofSchema,
   MAX_RPC_MESSAGE_BYTES,
   RpcRequestSchema,
@@ -13,12 +14,15 @@ import {
 import { WebSocket, WebSocketServer, type RawData } from 'ws';
 
 import type { ServerConfig } from '../config/store.js';
+import { defaultConfigPath } from '../config/paths.js';
+import { updateConfig } from '../config/store.js';
 import {
   createDaemonClientProof,
   createDaemonServerProof,
   verifyProof,
 } from '../security/proof.js';
 import { PluginConnectionBroker } from './plugin-connection.js';
+import { PairingManager } from './pairing-manager.js';
 
 interface DaemonClientSession {
   socket: WebSocket;
@@ -29,6 +33,7 @@ export interface BridgeDaemonOptions {
   idleTimeoutMs?: number;
   stopTimeoutMs?: number;
   log?: (entry: Record<string, unknown>) => void;
+  configPath?: string;
 }
 
 /**
@@ -36,7 +41,9 @@ export interface BridgeDaemonOptions {
  */
 export class BridgeDaemon {
   readonly #config: ServerConfig;
+  readonly #configPath: string;
   readonly #broker: PluginConnectionBroker;
+  readonly #pairing: PairingManager;
   readonly #clients = new Set<DaemonClientSession>();
   readonly #sockets = new Set<WebSocket>();
   readonly #idleTimeoutMs: number;
@@ -45,6 +52,7 @@ export class BridgeDaemon {
   #httpServer: HttpServer | undefined;
   #pluginServer: WebSocketServer | undefined;
   #clientServer: WebSocketServer | undefined;
+  #pairingServer: WebSocketServer | undefined;
   #idleTimer: NodeJS.Timeout | undefined;
   #closing = false;
   #resolveStopped: (() => void) | undefined;
@@ -57,7 +65,10 @@ export class BridgeDaemon {
     this.#idleTimeoutMs = options.idleTimeoutMs ?? 30_000;
     this.#stopTimeoutMs = options.stopTimeoutMs ?? 5_000;
     this.#log = options.log ?? (() => undefined);
-    this.#broker = new PluginConnectionBroker(config, (entry) => this.#log(entry));
+    const configPath = options.configPath ?? defaultConfigPath();
+    this.#configPath = configPath;
+    this.#broker = new PluginConnectionBroker(config, (entry) => this.#log(entry), { configPath });
+    this.#pairing = new PairingManager(config, { configPath, log: (entry) => this.#log(entry) });
     this.#broker.onStateChange(() => this.#stateChanged());
     this.#broker.onEvent((event) => {
       this.#broadcast({ version: BRIDGE_PROTOCOL_VERSION, ...event });
@@ -93,11 +104,17 @@ export class BridgeDaemon {
       maxPayload: MAX_RPC_MESSAGE_BYTES,
       perMessageDeflate: false,
     });
+    const pairingServer = new WebSocketServer({
+      noServer: true,
+      maxPayload: 64 * 1024,
+      perMessageDeflate: false,
+    });
     const httpServer = createServer((_request, response) => {
       response.writeHead(404).end();
     });
     this.#pluginServer = pluginServer;
     this.#clientServer = clientServer;
+    this.#pairingServer = pairingServer;
     this.#httpServer = httpServer;
 
     pluginServer.on('connection', (socket) => {
@@ -108,11 +125,19 @@ export class BridgeDaemon {
       this.#trackSocket(socket);
       this.#authenticateClient(socket);
     });
+    pairingServer.on('connection', (socket) => {
+      this.#trackSocket(socket);
+      this.#pairing.accept(socket);
+    });
     httpServer.on('upgrade', (request, socket, head) => {
       const path = new URL(request.url ?? '/', 'http://localhost').pathname;
       if (path === '/mcp') {
         clientServer.handleUpgrade(request, socket, head, (webSocket) => {
           clientServer.emit('connection', webSocket, request);
+        });
+      } else if (path === '/pair') {
+        pairingServer.handleUpgrade(request, socket, head, (webSocket) => {
+          pairingServer.emit('connection', webSocket, request);
         });
       } else if (path === '/') {
         pluginServer.handleUpgrade(request, socket, head, (webSocket) => {
@@ -138,6 +163,7 @@ export class BridgeDaemon {
     if (this.#idleTimer) clearTimeout(this.#idleTimer);
     this.#idleTimer = undefined;
     for (const socket of this.#sockets) socket.close(1001, 'Bridge daemon stopping');
+    this.#pairing.stop();
     // 对端若不完成 WebSocket close 握手，短暂宽限后强制释放监听资源。
     const terminationTimer = setTimeout(() => {
       for (const socket of this.#sockets) socket.terminate();
@@ -149,12 +175,14 @@ export class BridgeDaemon {
     await Promise.all([
       this.#closeWebSocketServer(this.#pluginServer),
       this.#closeWebSocketServer(this.#clientServer),
+      this.#closeWebSocketServer(this.#pairingServer),
       httpServer
         ? new Promise<void>((resolve) => httpServer.close(() => resolve()))
         : Promise.resolve(),
     ]);
     this.#pluginServer = undefined;
     this.#clientServer = undefined;
+    this.#pairingServer = undefined;
     clearTimeout(terminationTimer);
     this.#log({ level: 'info', event: 'daemon_stopped', pid: process.pid });
     this.#resolveStopped?.();
@@ -193,7 +221,7 @@ export class BridgeDaemon {
         return;
       }
       const expected = createDaemonClientProof(
-        this.#config.secret,
+        this.#config.daemonSecret,
         daemonNonce,
         parsed.data.clientNonce,
       );
@@ -211,7 +239,11 @@ export class BridgeDaemon {
           protocolVersion: BRIDGE_PROTOCOL_VERSION,
           daemonNonce,
           clientNonce: parsed.data.clientNonce,
-          proof: createDaemonServerProof(this.#config.secret, daemonNonce, parsed.data.clientNonce),
+          proof: createDaemonServerProof(
+            this.#config.daemonSecret,
+            daemonNonce,
+            parsed.data.clientNonce,
+          ),
         }),
       );
       socket.send(JSON.stringify(this.state));
@@ -237,6 +269,39 @@ export class BridgeDaemon {
     if (request.method === '$daemon.stop') {
       this.#sendSuccess(session.socket, request.id, this.#statusResult());
       setTimeout(() => void this.#gracefulStop(), 0);
+      return;
+    }
+    if (request.method === '$daemon.pair.start') {
+      this.#sendSuccess(session.socket, request.id, this.#pairing.start());
+      this.#stateChanged();
+      return;
+    }
+    if (request.method === '$daemon.pair.status') {
+      this.#sendSuccess(session.socket, request.id, this.#pairing.status);
+      return;
+    }
+    if (request.method === '$daemon.pair.cancel') {
+      this.#sendSuccess(session.socket, request.id, this.#pairing.cancel());
+      this.#stateChanged();
+      return;
+    }
+    if (request.method === '$daemon.devices.list') {
+      this.#sendSuccess(
+        session.socket,
+        request.id,
+        Object.entries(this.#config.pairedClients).map(([deviceId, device]) => ({
+          deviceId,
+          createdAt: device.createdAt,
+          lastSeenAt: device.lastSeenAt,
+          pluginVersion: device.pluginVersion,
+          connected: this.#broker.deviceId === deviceId,
+        })),
+      );
+      return;
+    }
+    if (request.method === '$daemon.devices.revoke') {
+      await this.#revokeDevices(request.params);
+      this.#sendSuccess(session.socket, request.id, { revoked: true });
       return;
     }
 
@@ -271,7 +336,14 @@ export class BridgeDaemon {
     if (this.#closing) return;
     if (this.#idleTimer) clearTimeout(this.#idleTimer);
     this.#idleTimer = undefined;
-    if (this.#clients.size || this.#broker.connected || this.#broker.pendingCount) return;
+    if (
+      this.#clients.size ||
+      this.#broker.connected ||
+      this.#broker.pendingCount ||
+      this.#pairing.active
+    ) {
+      return;
+    }
     this.#idleTimer = setTimeout(() => void this.close(), this.#idleTimeoutMs);
   }
 
@@ -285,6 +357,35 @@ export class BridgeDaemon {
       ...(state.pluginVersion ? { pluginVersion: state.pluginVersion } : {}),
       pendingCount: state.pendingCount,
     };
+  }
+
+  async #revokeDevices(params: unknown): Promise<void> {
+    const requested =
+      typeof params === 'object' && params !== null && 'deviceId' in params
+        ? String(params.deviceId)
+        : undefined;
+    const all =
+      typeof params === 'object' && params !== null && 'all' in params && params.all === true;
+    if (!all && !requested) {
+      throw new BridgeFault({
+        code: 'AUTH_REQUIRED',
+        message: 'A deviceId or all=true is required.',
+        retryable: false,
+      });
+    }
+    const updated = await updateConfig((config) => {
+      const pairedClients = { ...config.pairedClients };
+      if (all) {
+        for (const deviceId of Object.keys(pairedClients)) delete pairedClients[deviceId];
+      } else if (requested) {
+        delete pairedClients[requested];
+      }
+      return { ...config, pairedClients };
+    }, this.#configPath);
+    Object.assign(this.#config, updated);
+    if (all || (requested && this.#broker.deviceId === requested)) {
+      this.#broker.revokeCurrentDevice();
+    }
   }
 
   #sendSuccess(socket: WebSocket, id: string, result: unknown): void {

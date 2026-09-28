@@ -11,6 +11,11 @@ import { WebSocket } from 'ws';
 
 /** 测试插件只模拟协议行为，不依赖真实 Figma API。 */
 export type FakeRpcHandler = (request: RpcRequest) => unknown | Promise<unknown>;
+export interface FakePluginAuth {
+  serverId: string;
+  deviceId: string;
+  token: string;
+}
 
 /**
  * 用于桥接集成测试的最小插件客户端：先完成双向鉴权，再回显 RPC 结果。
@@ -23,12 +28,12 @@ export class FakePluginClient {
 
   static async connect(
     url: string,
-    secret: string,
+    auth: FakePluginAuth,
     handler: FakeRpcHandler,
   ): Promise<FakePluginClient> {
     const socket = new WebSocket(url);
     const client = new FakePluginClient(socket, handler);
-    await client.authenticate(secret);
+    await client.authenticate(auth);
     return client;
   }
 
@@ -37,7 +42,7 @@ export class FakePluginClient {
     this.socket.close(1000, 'Test complete');
   }
 
-  private async authenticate(secret: string): Promise<void> {
+  private async authenticate(auth: FakePluginAuth): Promise<void> {
     // 测试客户端复用生产协议的两个 context，确保 proof 方向和真实插件一致。
     const challenge = AuthChallengeSchema.parse(await nextMessage(this.socket));
     const pluginNonce = randomBytes(24).toString('base64url');
@@ -45,14 +50,22 @@ export class FakePluginClient {
       JSON.stringify({
         type: 'auth.plugin-proof',
         protocolVersion: BRIDGE_PROTOCOL_VERSION,
+        serverId: auth.serverId,
+        deviceId: auth.deviceId,
         serverNonce: challenge.serverNonce,
         pluginNonce,
-        proof: hmac(secret, `figma-agent/plugin/v1|${challenge.serverNonce}|${pluginNonce}`),
+        proof: hmac(
+          auth.token,
+          `figma-agent/plugin/v2|${auth.serverId}|${auth.deviceId}|${challenge.serverNonce}|${pluginNonce}`,
+        ),
         pluginVersion: 'test-plugin',
       }),
     );
     const proof = AuthServerProofSchema.parse(await nextMessage(this.socket));
-    const expected = hmac(secret, `figma-agent/server/v1|${challenge.serverNonce}|${pluginNonce}`);
+    const expected = hmac(
+      auth.token,
+      `figma-agent/server/v2|${auth.serverId}|${auth.deviceId}|${challenge.serverNonce}|${pluginNonce}`,
+    );
     if (proof.proof !== expected) throw new Error('Server proof did not match.');
     this.socket.on('message', (data) => void this.onMessage(data.toString()));
   }

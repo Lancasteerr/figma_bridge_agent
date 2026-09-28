@@ -255,7 +255,7 @@ export class DaemonBridgeClient implements BridgeTransport {
                 protocolVersion: BRIDGE_PROTOCOL_VERSION,
                 daemonNonce,
                 clientNonce,
-                proof: createDaemonClientProof(this.#config.secret, daemonNonce, clientNonce),
+                proof: createDaemonClientProof(this.#config.daemonSecret, daemonNonce, clientNonce),
                 clientVersion: '0.1.0',
               }),
             );
@@ -263,7 +263,11 @@ export class DaemonBridgeClient implements BridgeTransport {
           }
           const proof = DaemonServerProofSchema.safeParse(value);
           if (proof.success) {
-            const expected = createDaemonServerProof(this.#config.secret, daemonNonce, clientNonce);
+            const expected = createDaemonServerProof(
+              this.#config.daemonSecret,
+              daemonNonce,
+              clientNonce,
+            );
             if (!verifyProof(proof.data.proof, expected)) {
               this.#lastFailure = 'auth-failed';
               socket.close(4003, 'Daemon server proof failed');

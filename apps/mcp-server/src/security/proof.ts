@@ -1,9 +1,9 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-const PLUGIN_CONTEXT = 'figma-agent/plugin/v1';
-const SERVER_CONTEXT = 'figma-agent/server/v1';
-const DAEMON_CLIENT_CONTEXT = 'figma-agent/daemon-client/v1';
-const DAEMON_SERVER_CONTEXT = 'figma-agent/daemon-server/v1';
+const PLUGIN_CONTEXT = 'figma-agent/plugin/v2';
+const SERVER_CONTEXT = 'figma-agent/server/v2';
+const DAEMON_CLIENT_CONTEXT = 'figma-agent/daemon-client/v2';
+const DAEMON_SERVER_CONTEXT = 'figma-agent/daemon-server/v2';
 
 /** secret 以 base64url 保存，解码后作为 HMAC-SHA256 的 256-bit key 使用。 */
 function hmac(secret: string, value: string): string {
@@ -13,19 +13,23 @@ function hmac(secret: string, value: string): string {
 /** 生成插件方向 proof；context 区分方向，防止把 server proof 复用于插件 proof。 */
 export function createPluginProof(
   secret: string,
+  serverId: string,
+  deviceId: string,
   serverNonce: string,
   pluginNonce: string,
 ): string {
-  return hmac(secret, `${PLUGIN_CONTEXT}|${serverNonce}|${pluginNonce}`);
+  return hmac(secret, `${PLUGIN_CONTEXT}|${serverId}|${deviceId}|${serverNonce}|${pluginNonce}`);
 }
 
 /** 生成服务端方向 proof，供插件确认服务端掌握同一配对密钥。 */
 export function createServerProof(
   secret: string,
+  serverId: string,
+  deviceId: string,
   serverNonce: string,
   pluginNonce: string,
 ): string {
-  return hmac(secret, `${SERVER_CONTEXT}|${serverNonce}|${pluginNonce}`);
+  return hmac(secret, `${SERVER_CONTEXT}|${serverId}|${deviceId}|${serverNonce}|${pluginNonce}`);
 }
 
 /** MCP 客户端到 Daemon 的 proof 与插件 proof 做域分离，禁止跨角色复用。 */

@@ -5,6 +5,7 @@ export * from './daemon.js';
 export * from './errors.js';
 export * from './layout-plan.js';
 export * from './node.js';
+export * from './pairing.js';
 export * from './proposal.js';
 export * from './rpc.js';
 export * from './tools.js';

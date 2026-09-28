@@ -31,15 +31,15 @@ afterEach(async () => {
 
 describe('BridgeDaemon', () => {
   it('routes requests for multiple MCP clients through one plugin connection', async () => {
-    const { daemon, secret, logs } = await startDaemon();
+    const { daemon, daemonSecret, pluginAuth, logs } = await startDaemon();
     const plugin = await FakePluginClient.connect(
       `ws://127.0.0.1:${daemon.port}`,
-      secret,
+      pluginAuth,
       (request) => ({ method: request.method, params: request.params }),
     );
     plugins.push(plugin);
-    const first = await connectDaemonClient(daemon.port, secret);
-    const second = await connectDaemonClient(daemon.port, secret);
+    const first = await connectDaemonClient(daemon.port, daemonSecret);
+    const second = await connectDaemonClient(daemon.port, daemonSecret);
 
     await expect(call(first, 'first', { owner: 1 })).resolves.toEqual({
       method: 'first',
@@ -98,16 +98,38 @@ describe('BridgeDaemon', () => {
 
 async function startDaemon(idleTimeoutMs = 5_000): Promise<{
   daemon: BridgeDaemon;
-  secret: string;
+  daemonSecret: string;
+  pluginAuth: { serverId: string; deviceId: string; token: string };
   logs: Array<Record<string, unknown>>;
 }> {
-  const secret = Buffer.alloc(32, 13).toString('base64url');
-  const config: ServerConfig = { version: 1, host: '127.0.0.1', port: 0, secret };
+  const daemonSecret = Buffer.alloc(32, 13).toString('base64url');
+  const deviceId = '22222222-2222-4222-8222-222222222222';
+  const token = Buffer.alloc(32, 14).toString('base64url');
+  const config: ServerConfig = {
+    version: 2,
+    serverId: '11111111-1111-4111-8111-111111111111',
+    daemonSecret,
+    host: '127.0.0.1',
+    port: 0,
+    pairedClients: {
+      [deviceId]: {
+        token,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        lastSeenAt: '2026-01-01T00:00:00.000Z',
+        pluginVersion: 'test-plugin',
+      },
+    },
+  };
   const logs: Array<Record<string, unknown>> = [];
   const daemon = new BridgeDaemon(config, { idleTimeoutMs, log: (entry) => logs.push(entry) });
   daemons.push(daemon);
   await daemon.start();
-  return { daemon, secret, logs };
+  return {
+    daemon,
+    daemonSecret,
+    pluginAuth: { serverId: config.serverId, deviceId, token },
+    logs,
+  };
 }
 
 async function connectDaemonClient(port: number, secret: string): Promise<WebSocket> {

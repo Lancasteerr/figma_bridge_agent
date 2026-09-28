@@ -44,10 +44,12 @@ afterEach(async () => {
 describe('MCP tool contract', () => {
   it('advertises exactly 19 closed-world tools with schemas and annotations', async () => {
     const broker = new PluginConnectionBroker({
-      version: 1,
+      version: 2,
+      serverId: '11111111-1111-4111-8111-111111111111',
       host: '127.0.0.1',
       port: 39_000,
-      secret: 'unused-test-secret',
+      daemonSecret: Buffer.alloc(32, 28).toString('base64url'),
+      pairedClients: {},
     });
     const mcp = createMcpServer(broker, new TempAssetStore());
     servers.push(mcp);
@@ -71,10 +73,12 @@ describe('MCP tool contract', () => {
       Array.from({ length: 3 }, async () => {
         const client = new DaemonBridgeClient(
           {
-            version: 1,
+            version: 2,
+            serverId: '11111111-1111-4111-8111-111111111111',
             host: '127.0.0.1',
             port: 39_099,
-            secret: Buffer.alloc(32, 29).toString('base64url'),
+            daemonSecret: Buffer.alloc(32, 29).toString('base64url'),
+            pairedClients: {},
           },
           { autoStart: false, connectTimeoutMs: 20, spawnDaemon: () => undefined },
         );

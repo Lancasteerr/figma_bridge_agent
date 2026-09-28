@@ -6,6 +6,7 @@ import { BRIDGE_PROTOCOL_VERSION } from './constants.js';
 export const AuthChallengeSchema = z.object({
   type: z.literal('auth.challenge'),
   protocolVersion: z.literal(BRIDGE_PROTOCOL_VERSION),
+  serverId: z.string().uuid(),
   serverNonce: z.string().min(16),
 });
 
@@ -13,6 +14,8 @@ export const AuthChallengeSchema = z.object({
 export const AuthPluginProofSchema = z.object({
   type: z.literal('auth.plugin-proof'),
   protocolVersion: z.literal(BRIDGE_PROTOCOL_VERSION),
+  serverId: z.string().uuid(),
+  deviceId: z.string().uuid(),
   serverNonce: z.string().min(16),
   pluginNonce: z.string().min(16),
   proof: z.string().min(16),
@@ -23,6 +26,8 @@ export const AuthPluginProofSchema = z.object({
 export const AuthServerProofSchema = z.object({
   type: z.literal('auth.server-proof'),
   protocolVersion: z.literal(BRIDGE_PROTOCOL_VERSION),
+  serverId: z.string().uuid(),
+  deviceId: z.string().uuid(),
   serverNonce: z.string(),
   pluginNonce: z.string(),
   proof: z.string(),
@@ -31,7 +36,14 @@ export const AuthServerProofSchema = z.object({
 /** 认证失败时的可序列化原因；code 也用于区分可诊断的连接拒绝场景。 */
 export const AuthRejectedSchema = z.object({
   type: z.literal('auth.rejected'),
-  code: z.enum(['AUTH_FAILED', 'PROTOCOL_MISMATCH', 'PLUGIN_ALREADY_CONNECTED']),
+  code: z.enum([
+    'AUTH_FAILED',
+    'PROTOCOL_MISMATCH',
+    'PLUGIN_ALREADY_CONNECTED',
+    'UNKNOWN_DEVICE',
+    'DEVICE_REVOKED',
+    'SERVER_CHANGED',
+  ]),
   message: z.string(),
 });
 

@@ -78,6 +78,12 @@ importers:
 
   packages/protocol:
     dependencies:
+      '@noble/curves':
+        specifier: ^2.4.0
+        version: 2.4.0
+      '@noble/hashes':
+        specifier: ^2.4.0
+        version: 2.4.0
       zod:
         specifier: ^4.1.11
         version: 4.6.5
@@ -706,6 +712,13 @@ packages:
     cpu: [x64]
     os: [linux]
     libc: [glibc]
+
+  '@noble/curves@2.4.0':
+    resolution:
+      {
+        integrity: sha512-P4/62zrgfH33CneE3Dn4WhJVA22YUU0eR51wKIan4NVRvwsA0YnPTwWGpNbpuacSujmSFLvyzpyuR30+fbq2Ew==,
+      }
+    engines: { node: '>= 20.19.0' }
 
   '@noble/hashes@2.4.0':
     resolution:
@@ -2447,6 +2460,10 @@ snapshots:
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
+
+  '@noble/curves@2.4.0':
+    dependencies:
+      '@noble/hashes': 2.4.0
 
   '@noble/hashes@2.4.0': {}
 
