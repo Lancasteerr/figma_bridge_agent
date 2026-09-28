@@ -19,7 +19,7 @@ This project is a local development tool, not a remote service.
 - Do not expose port 3900 through a proxy or port-forward.
 - Keep the Figma plugin status window open only while using the bridge.
 - Review a Proposal visually before copying it into production artwork.
-- Use Figma native Undo for user-directed history changes. The bridge uses undo only internally for an operation that has just failed.
+- Use Figma native Undo for user-directed history changes. The bridge uses undo only inside an anchored write boundary for the operation that has just failed; read-only validation failures never trigger undo.
 
 ## Explicit non-goals
 

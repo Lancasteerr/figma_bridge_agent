@@ -11,30 +11,38 @@ import { fingerprintNodeTree } from '../serialization/node-snapshot.js';
 /** 将 Proposal 内的 Frame 转为 Component，并在根节点被替换时重新写入 Proposal 标记。 */
 export async function createComponentFromNode(params: unknown): Promise<CreateComponentResult> {
   const input = CreateComponentInputSchema.parse(params);
-  return await atomicMutation(async () => {
-    const { root, targets } = await assertProposalTargets(
-      input.proposalRootId,
-      [input.nodeId],
-      input.expectedFingerprint,
-    );
-    const node = targets[0]!;
-    if (node.type !== 'FRAME') {
-      throw unsupported(node, 'Only a Frame can be converted to a Component in v1.');
-    }
-    assertNoComponentBoundary(node, root);
-    const replacedNodeId = node.id;
-    const replacesRoot = node.id === root.id;
-    const marker = replacesRoot ? readProposalMarker(root) : undefined;
-    const component = figma.createComponentFromNode(node);
-    // createComponentFromNode 会替换原 Frame，因此根 Proposal 的 marker 不能依赖旧节点。
-    const proposalRoot = replacesRoot ? component : root;
-    if (marker) markProposal(component, marker.sourceNodeIds);
-    return {
-      proposalRootId: proposalRoot.id,
-      componentId: component.id,
-      replacedNodeId,
-      fingerprint: await fingerprintNodeTree([proposalRoot]),
-    };
+  return await atomicMutation({
+    prepare: async () => {
+      const { root, targets } = await assertProposalTargets(
+        input.proposalRootId,
+        [input.nodeId],
+        input.expectedFingerprint,
+      );
+      const node = targets[0]!;
+      if (node.type !== 'FRAME') {
+        throw unsupported(node, 'Only a Frame can be converted to a Component in v1.');
+      }
+      assertNoComponentBoundary(node, root);
+      return {
+        root,
+        node,
+        replacedNodeId: node.id,
+        replacesRoot: node.id === root.id,
+        marker: node.id === root.id ? readProposalMarker(root) : undefined,
+      };
+    },
+    mutate: async ({ root, node, replacedNodeId, replacesRoot, marker }) => {
+      const component = figma.createComponentFromNode(node);
+      // createComponentFromNode 会替换原 Frame，因此根 Proposal 的 marker 不能依赖旧节点。
+      const proposalRoot = replacesRoot ? component : root;
+      if (marker) markProposal(component, marker.sourceNodeIds);
+      return {
+        proposalRootId: proposalRoot.id,
+        componentId: component.id,
+        replacedNodeId,
+        fingerprint: await fingerprintNodeTree([proposalRoot]),
+      };
+    },
   });
 }
 

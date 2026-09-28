@@ -49,25 +49,30 @@ export async function validateLayoutPlan(params: unknown): Promise<LayoutPlanVal
 /** 消费 validationId，重新验证拓扑和指纹后，在 Proposal 副本上原子执行计划。 */
 export async function applyLayoutPlan(params: unknown): Promise<LayoutPlanApplyResult> {
   const { validationId } = ApplyLayoutPlanInputSchema.parse(params);
-  const plan = layoutValidationCache.take(validationId);
-  return await atomicMutation(async () => {
-    const source = await validateLayoutTopology(plan);
-    const actual = await fingerprintNodeTree(source.roots);
-    // 验证到应用之间仍可能有用户编辑，因此必须在 mutation 内第二次核对指纹。
-    if (actual !== plan.source.fingerprint) {
-      throw new BridgeFault({
-        code: 'PLAN_STALE',
-        message: 'The source changed after the layout plan was validated.',
-        retryable: true,
-        details: { expectedFingerprint: plan.source.fingerprint, actualFingerprint: actual },
-      });
-    }
-    const executed = await executeLayoutPlan(plan, source);
-    return {
-      proposalRootId: executed.root.id,
-      idMap: executed.idMap,
-      fingerprint: await fingerprintNodeTree([executed.root]),
-      ...(executed.componentId ? { componentId: executed.componentId } : {}),
-    };
+  return await atomicMutation({
+    prepare: async () => {
+      const plan = layoutValidationCache.take(validationId);
+      const source = await validateLayoutTopology(plan);
+      const actual = await fingerprintNodeTree(source.roots);
+      // 验证到应用之间仍可能有用户编辑，因此必须在串行预检中第二次核对指纹。
+      if (actual !== plan.source.fingerprint) {
+        throw new BridgeFault({
+          code: 'PLAN_STALE',
+          message: 'The source changed after the layout plan was validated.',
+          retryable: true,
+          details: { expectedFingerprint: plan.source.fingerprint, actualFingerprint: actual },
+        });
+      }
+      return { plan, source };
+    },
+    mutate: async ({ plan, source }) => {
+      const executed = await executeLayoutPlan(plan, source);
+      return {
+        proposalRootId: executed.root.id,
+        idMap: executed.idMap,
+        fingerprint: await fingerprintNodeTree([executed.root]),
+        ...(executed.componentId ? { componentId: executed.componentId } : {}),
+      };
+    },
   });
 }

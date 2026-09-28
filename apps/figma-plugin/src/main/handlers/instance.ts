@@ -11,36 +11,41 @@ import { fingerprintNodeTree } from '../serialization/node-snapshot.js';
 /** 在不 detach Instance 的前提下修改其暴露属性。 */
 export async function setInstanceProperties(params: unknown): Promise<MutationResult> {
   const input = SetInstancePropertiesInputSchema.parse(params);
-  return await atomicMutation(async () => {
-    const { root, targets } = await assertProposalTargets(
-      input.proposalRootId,
-      [input.nodeId],
-      input.expectedFingerprint,
-    );
-    const node = targets[0]!;
-    if (node.type !== 'INSTANCE') {
-      throw new BridgeFault({
-        code: 'UNSUPPORTED_NODE_TYPE',
-        message: `Node ${node.id} is not an Instance.`,
-        retryable: false,
-        nodeId: node.id,
-      });
-    }
-    try {
-      node.setProperties(input.properties);
-    } catch (error) {
-      // Figma 对属性名称和值有自己的校验，转换为稳定错误后交给 atomicMutation 回滚。
-      throw new BridgeFault({
-        code: 'INVALID_LAYOUT',
-        message: error instanceof Error ? error.message : 'Instance properties were rejected.',
-        retryable: false,
-        nodeId: node.id,
-      });
-    }
-    return {
-      proposalRootId: root.id,
-      affectedNodeIds: [node.id],
-      fingerprint: await fingerprintNodeTree([root]),
-    };
+  return await atomicMutation({
+    prepare: async () => {
+      const { root, targets } = await assertProposalTargets(
+        input.proposalRootId,
+        [input.nodeId],
+        input.expectedFingerprint,
+      );
+      const node = targets[0]!;
+      if (node.type !== 'INSTANCE') {
+        throw new BridgeFault({
+          code: 'UNSUPPORTED_NODE_TYPE',
+          message: `Node ${node.id} is not an Instance.`,
+          retryable: false,
+          nodeId: node.id,
+        });
+      }
+      return { root, node };
+    },
+    mutate: async ({ root, node }) => {
+      try {
+        node.setProperties(input.properties);
+      } catch (error) {
+        // Figma 对属性名称和值有自己的校验，转换为稳定错误后交给 atomicMutation 回滚。
+        throw new BridgeFault({
+          code: 'INVALID_LAYOUT',
+          message: error instanceof Error ? error.message : 'Instance properties were rejected.',
+          retryable: false,
+          nodeId: node.id,
+        });
+      }
+      return {
+        proposalRootId: root.id,
+        affectedNodeIds: [node.id],
+        fingerprint: await fingerprintNodeTree([root]),
+      };
+    },
   });
 }

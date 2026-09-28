@@ -7,34 +7,38 @@ import { fingerprintNodeTree } from '../serialization/node-snapshot.js';
 /** 预加载字体后原子更新 Proposal 中的 Text 节点，避免半更新文本。 */
 export async function updateText(params: unknown): Promise<MutationResult> {
   const input = UpdateTextInputSchema.parse(params);
-  const { root, targets } = await assertProposalTargets(
-    input.proposalRootId,
-    [input.nodeId],
-    input.expectedFingerprint,
-  );
-  const node = targets[0]!;
-  if (node.type !== 'TEXT') {
-    throw new BridgeFault({
-      code: 'UNSUPPORTED_NODE_TYPE',
-      message: `Node ${node.id} is not a Text node.`,
-      retryable: false,
-      nodeId: node.id,
-    });
-  }
-  await preflightFonts(node, input.fontName);
-
-  return await atomicMutation(async () => {
-    if (input.fontName) node.fontName = input.fontName;
-    if (input.characters !== undefined) node.characters = input.characters;
-    if (input.fontSize !== undefined) node.fontSize = input.fontSize;
-    if (input.lineHeight !== undefined) {
-      node.lineHeight = { value: input.lineHeight, unit: 'PIXELS' };
-    }
-    return {
-      proposalRootId: root.id,
-      affectedNodeIds: [node.id],
-      fingerprint: await fingerprintNodeTree([root]),
-    };
+  return await atomicMutation({
+    prepare: async () => {
+      const { root, targets } = await assertProposalTargets(
+        input.proposalRootId,
+        [input.nodeId],
+        input.expectedFingerprint,
+      );
+      const node = targets[0]!;
+      if (node.type !== 'TEXT') {
+        throw new BridgeFault({
+          code: 'UNSUPPORTED_NODE_TYPE',
+          message: `Node ${node.id} is not a Text node.`,
+          retryable: false,
+          nodeId: node.id,
+        });
+      }
+      await preflightFonts(node, input.fontName);
+      return { root, node };
+    },
+    mutate: async ({ root, node }) => {
+      if (input.fontName) node.fontName = input.fontName;
+      if (input.characters !== undefined) node.characters = input.characters;
+      if (input.fontSize !== undefined) node.fontSize = input.fontSize;
+      if (input.lineHeight !== undefined) {
+        node.lineHeight = { value: input.lineHeight, unit: 'PIXELS' };
+      }
+      return {
+        proposalRootId: root.id,
+        affectedNodeIds: [node.id],
+        fingerprint: await fingerprintNodeTree([root]),
+      };
+    },
   });
 }
 

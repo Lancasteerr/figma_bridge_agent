@@ -34,7 +34,7 @@ The first adapter starts the Daemon when needed. Closing one host only closes it
 
 Write handlers accept only nodes inside a root carrying the `figma-agent-mcp:proposal` plugin-data marker. The marker contains its schema version, source node IDs, and creation time, so it survives plugin restarts.
 
-`figma_duplicate_as_proposal` clones a single subtree or puts multiple clones in a transparent wrapper and returns the complete original-to-clone ID map. Mutations are serialized. An immediate partial failure is rolled back inside the same mutation boundary; public undo is intentionally absent because it could undo later manual edits.
+`figma_duplicate_as_proposal` clones a single subtree or puts multiple clones in a transparent wrapper and returns the complete original-to-clone ID map. Mutations are serialized and split into a read-only preparation phase and a write phase. Preparation failures never touch undo history. Because empty `commitUndo()` calls and Page plugin data do not establish a Figma undo boundary, the write phase creates an invisible temporary node as its undo anchor. On failure, the bridge first commits the anchor and any partial writes as the current unit, then immediately triggers undo for that unit. Even a failure before the first business write can therefore roll back only the current mutation instead of the previous successful action. The anchor is removed before a successful commit and reverted with the mutation on failure. A later successful mutation cleans any invisible anchor left by a plugin crash. Public undo is intentionally absent because it could undo later manual edits.
 
 Discard requires the last inspected Proposal fingerprint. A user edit after inspection produces `PROPOSAL_CHANGED` instead of deletion.
 
@@ -45,7 +45,7 @@ Discard requires the last inspected Proposal fingerprint. A user edit after insp
 3. A valid plan receives a single-use validation ID that expires after five minutes.
 4. `figma_apply_layout_plan` consumes the ID and recomputes the source fingerprint.
 5. The plugin clones source nodes, hides the temporary Proposal, constructs nested Frames from leaves to root, applies Auto Layout, places the result beside the source, marks it, and reveals it.
-6. Any failure removes the temporary root and triggers the internal mutation rollback boundary.
+6. Any preparation failure exits before opening an undo boundary. A write-phase failure removes the temporary root and triggers the anchored internal rollback boundary.
 
 The v1 schema permits horizontal/vertical Auto Layout, sizing, alignment, and absolute overlays. It rejects GRID, WRAP, detach, duplicate references, ancestor/descendant double references, and omissions in an existing container.
 

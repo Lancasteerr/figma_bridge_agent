@@ -7,41 +7,45 @@ import { fingerprintNodeTree } from '../serialization/node-snapshot.js';
 /** 在 Proposal 节点上写入 v1 支持的 Auto Layout、尺寸和定位字段。 */
 export async function setLayout(params: unknown): Promise<MutationResult> {
   const input = SetLayoutInputSchema.parse(params);
-  return await atomicMutation(async () => {
-    const { root, targets } = await assertProposalTargets(
-      input.proposalRootId,
-      [input.nodeId],
-      input.expectedFingerprint,
-    );
-    const node = targets[0]!;
-    validateLayoutInput(node, input);
-
-    if (input.layout && hasWritableAutoLayout(node)) {
-      node.layoutMode = input.layout.mode;
-      node.itemSpacing = input.layout.gap;
-      node.paddingTop = input.layout.padding.top;
-      node.paddingRight = input.layout.padding.right;
-      node.paddingBottom = input.layout.padding.bottom;
-      node.paddingLeft = input.layout.padding.left;
-      node.primaryAxisAlignItems = input.layout.primaryAxisAlign;
-      node.counterAxisAlignItems = input.layout.counterAxisAlign;
-      node.layoutWrap = 'NO_WRAP';
-    }
-    if (input.sizing && 'layoutSizingHorizontal' in node) {
-      if (input.sizing.horizontal) node.layoutSizingHorizontal = input.sizing.horizontal;
-      if (input.sizing.vertical) node.layoutSizingVertical = input.sizing.vertical;
-    }
-    if (input.positioning && 'layoutPositioning' in node)
-      node.layoutPositioning = input.positioning;
-    if (input.absolute) {
-      node.x = input.absolute.x;
-      node.y = input.absolute.y;
-    }
-    return {
-      proposalRootId: root.id,
-      affectedNodeIds: [node.id],
-      fingerprint: await fingerprintNodeTree([root]),
-    };
+  return await atomicMutation({
+    prepare: async () => {
+      const { root, targets } = await assertProposalTargets(
+        input.proposalRootId,
+        [input.nodeId],
+        input.expectedFingerprint,
+      );
+      const node = targets[0]!;
+      validateLayoutInput(node, input);
+      return { root, node };
+    },
+    mutate: async ({ root, node }) => {
+      if (input.layout && hasWritableAutoLayout(node)) {
+        node.layoutMode = input.layout.mode;
+        node.itemSpacing = input.layout.gap;
+        node.paddingTop = input.layout.padding.top;
+        node.paddingRight = input.layout.padding.right;
+        node.paddingBottom = input.layout.padding.bottom;
+        node.paddingLeft = input.layout.padding.left;
+        node.primaryAxisAlignItems = input.layout.primaryAxisAlign;
+        node.counterAxisAlignItems = input.layout.counterAxisAlign;
+        node.layoutWrap = 'NO_WRAP';
+      }
+      if (input.sizing && 'layoutSizingHorizontal' in node) {
+        if (input.sizing.horizontal) node.layoutSizingHorizontal = input.sizing.horizontal;
+        if (input.sizing.vertical) node.layoutSizingVertical = input.sizing.vertical;
+      }
+      if (input.positioning && 'layoutPositioning' in node)
+        node.layoutPositioning = input.positioning;
+      if (input.absolute) {
+        node.x = input.absolute.x;
+        node.y = input.absolute.y;
+      }
+      return {
+        proposalRootId: root.id,
+        affectedNodeIds: [node.id],
+        fingerprint: await fingerprintNodeTree([root]),
+      };
+    },
   });
 }
 

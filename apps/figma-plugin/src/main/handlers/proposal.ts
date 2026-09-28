@@ -5,7 +5,7 @@ import {
   type ProposalResult,
 } from '@figma-agent/protocol';
 
-import { atomicMutation, mutationCoordinator } from '../mutation/coordinator.js';
+import { atomicMutation } from '../mutation/coordinator.js';
 import { mapClonedSubtree } from '../proposal/id-map.js';
 import { assertProposalTargets, isInside, markProposal } from '../proposal/marker.js';
 import { fingerprintNodeTree } from '../serialization/node-snapshot.js';
@@ -14,21 +14,25 @@ import { resolveCurrentPageNode } from '../serialization/resolve.js';
 /** 将当前选区或显式节点复制到原稿旁的 Proposal，原始节点不直接修改。 */
 export async function duplicateAsProposal(params: unknown): Promise<ProposalResult> {
   const input = DuplicateProposalInputSchema.parse(params);
-  return await mutationCoordinator.run(async () => {
-    const sourceIds = input.nodeIds ?? figma.currentPage.selection.map((node) => node.id);
-    if (sourceIds.length === 0) {
-      throw new BridgeFault({
-        code: 'NODE_NOT_FOUND',
-        message: 'Select at least one node or provide nodeIds.',
-        retryable: true,
-      });
-    }
-    const sources = await Promise.all(sourceIds.map(resolveCurrentPageNode));
-    // 祖先和后代同时复制会产生歧义的相对层级，因此在克隆前拒绝重叠来源。
-    assertNonOverlapping(sources);
-    return sources.length === 1
-      ? await duplicateSingle(sources[0]!, input.nameSuffix, input.offsetX, input.offsetY)
-      : await duplicateMultiple(sources, input.nameSuffix, input.offsetX, input.offsetY);
+  return await atomicMutation({
+    prepare: async () => {
+      const sourceIds = input.nodeIds ?? figma.currentPage.selection.map((node) => node.id);
+      if (sourceIds.length === 0) {
+        throw new BridgeFault({
+          code: 'NODE_NOT_FOUND',
+          message: 'Select at least one node or provide nodeIds.',
+          retryable: true,
+        });
+      }
+      const sources = await Promise.all(sourceIds.map(resolveCurrentPageNode));
+      // 祖先和后代同时复制会产生歧义的相对层级，因此在克隆前拒绝重叠来源。
+      assertNonOverlapping(sources);
+      return sources;
+    },
+    mutate: async (sources) =>
+      sources.length === 1
+        ? await duplicateSingle(sources[0]!, input.nameSuffix, input.offsetX, input.offsetY)
+        : await duplicateMultiple(sources, input.nameSuffix, input.offsetX, input.offsetY),
   });
 }
 
@@ -37,15 +41,20 @@ export async function discardProposal(
   params: unknown,
 ): Promise<{ discardedProposalRootId: string }> {
   const input = DiscardProposalInputSchema.parse(params);
-  return await atomicMutation(async () => {
-    const { root } = await assertProposalTargets(
-      input.proposalRootId,
-      [input.proposalRootId],
-      input.expectedFingerprint,
-    );
-    const id = root.id;
-    root.remove();
-    return { discardedProposalRootId: id };
+  return await atomicMutation({
+    prepare: async () => {
+      const { root } = await assertProposalTargets(
+        input.proposalRootId,
+        [input.proposalRootId],
+        input.expectedFingerprint,
+      );
+      return root;
+    },
+    mutate: (root) => {
+      const id = root.id;
+      root.remove();
+      return { discardedProposalRootId: id };
+    },
   });
 }
 
@@ -67,7 +76,6 @@ async function duplicateSingle(
     clone.visible = true;
     figma.currentPage.selection = [clone];
     figma.viewport.scrollAndZoomIntoView([clone]);
-    figma.commitUndo();
     return {
       proposalRootId: clone.id,
       originalRootIds: [source.id],
@@ -119,7 +127,6 @@ async function duplicateMultiple(
     wrapper.visible = true;
     figma.currentPage.selection = [wrapper];
     figma.viewport.scrollAndZoomIntoView([wrapper]);
-    figma.commitUndo();
     return {
       proposalRootId: wrapper.id,
       originalRootIds: sources.map((source) => source.id),
