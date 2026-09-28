@@ -10,13 +10,15 @@
 每会话 MCP Adapter
   ↕ 已认证的 ws://127.0.0.1:3900/mcp
 单例 Bridge Daemon
-  ↕ 已认证的 ws://127.0.0.1:3900/
+  ↕ 每设备认证的 ws://127.0.0.1:3900/
 Figma 插件 UI
   ↕ 已验证的 postMessage
 Figma 插件主进程
   ↕ Figma Plugin API
 当前 Design 页面
 ```
+
+显式 CLI 配对会话会临时启用 `ws://127.0.0.1:3900/pair`；正常运行时该路径保持关闭。
 
 `packages/protocol` 负责与传输无关的 Zod schema。每个 MCP Adapter 负责一个 stdio 会话及其临时文件。自动管理的 Bridge Daemon 独占回环监听，并把任意数量的已认证 MCP Adapter 复用到一个插件连接。插件 UI 负责插件侧身份验证和重连行为。插件主进程是唯一允许持有 Figma 对象的进程。
 
@@ -25,7 +27,7 @@ Figma 插件主进程
 ## 信任边界
 
 - WebSocket 服务器仅绑定到 `127.0.0.1`，只允许一个已认证插件，并在独立路径上允许多个已认证 MCP Adapter。
-- 插件和 MCP 客户端配对均使用新 nonce，以及按角色和方向隔离的 HMAC-SHA-256 证明。proof 不能跨角色复用，密钥不会通过 socket 发送。
+- MCP Adapter 使用内部 Daemon 凭据。每个插件在用户确认六位 SAS 后获得独立的 X25519/HKDF 派生 token，随后使用新鲜 nonce 和按角色、方向隔离的 HMAC-SHA-256 proof；凭据和 proof 均不能跨角色复用。
 - RPC 信封以及每条 UI/主进程消息都会经过 schema 校验并受大小限制。
 - Adapter 日志写入 stderr。后台 Daemon 在用户配置目录写入有界 `bridge.log`，并只保留一个轮转文件。日志仅包含请求 ID、RPC 方法、耗时和结果，排除密钥、图像 base64 和原始节点 JSON。
 - 导出文件写入 `%TEMP%/figma-agent-mcp/<session>/` 下的隔离目录，文件名会经过清理并附带 SHA-256 元数据，程序关闭时删除。启动时会清理超过 24 小时的会话。

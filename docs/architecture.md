@@ -10,13 +10,15 @@ MCP hosts (Codex / Claude Code / Cursor)
 per-session MCP adapters
   ↕ authenticated ws://127.0.0.1:3900/mcp
 single Bridge Daemon
-  ↕ authenticated ws://127.0.0.1:3900/
+  ↕ per-device authenticated ws://127.0.0.1:3900/
 Figma plugin UI
   ↕ validated postMessage
 Figma plugin main
   ↕ Figma Plugin API
 current Design page
 ```
+
+An explicit CLI pairing session temporarily enables `ws://127.0.0.1:3900/pair`; normal operation leaves that path closed.
 
 `packages/protocol` owns transport-independent Zod schemas. Each MCP adapter owns one stdio session and its temporary files. The automatically managed Bridge Daemon owns the loopback listener and multiplexes any number of authenticated MCP adapters onto one plugin connection. Plugin UI owns plugin-side authentication and reconnect behavior. Plugin main is the only process allowed to hold Figma objects.
 
@@ -25,7 +27,7 @@ The first adapter starts the Daemon when needed. Closing one host only closes it
 ## Trust boundaries
 
 - The WebSocket server binds only to `127.0.0.1`, permits one authenticated plugin, and accepts multiple authenticated MCP adapters on a separate path.
-- Plugin and MCP-client pairing use fresh nonces plus role- and direction-specific HMAC-SHA-256 proofs. Proofs cannot be replayed across roles, and the secret is never sent over the socket.
+- MCP adapters use an internal Daemon credential. Each plugin receives a separate X25519/HKDF-derived token after six-digit SAS confirmation, then uses fresh nonces plus role- and direction-specific HMAC-SHA-256 proofs. Credentials and proofs cannot be reused across roles.
 - RPC envelopes and every UI/main message are schema-validated and size-limited.
 - Adapter logs go to stderr. The detached Daemon writes a bounded `bridge.log` in the user configuration directory and retains one rotated file. Logs contain only request ID, RPC method, duration, and outcome; secrets, image base64, and raw node JSON are excluded.
 - Exported files go to an isolated directory under `%TEMP%/figma-agent-mcp/<session>/`, have sanitized names and SHA-256 metadata, and are removed at shutdown. Startup removes sessions older than 24 hours.

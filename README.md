@@ -2,78 +2,57 @@
 
 [中文文档](README.zh-CN.md)
 
-Local-first MCP server and Figma Development Plugin for reading a Figma Design document and making reviewable changes in isolated Proposal copies.
+Local-first MCP server and Figma Desktop development plugin for reading Figma Design documents and making reviewable changes in isolated Proposal copies.
+
+This is an unofficial GitHub-distributed development tool. It is not affiliated with or endorsed by Figma, and it is not published through Figma Community. Figma files and credentials remain on the local loopback connection; there is no cloud relay or telemetry.
+
+## Windows quick start
+
+Requirements: Windows, Node.js 20 or newer, Figma Desktop, and a coding agent with stdio MCP support. Git, pnpm, and a source checkout are not required.
+
+1. Download `figma-agent-bridge-plugin-v0.2.0.zip` from [GitHub Releases](https://github.com/Lancasteerr/figma_bridge_agent/releases), extract it to a stable folder, then choose **Figma Desktop → Plugins → Development → Import plugin from manifest** and select `figma-agent-bridge-plugin/manifest.json`.
+2. Start **Local Figma Agent Bridge** in Figma. In PowerShell run:
+
+   ```powershell
+   npx -y figma-local-agent-mcp@0.2.0 pair
+   ```
+
+3. Compare the six-digit code in PowerShell and the plugin. Click **Codes match** only when they are identical.
+4. Configure the coding agent to run the stdio server:
+
+   ```json
+   {
+     "command": "npx.cmd",
+     "args": ["-y", "figma-local-agent-mcp@0.2.0", "serve"]
+   }
+   ```
+
+The plugin reconnects automatically after the first pairing. Keep its window open while using the bridge. See [host-specific examples](docs/hosts.md) for Codex, ChatGPT Desktop, Claude Code/Desktop, and generic MCP clients.
+
+## Update and recovery
+
+- Install matching plugin and npm versions. To update, overwrite the extracted plugin folder with the new ZIP and update the version in the MCP configuration.
+- `npx -y figma-local-agent-mcp@0.2.0 doctor` checks the local service without revealing credentials.
+- `npx -y figma-local-agent-mcp@0.2.0 devices list` lists paired devices.
+- `devices revoke <deviceId>` or `devices revoke --all` removes credentials. A revoked plugin must pair again.
+- Upgrading from v0.1 removes the old shared secret and requires one new pairing.
+
+## Safety and tools
 
 The bridge deliberately does not mutate source artwork. Every public write either creates a Proposal or requires a Proposal root ID. Declarative layout changes use a five-minute, single-use validation ID and re-check the source fingerprint immediately before cloning.
 
-## Requirements
+It exposes exactly 19 closed-world MCP tools covering status/read, rendering/export, Proposal writes, and validated layout plans. See [architecture and safety](docs/architecture.md), [security notes](docs/security.md), and the [acceptance runbook](docs/acceptance.md).
 
-- Node.js 20 or newer
-- pnpm 11
-- Figma Desktop with permission to edit the current Design file
-- A local MCP host such as Codex
+## Development
 
-## Build and pair
+Contributors need pnpm 11:
 
 ```powershell
 pnpm install
 pnpm check
-node apps/mcp-server/dist/cli.js setup
+pnpm build:release
 ```
 
-Copy the printed pairing secret. Create a local Development Plugin entry in Figma once, copy the generated manifest `id` into the gitignored repository-root file `.figma-plugin-id` (the file contains only the ID), then build:
+`pnpm build:release` produces the directly importable plugin ZIP, npm tarball, and `SHA256SUMS` under `artifacts/`. A local `.figma-plugin-id` may override the ID for contributor builds, but release builds always enforce `1685966253180273328`.
 
-```powershell
-pnpm --filter @figma-agent/figma-plugin build
-```
-
-In Figma Desktop, choose **Plugins → Development → Import plugin from manifest**, then select `apps/figma-plugin/dist/manifest.json`. Start **Local Figma Agent Bridge**, paste the secret, and keep its status window open.
-
-When `.figma-plugin-id` is absent, CI builds use the non-installable placeholder `000000000000000000`; this keeps automated builds deterministic but is not a substitute for the local Figma-generated ID.
-
-The generated secret is stored in the operating-system user configuration directory. The plugin stores the pasted copy in Figma `clientStorage`. Neither value belongs in this repository.
-
-## Run
-
-An MCP host should start the server over stdio:
-
-```powershell
-node E:/absolute/path/figma_bridge_agent/apps/mcp-server/dist/cli.js serve
-```
-
-Use `doctor` to check the configuration and fixed WebSocket port:
-
-```powershell
-node apps/mcp-server/dist/cli.js doctor
-```
-
-The first MCP session automatically starts a singleton Bridge Daemon. Multiple local MCP hosts can share the same authenticated Figma plugin. Use `bridge status`, `bridge start`, or `bridge stop` for explicit lifecycle management.
-
-See [host configuration](docs/hosts.md), [architecture and safety](docs/architecture.md), and the [acceptance runbook](docs/acceptance.md).
-
-## Tool surface
-
-The server exposes exactly 19 closed-world tools:
-
-- Status/read: `figma_status`, `figma_get_selection`, `figma_get_node`, `figma_get_tree`, `figma_get_css`, `figma_get_variables`, `figma_get_raw_node`
-- Media: `figma_render_node`, `figma_export_asset`
-- Proposal writes: `figma_duplicate_as_proposal`, `figma_create_frame`, `figma_reparent_nodes`, `figma_set_layout`, `figma_update_text`, `figma_set_instance_properties`, `figma_create_component_from_node`, `figma_discard_proposal`
-- Declarative layout: `figma_validate_layout_plan`, `figma_apply_layout_plan`
-
-All normal results include structured content and a compact JSON text fallback. PNG renders also include MCP image content and a temporary local path.
-
-## Development
-
-```powershell
-pnpm typecheck
-pnpm lint
-pnpm format:check
-pnpm test
-pnpm build
-```
-
-`pnpm check` runs the complete gate. The repository uses small responsibility-focused packages and handlers; entry points only assemble dependencies.
-
-## Scope
-
-Version 0.1 supports multiple local MCP host sessions, one active Figma plugin, and the current page of the current Design file. It does not expose arbitrary JavaScript, source-node writes, general deletion, instance detach, remote transport, OAuth, cloud sync, GRID/WRAP layout writes, or framework-specific code generation.
+Version 0.2 supports multiple local MCP adapters, one active Figma plugin, and the current page of the current Design file. Windows installers, automatic updates, remote transport, cloud sync, arbitrary JavaScript, source-node writes, general deletion, instance detach, and framework-specific code generation are outside this release.

@@ -1,77 +1,70 @@
-# MCP host configuration
+# MCP host configuration on Windows
 
 [中文版](hosts.zh-CN.md)
 
-Build first with `pnpm build`. Replace `E:/absolute/path/figma_bridge_agent` in every example.
+All hosts run the same stdio command. Keep the package version equal to the downloaded plugin ZIP version:
 
-## Codex (blocking acceptance host)
+```json
+{
+  "command": "npx.cmd",
+  "args": ["-y", "figma-local-agent-mcp@0.2.0", "serve"]
+}
+```
 
-The official Codex MCP documentation confirms local stdio servers, project-scoped `.codex/config.toml`, `command`/`args`/`cwd`, tool timeouts, and read/write-aware approval modes: <https://learn.chatgpt.com/docs/extend/mcp>.
+Use `npx.cmd` in Windows GUI applications. If it is not found, restart the application after installing Node.js 20+ and verify `where.exe npx` in PowerShell.
+
+## Codex CLI and desktop
 
 CLI registration:
 
 ```powershell
-codex mcp add figma-local-agent -- node E:/absolute/path/figma_bridge_agent/apps/mcp-server/dist/cli.js serve
+codex mcp add figma-local-agent -- npx.cmd -y figma-local-agent-mcp@0.2.0 serve
 codex mcp list
 ```
 
-Equivalent project-scoped `.codex/config.toml`:
+Equivalent project `.codex/config.toml`:
 
 ```toml
 [mcp_servers.figma_local_agent]
-command = "node"
-args = ["E:/absolute/path/figma_bridge_agent/apps/mcp-server/dist/cli.js", "serve"]
-cwd = "E:/absolute/path/figma_bridge_agent"
-startup_timeout_sec = 10
+command = "npx.cmd"
+args = ["-y", "figma-local-agent-mcp@0.2.0", "serve"]
+startup_timeout_sec = 15
 tool_timeout_sec = 130
-default_tools_approval_mode = "writes"
 enabled = true
 ```
 
-Codex CLI, its IDE extension, and the ChatGPT desktop Codex host share local MCP configuration. Restart the host after changing the configuration, then call `figma_status`.
+The Codex desktop app uses the same local MCP server shape. Add the command and arguments through its MCP settings if the current app version does not import the CLI configuration.
 
-## Claude Code (configuration example)
+## Claude Code and Claude Desktop
 
-Project `.mcp.json`:
+Claude Code project `.mcp.json` and Claude Desktop custom stdio entries use this server object:
 
 ```json
 {
   "mcpServers": {
     "figma-local-agent": {
       "type": "stdio",
-      "command": "node",
-      "args": ["E:/absolute/path/figma_bridge_agent/apps/mcp-server/dist/cli.js", "serve"],
-      "cwd": "E:/absolute/path/figma_bridge_agent"
+      "command": "npx.cmd",
+      "args": ["-y", "figma-local-agent-mcp@0.2.0", "serve"]
     }
   }
 }
 ```
 
-## Cursor (configuration example)
+## ChatGPT Desktop and other MCP hosts
 
-Project `.cursor/mcp.json`:
+When the host provides an “add local/custom MCP server” form, select stdio and enter:
 
-```json
-{
-  "mcpServers": {
-    "figma-local-agent": {
-      "command": "node",
-      "args": ["E:/absolute/path/figma_bridge_agent/apps/mcp-server/dist/cli.js", "serve"]
-    }
-  }
-}
-```
+- Name: `figma-local-agent`
+- Command: `npx.cmd`
+- Arguments: `-y`, `figma-local-agent-mcp@0.2.0`, `serve`
 
-Claude Code and Cursor examples express standard stdio MCP configuration, but v0.1 release acceptance is run against Codex. Host UI labels and config discovery can change; check the relevant host documentation if its current version does not load the file.
+DeepSeek Harness, Cursor, and other standard stdio MCP hosts can use the same JSON object. Their configuration file locations and UI labels are host-owned and may change.
 
-## Expected startup behavior
+## Expected behavior
 
-- The MCP process owns stdout; diagnostic JSON is written to stderr.
-- Each host gets its own stdio adapter. Adapters share one automatically started Bridge Daemon, so several Codex tasks or supported hosts can use the same plugin concurrently.
-- Tool discovery always succeeds. A missing Daemon returns retryable `BRIDGE_UNAVAILABLE`; a running Daemon without a plugin returns `PLUGIN_NOT_CONNECTED` promptly.
-- Only one plugin can authenticate. Starting a second plugin window returns `PLUGIN_ALREADY_CONNECTED`.
-- The plugin must remain open because its UI is the WebSocket-capable process.
-
-Use `node apps/mcp-server/dist/cli.js bridge status|start|stop` for explicit lifecycle management. `doctor` distinguishes a healthy Daemon, a stopped Daemon, a pre-Daemon legacy process, and an unrelated port owner.
-
-After upgrading from the single-process bridge, close old MCP tasks once so the legacy process releases port 3900, rebuild, and reopen the tasks. The host configuration command does not change.
+- Each host starts its own small stdio adapter; all adapters reuse one authenticated loopback daemon.
+- MCP stdout contains protocol traffic only. Diagnostics go to stderr or the bounded local daemon log.
+- Tool discovery succeeds without Figma. Calls return `PLUGIN_NOT_CONNECTED` until the paired plugin is open.
+- Only one Figma plugin window is active at a time; a second receives `PLUGIN_ALREADY_CONNECTED`.
+- `doctor`, `devices list`, and `devices revoke` are local management commands and never print credentials.

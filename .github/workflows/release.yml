@@ -1,0 +1,90 @@
+name: Manual release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing v-prefixed Git tag to release
+        required: true
+        type: string
+      create_github_release:
+        description: Create the GitHub Release
+        required: true
+        default: true
+        type: boolean
+      publish_npm:
+        description: Publish the npm package
+        required: true
+        default: false
+        type: boolean
+      prerelease:
+        description: Mark the GitHub Release as a prerelease
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    if: github.actor == github.repository_owner
+    runs-on: windows-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - name: Validate tag and versions
+        shell: pwsh
+        run: |
+          $version = (Get-Content apps/mcp-server/package.json | ConvertFrom-Json).version
+          $pluginVersion = (Get-Content apps/figma-plugin/package.json | ConvertFrom-Json).version
+          if ("v$version" -ne "${{ inputs.tag }}") { throw "Tag must equal v$version" }
+          if ($pluginVersion -ne $version) { throw "Plugin and npm versions differ" }
+          if ((git describe --tags --exact-match) -ne "${{ inputs.tag }}") { throw "Checkout is not the requested tag" }
+      - run: pnpm check
+      - name: Build immutable release artifacts
+        run: |
+          pnpm --filter @figma-agent/figma-plugin build -- --release
+          node scripts/release-artifacts.mjs
+      - name: Refuse an existing npm version
+        if: inputs.publish_npm
+        shell: pwsh
+        run: |
+          $version = (Get-Content apps/mcp-server/package.json | ConvertFrom-Json).version
+          npm view "figma-local-agent-mcp@$version" version 2>$null
+          if ($LASTEXITCODE -eq 0) { throw "npm version $version already exists" }
+          $global:LASTEXITCODE = 0
+      - name: Publish npm package
+        if: inputs.publish_npm
+        shell: pwsh
+        run: |
+          $version = (Get-Content apps/mcp-server/package.json | ConvertFrom-Json).version
+          npm publish "artifacts/figma-local-agent-mcp-$version.tgz" --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Create GitHub Release
+        if: inputs.create_github_release
+        shell: pwsh
+        run: |
+          $prerelease = if ('${{ inputs.prerelease }}' -eq 'true') { '--prerelease' } else { $null }
+          gh release create "${{ inputs.tag }}" artifacts/* --verify-tag --generate-notes --title "${{ inputs.tag }}" $prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ inputs.tag }}
+          path: artifacts/*
+          if-no-files-found: error

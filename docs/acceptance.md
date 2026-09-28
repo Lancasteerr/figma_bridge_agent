@@ -2,23 +2,23 @@
 
 [中文版](acceptance.zh-CN.md)
 
-Run `pnpm check` before manual acceptance. Use a disposable Figma page for generated fixtures. `E:/codes/java/easy_community/Community.fig` may be used as an additional local scenario but must not be copied into this repository or CI.
+Run `pnpm build:release` before manual acceptance. Perform the user path from the generated ZIP and npm tarball, not from workspace entry points. Use a disposable Figma page for mutation scenarios.
 
-## 1. Desktop smoke gate
+## 1. Distribution and pairing gate
 
-1. Put the Figma-generated Development Plugin ID in `.figma-plugin-id`, build, and import `apps/figma-plugin/dist/manifest.json` in Figma Desktop. Do not use the CI placeholder ID.
-2. Start the plugin and paste the secret printed by `setup`.
-3. Select a visible Frame and click **Duplicate selection (smoke test)**.
-4. Confirm the original layer, hierarchy, and appearance are unchanged.
-5. Confirm the copy is placed to the right and renamed with `/ Smoke Proposal`.
-6. Use Figma native Undo once and confirm only the smoke copy disappears.
+1. On a clean Windows account with Node.js 20+, extract `artifacts/figma-agent-bridge-plugin-v0.2.0.zip` and import its `manifest.json` in Figma Desktop without editing the ID.
+2. Start the plugin and confirm there is no secret or Plugin ID input.
+3. Run `npx -y ./artifacts/figma-local-agent-mcp-0.2.0.tgz pair`.
+4. Confirm both surfaces show the same six-digit code, click **Codes match**, and verify the CLI reports success.
+5. Restart Figma and the MCP host; confirm the plugin reconnects without another pairing.
+6. Run `devices list`, revoke the connected device, and confirm the plugin immediately returns to the pairing screen.
 
 Do not continue acceptance if this gate fails.
 
 ## 2. Connection and read path
 
 1. Start Codex with the configuration in `docs/hosts.md`.
-2. Call `figma_status`; confirm authenticated protocol v1, file/page metadata, and selection summary.
+2. Call `figma_status`; confirm authenticated protocol v2, file/page metadata, and selection summary.
 3. Close the plugin and call it again; confirm `PLUGIN_NOT_CONNECTED` returns in about one second rather than hanging.
 4. Reopen the plugin and confirm automatic reconnection.
 5. Open two additional Codex tasks. Confirm all three tasks discover the same 19 tools and can call `figma_status` through the same plugin.

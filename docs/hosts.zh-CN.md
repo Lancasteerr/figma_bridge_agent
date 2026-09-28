@@ -1,17 +1,24 @@
-# MCP 主机配置
+# Windows MCP 主机配置
 
 [English](hosts.md)
 
-先执行 `pnpm build`。将每个示例中的 `E:/absolute/path/figma_bridge_agent` 替换为实际路径。
+所有主机都运行同一个 stdio 命令。npm 包版本必须与下载的插件 ZIP 版本一致：
 
-## Codex（验收使用的阻塞式主机）
+```json
+{
+  "command": "npx.cmd",
+  "args": ["-y", "figma-local-agent-mcp@0.2.0", "serve"]
+}
+```
 
-官方 Codex MCP 文档确认支持本地 stdio 服务器、项目级 `.codex/config.toml`、`command`/`args`/`cwd`、工具超时，以及感知读写操作的审批模式：<https://learn.chatgpt.com/docs/extend/mcp>。
+Windows GUI 应用优先使用 `npx.cmd`。如果找不到命令，请在安装 Node.js 20+ 后重启应用，并在 PowerShell 中运行 `where.exe npx` 检查 PATH。
 
-通过 CLI 注册：
+## Codex CLI 与桌面版
+
+CLI 注册：
 
 ```powershell
-codex mcp add figma-local-agent -- node E:/absolute/path/figma_bridge_agent/apps/mcp-server/dist/cli.js serve
+codex mcp add figma-local-agent -- npx.cmd -y figma-local-agent-mcp@0.2.0 serve
 codex mcp list
 ```
 
@@ -19,59 +26,45 @@ codex mcp list
 
 ```toml
 [mcp_servers.figma_local_agent]
-command = "node"
-args = ["E:/absolute/path/figma_bridge_agent/apps/mcp-server/dist/cli.js", "serve"]
-cwd = "E:/absolute/path/figma_bridge_agent"
-startup_timeout_sec = 10
+command = "npx.cmd"
+args = ["-y", "figma-local-agent-mcp@0.2.0", "serve"]
+startup_timeout_sec = 15
 tool_timeout_sec = 130
-default_tools_approval_mode = "writes"
 enabled = true
 ```
 
-Codex CLI、其 IDE 扩展以及 ChatGPT Desktop Codex 主机共享本地 MCP 配置。修改配置后重启主机，然后调用 `figma_status`。
+Codex 桌面版使用相同的本地 MCP 服务结构。如果当前版本没有导入 CLI 配置，可在其 MCP 设置中填写相同命令和参数。
 
-## Claude Code（配置示例）
+## Claude Code 与 Claude Desktop
 
-项目级 `.mcp.json`：
+Claude Code 项目级 `.mcp.json` 和 Claude Desktop 自定义 stdio 条目均可使用：
 
 ```json
 {
   "mcpServers": {
     "figma-local-agent": {
       "type": "stdio",
-      "command": "node",
-      "args": ["E:/absolute/path/figma_bridge_agent/apps/mcp-server/dist/cli.js", "serve"],
-      "cwd": "E:/absolute/path/figma_bridge_agent"
+      "command": "npx.cmd",
+      "args": ["-y", "figma-local-agent-mcp@0.2.0", "serve"]
     }
   }
 }
 ```
 
-## Cursor（配置示例）
+## ChatGPT Desktop 与其他 MCP 主机
 
-项目级 `.cursor/mcp.json`：
+如果主机提供“添加本地/自定义 MCP 服务”界面，选择 stdio 并填写：
 
-```json
-{
-  "mcpServers": {
-    "figma-local-agent": {
-      "command": "node",
-      "args": ["E:/absolute/path/figma_bridge_agent/apps/mcp-server/dist/cli.js", "serve"]
-    }
-  }
-}
-```
+- 名称：`figma-local-agent`
+- 命令：`npx.cmd`
+- 参数：`-y`、`figma-local-agent-mcp@0.2.0`、`serve`
 
-Claude Code 和 Cursor 示例采用标准 stdio MCP 配置，但 v0.1 版本的发布验收针对 Codex 执行。主机界面标签和配置发现方式可能发生变化；如果当前版本没有加载该文件，请查阅对应主机的文档。
+DeepSeek Harness、Cursor 和其他标准 stdio MCP 主机可使用同一 JSON。具体配置文件位置和界面名称由对应主机决定，可能随版本变化。
 
-## 预期的启动行为
+## 预期行为
 
-- MCP 进程独占 stdout；诊断 JSON 会写入 stderr。
-- 每个主机拥有独立的 stdio Adapter。所有 Adapter 共享自动启动的单例 Bridge Daemon，因此多个 Codex 任务或受支持主机可以并发使用同一插件。
-- 工具发现始终成功。Daemon 不可用时返回可重试的 `BRIDGE_UNAVAILABLE`；Daemon 已运行但插件未启动时快速返回 `PLUGIN_NOT_CONNECTED`。
-- 只有一个插件可以完成身份验证。启动第二个插件窗口会返回 `PLUGIN_ALREADY_CONNECTED`。
-- 插件必须保持打开，因为它的 UI 进程支持 WebSocket。
-
-可使用 `node apps/mcp-server/dist/cli.js bridge status|start|stop` 显式管理生命周期。`doctor` 会区分健康 Daemon、已停止 Daemon、升级前的旧版进程和无关端口占用者。
-
-从单进程桥接升级后，需要一次性关闭旧 MCP 任务以释放旧进程占用的 3900 端口，重新构建后再打开任务。主机配置命令无需修改。
+- 每个主机启动一个轻量 stdio Adapter；所有 Adapter 复用同一个已认证 loopback Daemon。
+- MCP stdout 只承载协议流量，诊断写入 stderr 或有限大小的本地 Daemon 日志。
+- 未打开 Figma 插件时仍能发现工具，但调用会返回 `PLUGIN_NOT_CONNECTED`。
+- 同一时间只允许一个活动插件窗口，第二个会收到 `PLUGIN_ALREADY_CONNECTED`。
+- `doctor`、`devices list` 和 `devices revoke` 均为本地管理命令，绝不会输出凭据。

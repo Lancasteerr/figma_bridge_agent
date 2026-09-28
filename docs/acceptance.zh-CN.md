@@ -2,23 +2,23 @@
 
 [English](acceptance.md)
 
-手动验收前先运行 `pnpm check`。请使用一次性的 Figma 页面来生成测试夹具。`E:/codes/java/easy_community/Community.fig` 可作为额外的本地场景使用，但不得复制到本仓库或 CI 中。
+手动验收前先运行 `pnpm build:release`。必须从生成的 ZIP 和 npm tarball 执行普通用户路径，不能直接使用 workspace 入口。修改场景请使用一次性 Figma 页面。
 
-## 1. Desktop 冒烟门禁
+## 1. 分发与配对门禁
 
-1. 将 Figma 生成的 Development Plugin ID 写入 `.figma-plugin-id`，进行构建，并在 Figma Desktop 中导入 `apps/figma-plugin/dist/manifest.json`。不要使用 CI 占位 ID。
-2. 启动插件并粘贴 `setup` 输出的密钥。
-3. 选择一个可见的 Frame，然后点击 **Duplicate selection (smoke test)**。
-4. 确认原始图层、层级结构和外观均未改变。
-5. 确认副本被放置在右侧，并重命名为带有 `/ Smoke Proposal` 后缀的名称。
-6. 使用一次 Figma 原生 Undo，确认只有冒烟测试副本消失。
+1. 在只安装 Node.js 20+ 的干净 Windows 账户中解压 `artifacts/figma-agent-bridge-plugin-v0.2.0.zip`，直接导入其中的 `manifest.json`，不得编辑 ID。
+2. 启动插件，确认界面中不存在密钥或 Plugin ID 输入框。
+3. 运行 `npx -y ./artifacts/figma-local-agent-mcp-0.2.0.tgz pair`。
+4. 确认两端显示相同六位短码，点击 **Codes match**，并确认 CLI 报告成功。
+5. 重启 Figma 和 MCP 主机，确认无需再次配对即可自动连接。
+6. 运行 `devices list`，撤销当前设备，并确认插件立即返回配对界面。
 
 如果此门禁失败，不要继续验收。
 
 ## 2. 连接和读取路径
 
 1. 使用 `docs/hosts.zh-CN.md` 中的配置启动 Codex。
-2. 调用 `figma_status`；确认协议 v1 已认证，并返回文件/页面元数据和选择摘要。
+2. 调用 `figma_status`；确认协议 v2 已认证，并返回文件/页面元数据和选择摘要。
 3. 关闭插件并再次调用；确认约一秒内返回 `PLUGIN_NOT_CONNECTED`，而不是一直挂起。
 4. 重新打开插件，确认能够自动重连。
 5. 再打开两个 Codex 任务，确认三个任务都发现相同的 19 个工具，并能通过同一插件调用 `figma_status`。

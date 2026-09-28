@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - name: Build release artifacts
+        run: |
+          pnpm --filter @figma-agent/figma-plugin build -- --release
+          node scripts/release-artifacts.mjs
+      - name: Verify packed CLI in a clean directory
+        shell: pwsh
+        run: |
+          $testDirectory = Join-Path $env:RUNNER_TEMP "figma-agent-package-test"
+          New-Item -ItemType Directory -Path $testDirectory | Out-Null
+          Push-Location $testDirectory
+          npm init -y | Out-Null
+          $version = (Get-Content "$env:GITHUB_WORKSPACE/apps/mcp-server/package.json" | ConvertFrom-Json).version
+          npm install "$env:GITHUB_WORKSPACE/artifacts/figma-local-agent-mcp-$version.tgz"
+          & "$testDirectory/node_modules/.bin/figma-local-agent-mcp.cmd" --version
+          if ($LASTEXITCODE -ne 0) { throw "Packed CLI smoke test failed" }
+          Pop-Location
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-artifacts
+          path: artifacts/*
+          if-no-files-found: error
