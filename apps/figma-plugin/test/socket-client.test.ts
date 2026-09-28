@@ -32,6 +32,12 @@ class FakeWebSocket {
 
 describe('BridgeSocketClient connection lifecycle', () => {
   const setTimeoutMock = vi.fn(() => 1);
+  const auth = {
+    version: 2 as const,
+    serverId: '11111111-1111-4111-8111-111111111111',
+    deviceId: '22222222-2222-4222-8222-222222222222',
+    token: Buffer.alloc(32, 7).toString('base64url'),
+  };
 
   beforeEach(() => {
     FakeWebSocket.instances.length = 0;
@@ -50,10 +56,11 @@ describe('BridgeSocketClient connection lifecycle', () => {
     const client = new BridgeSocketClient(
       (state) => states.push(state),
       () => undefined,
+      () => undefined,
     );
 
-    client.start('  same-secret-value  ');
-    client.start('same-secret-value');
+    client.start(auth);
+    client.start(auth);
 
     expect(FakeWebSocket.instances).toHaveLength(1);
     expect(FakeWebSocket.instances[0]?.url).toBe('ws://localhost:3900');
@@ -65,11 +72,12 @@ describe('BridgeSocketClient connection lifecycle', () => {
     const client = new BridgeSocketClient(
       (state) => states.push(state),
       () => undefined,
+      () => undefined,
     );
 
-    client.start('first-secret-value');
+    client.start(auth);
     const staleSocket = FakeWebSocket.instances[0];
-    client.start('second-secret-value');
+    client.start({ ...auth, deviceId: '33333333-3333-4333-8333-333333333333' });
     staleSocket?.emitClose();
 
     expect(FakeWebSocket.instances).toHaveLength(2);

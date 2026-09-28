@@ -14,14 +14,18 @@
           sans-serif;
       }
       h1 {
-        margin: 0 0 16px;
+        margin: 0 0 14px;
         font-size: 15px;
+      }
+      h2 {
+        margin: 16px 0 8px;
+        font-size: 12px;
       }
       dl {
         display: grid;
-        grid-template-columns: 76px 1fr;
-        gap: 8px;
-        margin: 0 0 16px;
+        grid-template-columns: 72px 1fr;
+        gap: 7px;
+        margin: 0;
       }
       dt {
         color: var(--figma-color-text-secondary);
@@ -32,33 +36,59 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+      .panel {
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid var(--figma-color-border);
+      }
       .row {
         display: flex;
         gap: 8px;
-        margin-top: 8px;
-      }
-      input {
-        flex: 1;
-        min-width: 0;
-      }
-      button,
-      input {
-        border: 1px solid var(--figma-color-border);
-        border-radius: 4px;
-        padding: 7px 8px;
-        color: inherit;
-        background: var(--figma-color-bg-secondary);
+        margin-top: 9px;
       }
       button {
+        border: 1px solid var(--figma-color-border);
+        border-radius: 4px;
+        padding: 7px 9px;
+        color: inherit;
+        background: var(--figma-color-bg-secondary);
         cursor: pointer;
+      }
+      button.primary {
+        color: var(--figma-color-text-onbrand);
+        background: var(--figma-color-bg-brand);
+      }
+      code {
+        display: block;
+        margin-top: 8px;
+        padding: 8px;
+        overflow-wrap: anywhere;
+        background: var(--figma-color-bg-secondary);
+      }
+      #pairing-code {
+        margin: 10px 0;
+        font:
+          600 28px ui-monospace,
+          monospace;
+        letter-spacing: 5px;
       }
       #connection[data-state='authenticated'] {
         color: var(--figma-color-text-success);
       }
+      #pairing-status[data-state='error'],
+      #migration-notice {
+        color: var(--figma-color-text-danger);
+      }
+      .hint {
+        color: var(--figma-color-text-secondary);
+        line-height: 1.45;
+      }
+      [hidden] {
+        display: none !important;
+      }
     </style>
   </head>
   <body>
-    <!-- 页面只提供轻量状态面板，UI 行为由构建阶段注入的 ui.js 接管。 -->
     <h1>Local Figma Agent Bridge</h1>
     <dl>
       <dt>Bridge</dt>
@@ -68,14 +98,28 @@
       <dt>Selection</dt>
       <dd id="selection">None</dd>
     </dl>
-    <div class="row">
-      <input id="secret" type="password" placeholder="Pairing secret" /><button id="save-secret">
-        Save
-      </button>
-    </div>
-    <div class="row"><button id="smoke">Duplicate selection (smoke test)</button></div>
-    <div class="row"><button id="fixtures">Generate development fixtures</button></div>
-    <!-- 构建脚本把打包后的 ui.js 注入下面的占位符，源模板本身保持可读。 -->
+
+    <section id="unpaired-panel" class="panel">
+      <h2>Pair this plugin</h2>
+      <p id="migration-notice" hidden>Your legacy secret was removed. Pair once to continue.</p>
+      <p class="hint">Run this command in PowerShell, then compare the six-digit codes.</p>
+      <code id="pair-command"></code>
+      <div class="row">
+        <button id="copy-command">Copy command</button><button id="retry-pairing">Retry</button>
+      </div>
+      <p id="pairing-status">Waiting for a 120-second pairing session…</p>
+      <div id="pairing-code" hidden>------</div>
+      <div class="row">
+        <button id="confirm-pairing" class="primary" hidden>Codes match</button>
+        <button id="cancel-pairing" hidden>Cancel</button>
+      </div>
+    </section>
+
+    <section id="paired-panel" class="panel" hidden>
+      <h2>Paired device</h2>
+      <p class="hint" id="device-id">—</p>
+      <div class="row"><button id="clear-auth">Clear pairing</button></div>
+    </section>
     <!-- SCRIPT -->
   </body>
 </html>

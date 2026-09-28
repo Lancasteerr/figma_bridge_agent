@@ -3,8 +3,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 
 const encoder = new TextEncoder();
 
-/** 将 base64url secret 解码为 HMAC 使用的原始字节。 */
-function decodeBase64Url(value: string): Uint8Array {
+export function decodeBase64Url(value: string): Uint8Array {
   const padded = value
     .replace(/-/g, '+')
     .replace(/_/g, '/')
@@ -12,42 +11,53 @@ function decodeBase64Url(value: string): Uint8Array {
   return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
 }
 
-/** 浏览器侧使用 base64url 传递 nonce 和 proof，和 Node crypto 输出保持一致。 */
-function encodeBase64Url(value: Uint8Array): string {
+export function encodeBase64Url(value: Uint8Array): string {
   let binary = '';
   for (const byte of value) binary += String.fromCharCode(byte);
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-/** 使用纯 JavaScript HMAC-SHA256，兼容未暴露 crypto.subtle 的 Figma UI 沙箱。 */
 function hmac(secret: string, value: string): string {
   return encodeBase64Url(createHmac(sha256, decodeBase64Url(secret), encoder.encode(value)));
 }
 
-/** 生成 24 字节随机插件 nonce，用于绑定单次连接握手。 */
+export function randomBytes(length: number): Uint8Array {
+  return crypto.getRandomValues(new Uint8Array(length));
+}
+
 export function randomNonce(): string {
-  return encodeBase64Url(crypto.getRandomValues(new Uint8Array(24)));
+  return encodeBase64Url(randomBytes(24));
 }
 
-/** 生成插件方向 proof；context 必须与服务端实现完全一致。 */
-export async function createPluginProof(
-  secret: string,
+/** 不依赖 crypto.randomUUID，兼容 Figma UI 的精简浏览器环境。 */
+export function randomUuid(): string {
+  const bytes = randomBytes(16);
+  bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40;
+  bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
+  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+export function createPluginProof(
+  token: string,
+  serverId: string,
+  deviceId: string,
   serverNonce: string,
   pluginNonce: string,
-): Promise<string> {
-  return hmac(secret, `figma-agent/plugin/v1|${serverNonce}|${pluginNonce}`);
+): string {
+  return hmac(token, `figma-agent/plugin/v2|${serverId}|${deviceId}|${serverNonce}|${pluginNonce}`);
 }
 
-/** 生成服务端方向 proof，供插件验证服务端而非只验证自身请求。 */
-export async function createServerProof(
-  secret: string,
+export function createServerProof(
+  token: string,
+  serverId: string,
+  deviceId: string,
   serverNonce: string,
   pluginNonce: string,
-): Promise<string> {
-  return hmac(secret, `figma-agent/server/v1|${serverNonce}|${pluginNonce}`);
+): string {
+  return hmac(token, `figma-agent/server/v2|${serverId}|${deviceId}|${serverNonce}|${pluginNonce}`);
 }
 
-/** 逐字符比较 proof，避免直接使用可能泄漏长度差异的普通比较。 */
 export function equalProof(left: string, right: string): boolean {
   if (left.length !== right.length) return false;
   let mismatch = 0;

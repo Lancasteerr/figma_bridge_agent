@@ -1,56 +1,109 @@
-import { MainToUiMessageSchema } from '../shared/messages.js';
-import { BridgeSocketClient } from './socket-client.js';
+import { MainToUiMessageSchema, type PluginAuth } from '../shared/messages.js';
+import { PairingClient, type PairingViewState } from './pairing-client.js';
+import { BridgeSocketClient, type ConnectionState } from './socket-client.js';
 
-// UI 只负责渲染状态和转发消息；所有 Figma 写操作仍由 Main 线程执行。
+const PAIR_COMMAND = 'npx -y figma-local-agent-mcp@0.2.0 pair';
 const connection = document.querySelector<HTMLElement>('#connection');
 const page = document.querySelector<HTMLElement>('#page');
 const selection = document.querySelector<HTMLElement>('#selection');
-const secret = document.querySelector<HTMLInputElement>('#secret');
+const unpairedPanel = document.querySelector<HTMLElement>('#unpaired-panel');
+const pairedPanel = document.querySelector<HTMLElement>('#paired-panel');
+const pairingStatus = document.querySelector<HTMLElement>('#pairing-status');
+const pairingCode = document.querySelector<HTMLElement>('#pairing-code');
+const confirmButton = document.querySelector<HTMLButtonElement>('#confirm-pairing');
+const cancelButton = document.querySelector<HTMLButtonElement>('#cancel-pairing');
+const deviceId = document.querySelector<HTMLElement>('#device-id');
+const migrationNotice = document.querySelector<HTMLElement>('#migration-notice');
+const command = document.querySelector<HTMLElement>('#pair-command');
+
+let currentAuth: PluginAuth | null = null;
+
 const bridge = new BridgeSocketClient(
-  (state) => parent.postMessage({ pluginMessage: { type: 'bridge-state', state } }, '*'),
+  renderConnection,
   (request) =>
     parent.postMessage({ pluginMessage: { type: 'rpc-request', payload: request } }, '*'),
+  (reason) => {
+    renderPairing({ state: 'error', message: reason });
+    parent.postMessage({ pluginMessage: { type: 'clear-auth' } }, '*');
+  },
 );
 
+const pairing = new PairingClient(renderPairing, (auth) => {
+  parent.postMessage({ pluginMessage: { type: 'save-auth', auth } }, '*');
+});
+
+function renderConnection(state: ConnectionState): void {
+  if (!connection) return;
+  connection.textContent =
+    state === 'authenticated'
+      ? 'Connected'
+      : state === 'connecting'
+        ? 'Connecting…'
+        : 'Disconnected';
+  connection.dataset.state = state;
+  parent.postMessage({ pluginMessage: { type: 'bridge-state', state } }, '*');
+}
+
+function renderPairing(view: PairingViewState): void {
+  if (pairingCode) {
+    pairingCode.hidden = view.state !== 'code';
+    pairingCode.textContent = view.state === 'code' ? view.sas : '------';
+  }
+  if (confirmButton) confirmButton.hidden = view.state !== 'code';
+  if (cancelButton) cancelButton.hidden = view.state !== 'code';
+  if (!pairingStatus) return;
+  pairingStatus.textContent =
+    view.state === 'waiting'
+      ? 'Waiting for a 120-second pairing session…'
+      : view.state === 'code'
+        ? 'Compare this code with the terminal, then confirm.'
+        : view.message;
+  pairingStatus.dataset.state = view.state;
+}
+
+function applyAuth(auth: PluginAuth | null): void {
+  currentAuth = auth;
+  if (unpairedPanel) unpairedPanel.hidden = auth !== null;
+  if (pairedPanel) pairedPanel.hidden = auth === null;
+  if (deviceId) deviceId.textContent = auth?.deviceId ?? '—';
+  if (auth) {
+    pairing.stop();
+    bridge.start(auth);
+  } else {
+    bridge.stop();
+    pairing.start();
+  }
+}
+
 window.onmessage = (event: MessageEvent<unknown>) => {
-  // parent.postMessage 的内容不假定可信，先按 MainToUiMessage 做判别式校验。
   const parsed = MainToUiMessageSchema.safeParse(
     (event.data as { pluginMessage?: unknown }).pluginMessage,
   );
   if (!parsed.success) return;
   const message = parsed.data;
   if (message.type === 'plugin-state') {
-    if (connection) {
-      connection.textContent = message.payload.bridge;
-      connection.dataset.state = message.payload.bridge;
-    }
     if (page) page.textContent = message.payload.page.name;
     if (selection) {
       selection.textContent =
         message.payload.selection.map((node) => node.name).join(', ') || 'None';
     }
-  } else if (message.type === 'client-secret' && secret) {
-    secret.value = message.payload.secret;
-    bridge.start(message.payload.secret);
+  } else if (message.type === 'client-auth') {
+    if (migrationNotice) migrationNotice.hidden = !message.payload.migrated;
+    applyAuth(message.payload.auth);
   } else if (message.type === 'rpc-response') {
     bridge.send(message.payload);
   }
 };
 
-document.querySelector('#save-secret')?.addEventListener('click', () => {
-  const value = secret?.value.trim();
-  if (value) {
-    // 由 Main 持久化后回传 client-secret，再统一启动连接，避免同一密钥并发创建两个 socket。
-    parent.postMessage({ pluginMessage: { type: 'save-secret', secret: value } }, '*');
-  }
+if (command) command.textContent = PAIR_COMMAND;
+document.querySelector('#copy-command')?.addEventListener('click', () => {
+  void navigator.clipboard?.writeText(PAIR_COMMAND);
 });
-
-document.querySelector('#smoke')?.addEventListener('click', () => {
-  parent.postMessage({ pluginMessage: { type: 'smoke-duplicate' } }, '*');
-});
-
-document.querySelector('#fixtures')?.addEventListener('click', () => {
-  parent.postMessage({ pluginMessage: { type: 'generate-fixtures' } }, '*');
+confirmButton?.addEventListener('click', () => pairing.confirm());
+cancelButton?.addEventListener('click', () => pairing.cancel());
+document.querySelector('#retry-pairing')?.addEventListener('click', () => pairing.start());
+document.querySelector('#clear-auth')?.addEventListener('click', () => {
+  if (currentAuth) parent.postMessage({ pluginMessage: { type: 'clear-auth' } }, '*');
 });
 
 parent.postMessage({ pluginMessage: { type: 'ready' } }, '*');

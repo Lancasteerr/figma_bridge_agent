@@ -7,6 +7,14 @@ export const SelectionSummarySchema = z.object({
   type: z.string(),
 });
 
+export const PluginAuthSchema = z.object({
+  version: z.literal(2),
+  serverId: z.string().uuid(),
+  deviceId: z.string().uuid(),
+  token: z.string().min(32),
+});
+export type PluginAuth = z.infer<typeof PluginAuthSchema>;
+
 /** Main 线程发往 UI 的封闭消息集合。 */
 export const MainToUiMessageSchema = z.discriminatedUnion('type', [
   z.object({
@@ -18,7 +26,10 @@ export const MainToUiMessageSchema = z.discriminatedUnion('type', [
     }),
   }),
   z.object({ type: z.literal('rpc-response'), payload: z.unknown() }),
-  z.object({ type: z.literal('client-secret'), payload: z.object({ secret: z.string() }) }),
+  z.object({
+    type: z.literal('client-auth'),
+    payload: z.object({ auth: PluginAuthSchema.nullable(), migrated: z.boolean() }),
+  }),
 ]);
 
 /** UI 发往 Main 的封闭消息集合；所有 RPC payload 仍由协议层再次校验。 */
@@ -29,9 +40,8 @@ export const UiToMainMessageSchema = z.discriminatedUnion('type', [
     state: z.enum(['disconnected', 'connecting', 'authenticated']),
   }),
   z.object({ type: z.literal('rpc-request'), payload: z.unknown() }),
-  z.object({ type: z.literal('save-secret'), secret: z.string().min(16) }),
-  z.object({ type: z.literal('smoke-duplicate') }),
-  z.object({ type: z.literal('generate-fixtures') }),
+  z.object({ type: z.literal('save-auth'), auth: PluginAuthSchema }),
+  z.object({ type: z.literal('clear-auth') }),
 ]);
 
 /** Main -> UI 消息的推导类型。 */

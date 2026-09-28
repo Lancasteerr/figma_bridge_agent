@@ -1,4 +1,4 @@
-import { UiToMainMessageSchema } from '../shared/messages.js';
+import { PluginAuthSchema, UiToMainMessageSchema } from '../shared/messages.js';
 import { startEvents } from './events.js';
 import { getNode, getSelection, getTree } from './handlers/read.js';
 import { getStatus } from './handlers/status.js';
@@ -13,10 +13,9 @@ import { getCss, getRawNode, getVariables } from './handlers/codegen.js';
 import { applyLayoutPlan, validateLayoutPlan } from './handlers/layout-plan.js';
 import { RpcRouter } from './rpc/router.js';
 import { publishPluginState, setBridgeState } from './state.js';
-import { generateDevelopmentFixtures } from './dev-fixtures.js';
 
 // Main 线程只负责组装路由和边界事件；具体读写逻辑保持在独立 handler 中。
-figma.showUI(__html__, { width: 340, height: 280, themeColors: true });
+figma.showUI(__html__, { width: 360, height: 360, themeColors: true });
 
 const router = new RpcRouter();
 router.register('status', getStatus);
@@ -51,43 +50,26 @@ figma.ui.onmessage = async (raw: unknown) => {
   const message = parsed.data;
   if (message.type === 'ready') {
     publishPluginState();
-    const secret = await figma.clientStorage.getAsync('bridge-secret');
-    if (typeof secret === 'string') {
-      figma.ui.postMessage({ type: 'client-secret', payload: { secret } });
-    }
+    const legacySecret = await figma.clientStorage.getAsync('bridge-secret');
+    const migrated = typeof legacySecret === 'string';
+    if (migrated) await figma.clientStorage.deleteAsync('bridge-secret');
+    const stored = PluginAuthSchema.safeParse(await figma.clientStorage.getAsync('bridge-auth-v2'));
+    figma.ui.postMessage({
+      type: 'client-auth',
+      payload: { auth: stored.success ? stored.data : null, migrated },
+    });
   } else if (message.type === 'bridge-state') {
     setBridgeState(message.state);
     publishPluginState();
-  } else if (message.type === 'save-secret') {
-    await figma.clientStorage.setAsync('bridge-secret', message.secret);
-    figma.ui.postMessage({ type: 'client-secret', payload: { secret: message.secret } });
+  } else if (message.type === 'save-auth') {
+    await figma.clientStorage.setAsync('bridge-auth-v2', message.auth);
+    figma.ui.postMessage({ type: 'client-auth', payload: { auth: message.auth, migrated: false } });
+  } else if (message.type === 'clear-auth') {
+    await figma.clientStorage.deleteAsync('bridge-auth-v2');
+    figma.ui.postMessage({ type: 'client-auth', payload: { auth: null, migrated: false } });
   } else if (message.type === 'rpc-request') {
     const response = await router.route(message.payload);
     figma.ui.postMessage({ type: 'rpc-response', payload: response });
-  } else if (message.type === 'smoke-duplicate') {
-    // 该分支只用于本地冒烟验证，仍然保持“复制后操作”而不修改原节点。
-    const selected = figma.currentPage.selection[0];
-    if (!selected) {
-      figma.notify('Select one node first', { error: true });
-      return;
-    }
-    const clone = selected.clone();
-    clone.name = `${selected.name} / Smoke Proposal`;
-    clone.x = selected.x + selected.width + 64;
-    figma.currentPage.selection = [clone];
-    figma.viewport.scrollAndZoomIntoView([clone]);
-    figma.commitUndo();
-    publishPluginState();
-  } else if (message.type === 'generate-fixtures') {
-    try {
-      const fixtures = await generateDevelopmentFixtures();
-      figma.notify(`Generated ${fixtures.length} bridge fixtures`);
-      publishPluginState();
-    } catch (error) {
-      figma.notify(error instanceof Error ? error.message : 'Fixture generation failed', {
-        error: true,
-      });
-    }
   }
 };
 
