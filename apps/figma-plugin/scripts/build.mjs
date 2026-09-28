@@ -9,6 +9,7 @@ const dist = resolve(root, 'dist');
 const watch = process.argv.includes('--watch');
 const release = process.argv.includes('--release');
 const RELEASE_PLUGIN_ID = '1685966253180273328';
+const packageJson = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'));
 
 // dist 是可重复生成目录；发行构建始终使用仓库中固定的 Development Plugin ID。
 await mkdir(dist, { recursive: true });
@@ -38,6 +39,7 @@ const mainOptions = {
   sourcemap: true,
   // Figma 运行时会误将依赖注释中的 import() 识别为动态导入；压缩空白会移除这类注释。
   minifyWhitespace: true,
+  define: { __PLUGIN_VERSION__: JSON.stringify(packageJson.version) },
 };
 
 const uiOptions = {

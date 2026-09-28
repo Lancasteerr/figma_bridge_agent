@@ -103,7 +103,7 @@ export class BridgeSocketClient {
                   serverNonce,
                   pluginNonce,
                 ),
-                pluginVersion: '0.2.0',
+                pluginVersion: __PLUGIN_VERSION__,
               }),
             );
             return;

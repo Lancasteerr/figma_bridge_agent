@@ -1,0 +1,74 @@
+import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+
+import JSZip from 'jszip';
+
+const workspace = resolve(import.meta.dirname, '..');
+const artifacts = resolve(workspace, 'artifacts');
+const pluginRoot = resolve(workspace, 'apps/figma-plugin');
+const serverRoot = resolve(workspace, 'apps/mcp-server');
+const pluginPackage = JSON.parse(await readFile(resolve(pluginRoot, 'package.json'), 'utf8'));
+const serverPackage = JSON.parse(await readFile(resolve(serverRoot, 'package.json'), 'utf8'));
+
+if (pluginPackage.version !== serverPackage.version) {
+  throw new Error('Plugin and npm package versions must match.');
+}
+const version = serverPackage.version;
+const manifest = JSON.parse(await readFile(resolve(pluginRoot, 'dist/manifest.json'), 'utf8'));
+if (manifest.id !== '1685966253180273328') throw new Error('Release plugin ID is invalid.');
+if (
+  JSON.stringify(manifest.networkAccess) !==
+  JSON.stringify({ allowedDomains: ['none'], devAllowedDomains: ['ws://localhost:3900'] })
+) {
+  throw new Error('Release plugin network permissions are invalid.');
+}
+
+await rm(artifacts, { recursive: true, force: true });
+await mkdir(artifacts, { recursive: true });
+
+const zip = new JSZip();
+for (const file of ['manifest.json', 'code.js', 'ui.html']) {
+  zip.file(`figma-agent-bridge-plugin/${file}`, await readFile(resolve(pluginRoot, 'dist', file)));
+}
+const pluginArchive = `figma-agent-bridge-plugin-v${version}.zip`;
+await writeFile(
+  resolve(artifacts, pluginArchive),
+  await zip.generateAsync({
+    type: 'nodebuffer',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 9 },
+  }),
+);
+
+const npmArgs = ['pack', serverRoot, '--pack-destination', artifacts, '--ignore-scripts'];
+const packed =
+  process.platform === 'win32'
+    ? spawnSync(
+        process.env.ComSpec ?? 'cmd.exe',
+        ['/d', '/c', 'npm', ...npmArgs],
+        { cwd: workspace, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] },
+      )
+    : spawnSync('npm', npmArgs, {
+        cwd: workspace,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'inherit'],
+      });
+if (packed.status !== 0) {
+  throw new Error(`npm pack failed: ${packed.error?.message ?? `exit ${String(packed.status)}`}`);
+}
+const packageArchive = packed.stdout.trim().split(/\r?\n/).at(-1);
+if (packageArchive !== `figma-local-agent-mcp-${version}.tgz`) {
+  throw new Error(`Unexpected npm archive name: ${packageArchive ?? 'none'}`);
+}
+
+const checksumLines = [];
+for (const file of [pluginArchive, packageArchive]) {
+  const digest = createHash('sha256')
+    .update(await readFile(resolve(artifacts, file)))
+    .digest('hex');
+  checksumLines.push(`${digest}  ${file}`);
+}
+await writeFile(resolve(artifacts, 'SHA256SUMS'), `${checksumLines.join('\n')}\n`);
+console.log(`Created release artifacts for v${version} in ${artifacts}`);

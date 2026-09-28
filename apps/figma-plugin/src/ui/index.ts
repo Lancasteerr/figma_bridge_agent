@@ -2,7 +2,7 @@ import { MainToUiMessageSchema, type PluginAuth } from '../shared/messages.js';
 import { PairingClient, type PairingViewState } from './pairing-client.js';
 import { BridgeSocketClient, type ConnectionState } from './socket-client.js';
 
-const PAIR_COMMAND = 'npx -y figma-local-agent-mcp@0.2.0 pair';
+const PAIR_COMMAND = `npx -y figma-local-agent-mcp@${__PLUGIN_VERSION__} pair`;
 const connection = document.querySelector<HTMLElement>('#connection');
 const page = document.querySelector<HTMLElement>('#page');
 const selection = document.querySelector<HTMLElement>('#selection');

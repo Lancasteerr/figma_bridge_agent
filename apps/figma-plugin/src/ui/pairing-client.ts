@@ -127,7 +127,7 @@ export class PairingClient {
               deviceId,
               pluginNonce,
               pluginPublicKey: publicKey,
-              pluginVersion: '0.2.0',
+              pluginVersion: __PLUGIN_VERSION__,
             }),
           );
           return;
@@ -152,7 +152,12 @@ export class PairingClient {
         }
 
         const complete = PairingCompleteSchema.safeParse(value);
-        if (complete.success && this.#pending) {
+        if (
+          complete.success &&
+          this.#pending &&
+          complete.data.sessionId === this.#pending.sessionId &&
+          complete.data.serverId === this.#pending.auth.serverId
+        ) {
           const auth = this.#pending.auth;
           retry = false;
           this.stop();

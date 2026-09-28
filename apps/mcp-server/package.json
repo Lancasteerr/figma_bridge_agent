@@ -1,25 +1,39 @@
 {
-  "name": "@figma-agent/mcp-server",
-  "version": "0.1.0",
-  "private": true,
+  "name": "figma-local-agent-mcp",
+  "version": "0.2.0",
+  "description": "Local-first MCP bridge between coding agents and a Figma Desktop development plugin",
+  "license": "MIT",
   "type": "module",
   "bin": {
+    "figma-local-agent-mcp": "./dist/cli.js",
     "figma-agent-mcp": "./dist/cli.js"
   },
+  "files": [
+    "dist/cli.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "build": "tsc -b",
+    "build": "node scripts/build.mjs",
     "typecheck": "tsc -b --pretty false",
     "clean": "tsc -b --clean",
-    "start": "node dist/cli.js serve"
+    "start": "node dist/cli.js serve",
+    "prepack": "pnpm build"
   },
   "dependencies": {
-    "@figma-agent/protocol": "workspace:*",
     "@modelcontextprotocol/server": "^2.1.0",
+    "@noble/curves": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
     "ws": "^8.18.3",
     "zod": "^4.1.11"
   },
   "devDependencies": {
+    "@figma-agent/protocol": "workspace:*",
     "@figma-agent/test-support": "workspace:*",
-    "@types/ws": "^8.18.1"
+    "@types/ws": "^8.18.1",
+    "esbuild": "^0.25.10"
   }
 }

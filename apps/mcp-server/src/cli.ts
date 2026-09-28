@@ -9,7 +9,7 @@ import { defaultConfigPath, defaultDaemonLogPath } from './config/paths.js';
 import { ensureConfig, loadConfig } from './config/store.js';
 import { startServer } from './server.js';
 
-const CLI_VERSION = '0.2.0';
+const CLI_VERSION = __CLI_VERSION__;
 
 /** 旧命令保留一个版本作为 pair 的别名，但不再输出任何永久密钥。 */
 async function setup(): Promise<void> {
