@@ -7,13 +7,22 @@ const root = resolve(import.meta.dirname, '..');
 const workspaceRoot = resolve(root, '../..');
 const dist = resolve(root, 'dist');
 const watch = process.argv.includes('--watch');
+const release = process.argv.includes('--release');
+const RELEASE_PLUGIN_ID = '1685966253180273328';
 
-// dist 是可重复生成目录；manifest 使用本地 ID（若缺失则使用不可安装的占位 ID）。
+// dist 是可重复生成目录；发行构建始终使用仓库中固定的 Development Plugin ID。
 await mkdir(dist, { recursive: true });
 
 const baseManifest = JSON.parse(await readFile(resolve(root, 'manifest.base.json'), 'utf8'));
 const idPath = resolve(workspaceRoot, '.figma-plugin-id');
-const id = existsSync(idPath) ? (await readFile(idPath, 'utf8')).trim() : '000000000000000000';
+if (baseManifest.id !== RELEASE_PLUGIN_ID) {
+  throw new Error(`manifest.base.json must use the release plugin ID ${RELEASE_PLUGIN_ID}.`);
+}
+const localId = existsSync(idPath) ? (await readFile(idPath, 'utf8')).trim() : undefined;
+const id = release ? RELEASE_PLUGIN_ID : (localId ?? RELEASE_PLUGIN_ID);
+if (!/^\d{16,}$/.test(id)) {
+  throw new Error('Figma plugin ID must contain at least 16 digits.');
+}
 await writeFile(
   resolve(dist, 'manifest.json'),
   `${JSON.stringify({ ...baseManifest, id }, null, 2)}\n`,
