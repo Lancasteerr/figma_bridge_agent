@@ -35,7 +35,7 @@
 - `npx -y figma-local-agent-mcp@0.2.0 doctor` 检查本地服务，但不会输出凭据。
 - `npx -y figma-local-agent-mcp@0.2.0 devices list` 查看已配对设备。
 - `devices revoke <deviceId>` 或 `devices revoke --all` 撤销凭据；被撤销的插件需要重新配对。
-- 从 v0.1 升级时会删除旧共享密钥，并要求重新配对一次。
+- 从 v0.1 升级时会删除旧共享密钥，并要求重新配对一次。升级前先关闭所有 v0.1 MCP 任务，让旧 Daemon 释放 3900 端口。
 
 ## 安全边界与工具
 
@@ -54,5 +54,7 @@ pnpm build:release
 ```
 
 `pnpm build:release` 会在 `artifacts/` 下生成可直接导入的插件 ZIP、npm tarball 和 `SHA256SUMS`。贡献者构建仍可通过 `.figma-plugin-id` 覆盖本地 ID，但发行构建始终强制使用 `1685966253180273328`。
+
+Owner 应遵循[手动发布手册](docs/releasing.zh-CN.md)；仅推送提交或 tag 不会自动发布任何版本。
 
 0.2 版本支持多个本地 MCP Adapter、一个活动 Figma 插件和当前 Design 文件的当前页面。Windows 安装器、自动更新、远程传输、云同步、任意 JavaScript、源节点写入、通用删除、分离 Instance 和特定框架代码生成不在本版本范围内。

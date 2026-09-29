@@ -35,7 +35,7 @@ The plugin reconnects automatically after the first pairing. Keep its window ope
 - `npx -y figma-local-agent-mcp@0.2.0 doctor` checks the local service without revealing credentials.
 - `npx -y figma-local-agent-mcp@0.2.0 devices list` lists paired devices.
 - `devices revoke <deviceId>` or `devices revoke --all` removes credentials. A revoked plugin must pair again.
-- Upgrading from v0.1 removes the old shared secret and requires one new pairing.
+- Upgrading from v0.1 removes the old shared secret and requires one new pairing. Close all v0.1 MCP tasks first so their old Daemon releases port 3900.
 
 ## Safety and tools
 
@@ -54,5 +54,7 @@ pnpm build:release
 ```
 
 `pnpm build:release` produces the directly importable plugin ZIP, npm tarball, and `SHA256SUMS` under `artifacts/`. A local `.figma-plugin-id` may override the ID for contributor builds, but release builds always enforce `1685966253180273328`.
+
+Owners should follow the [manual release runbook](docs/releasing.md); no version is published merely by pushing a commit or tag.
 
 Version 0.2 supports multiple local MCP adapters, one active Figma plugin, and the current page of the current Design file. Windows installers, automatic updates, remote transport, cloud sync, arbitrary JavaScript, source-node writes, general deletion, instance detach, and framework-specific code generation are outside this release.
