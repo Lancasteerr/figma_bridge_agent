@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, open, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { z } from 'zod';
 
@@ -65,9 +65,16 @@ export async function loadConfig(path = defaultConfigPath()): Promise<ServerConf
 
   const legacy = LegacyServerConfigSchema.safeParse(value);
   if (!legacy.success) return ServerConfigSchema.parse(value);
-  const migrated = freshConfig(legacy.data.port);
-  await saveConfig(migrated, path);
-  return migrated;
+  return await withConfigLock(path, async () => {
+    // 另一个并发进程可能已经完成迁移，因此拿锁后必须重新读取。
+    const latest: unknown = JSON.parse(await readFile(path, 'utf8'));
+    const latestCurrent = ServerConfigSchema.safeParse(latest);
+    if (latestCurrent.success) return latestCurrent.data;
+    const latestLegacy = LegacyServerConfigSchema.parse(latest);
+    const migrated = freshConfig(latestLegacy.port);
+    await saveConfig(migrated, path);
+    return migrated;
+  });
 }
 
 /** 首次运行自动创建配置，使普通用户不再需要单独执行 setup。 */
@@ -75,9 +82,37 @@ export async function ensureConfig(path = defaultConfigPath()): Promise<ServerCo
   try {
     return await loadConfig(path);
   } catch (error) {
-    if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') throw error;
-    return await createConfig(path);
+    if (!isMissingFile(error) && !isInvalidConfig(error)) throw error;
+    return await withConfigLock(path, async () => {
+      try {
+        const value: unknown = JSON.parse(await readFile(path, 'utf8'));
+        const current = ServerConfigSchema.safeParse(value);
+        if (current.success) return current.data;
+        const legacy = LegacyServerConfigSchema.parse(value);
+        const migrated = freshConfig(legacy.port);
+        await saveConfig(migrated, path);
+        return migrated;
+      } catch (lockedError) {
+        if (!isMissingFile(lockedError) && !isInvalidConfig(lockedError)) throw lockedError;
+        // 保留损坏文件用于排障，同时生成全新的服务身份并要求插件重新配对。
+        if (isInvalidConfig(lockedError)) {
+          const backup = `${path}.corrupt-${Date.now()}-${randomBytes(4).toString('hex')}`;
+          await rename(path, backup);
+        }
+        const config = freshConfig();
+        await saveConfig(config, path);
+        return config;
+      }
+    });
   }
+}
+
+function isMissingFile(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && error.code === 'ENOENT';
+}
+
+function isInvalidConfig(error: unknown): boolean {
+  return error instanceof SyntaxError || error instanceof z.ZodError;
 }
 
 /** 原子替换配置文件，并按路径串行化并发设备更新。 */
@@ -128,4 +163,27 @@ async function writeAtomic(config: ServerConfig, path: string): Promise<void> {
   await chmod(temporary, 0o600).catch(() => undefined);
   await rename(temporary, path);
   await chmod(path, 0o600).catch(() => undefined);
+}
+
+/** 使用旁路锁协调多个首次启动的 npx 进程，避免各自生成不同的服务身份。 */
+async function withConfigLock<T>(path: string, action: () => Promise<T>): Promise<T> {
+  await mkdir(dirname(path), { recursive: true });
+  const lockPath = `${path}.lock`;
+  let handle: Awaited<ReturnType<typeof open>> | undefined;
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    try {
+      handle = await open(lockPath, 'wx', 0o600);
+      break;
+    } catch (error) {
+      if (!(error instanceof Error) || !('code' in error) || error.code !== 'EEXIST') throw error;
+      await new Promise<void>((resolve) => setTimeout(resolve, 20));
+    }
+  }
+  if (!handle) throw new Error('Timed out waiting for the local bridge configuration lock.');
+  try {
+    return await action();
+  } finally {
+    await handle.close();
+    await unlink(lockPath).catch(() => undefined);
+  }
 }

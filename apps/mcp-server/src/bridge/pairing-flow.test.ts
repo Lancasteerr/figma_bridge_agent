@@ -44,6 +44,9 @@ describe('short-lived pairing flow', () => {
     control.start();
     await control.waitUntilReady();
     await control.request('$daemon.pair.start');
+    await expect(control.request('$daemon.pair.start')).rejects.toMatchObject({
+      bridgeError: { code: 'BUSY', retryable: true },
+    });
 
     const socket = new WebSocket(`ws://127.0.0.1:${config.port}/pair`);
     closeTasks.push(() => socket.close());

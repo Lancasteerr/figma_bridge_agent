@@ -64,7 +64,16 @@ export class PluginConnectionBroker implements BridgeTransport {
 
   /** 撤销当前设备时立即切断活动连接，避免凭据在本次会话继续生效。 */
   revokeCurrentDevice(): void {
-    this.#plugin?.close(4003, 'DEVICE_REVOKED');
+    if (this.#plugin?.readyState === WebSocket.OPEN) {
+      this.#plugin.send(
+        JSON.stringify({
+          type: 'auth.rejected',
+          code: 'DEVICE_REVOKED',
+          message: 'This paired device was revoked.',
+        }),
+      );
+      this.#plugin.close(4003, 'DEVICE_REVOKED');
+    }
   }
 
   /** Daemon 用该计数决定是否仍有必须等待的插件调用。 */
@@ -219,7 +228,7 @@ export class PluginConnectionBroker implements BridgeTransport {
       );
       // 只有 proof 校验成功后才把 socket 提升为可处理 RPC 的插件连接。
       if (!verifyProof(parsed.data.proof, expected)) {
-        this.#rejectSocket(socket, 'AUTH_FAILED', 'Pairing secret is not valid.');
+        this.#rejectSocket(socket, 'AUTH_FAILED', 'The paired device credential is not valid.');
         return;
       }
 

@@ -139,7 +139,15 @@ export class PairingManager {
     );
     socket.on('message', (data) => void this.#handleMessage(session, socket, data));
     socket.once('close', () => {
-      if (this.#active === session && session.socket === socket) delete session.socket;
+      if (this.#active === session && session.socket === socket) {
+        delete session.socket;
+        // 插件在确认前关闭时保留配对窗口，但清除本次协商，使重新打开插件可以重试。
+        delete session.deviceId;
+        delete session.pluginVersion;
+        delete session.token;
+        delete session.sas;
+        delete session.confirmationProof;
+      }
     });
   }
 
@@ -205,6 +213,7 @@ export class PairingManager {
       !verifyProof(confirmation.data.proof, session.confirmationProof)
     ) {
       this.#reject(socket, 'CONFIRMATION_FAILED', 'Pairing confirmation proof is not valid.');
+      this.#finish('cancelled', false);
       return;
     }
 
@@ -216,16 +225,23 @@ export class PairingManager {
       this.#reject(socket, 'INVALID_MESSAGE', 'Pairing session is incomplete.');
       return;
     }
-    const updated = await updateConfig(
-      (config) => ({
-        ...config,
-        pairedClients: {
-          ...config.pairedClients,
-          [deviceId]: { token, createdAt: now, lastSeenAt: now, pluginVersion },
-        },
-      }),
-      this.#configPath,
-    );
+    let updated: ServerConfig;
+    try {
+      updated = await updateConfig(
+        (config) => ({
+          ...config,
+          pairedClients: {
+            ...config.pairedClients,
+            [deviceId]: { token, createdAt: now, lastSeenAt: now, pluginVersion },
+          },
+        }),
+        this.#configPath,
+      );
+    } catch {
+      this.#reject(socket, 'INVALID_MESSAGE', 'Unable to save the paired device.');
+      this.#finish('cancelled', false);
+      return;
+    }
     Object.assign(this.#config, updated);
     socket.send(
       JSON.stringify({
@@ -243,12 +259,12 @@ export class PairingManager {
     socket.close(1000, 'Pairing completed');
   }
 
-  #finish(state: 'expired' | 'cancelled'): void {
+  #finish(state: 'expired' | 'cancelled', notify = true): void {
     const session = this.#active;
     if (session) {
       clearTimeout(session.timer);
       session.privateKey.fill(0);
-      if (session.socket?.readyState === WebSocket.OPEN) {
+      if (notify && session.socket?.readyState === WebSocket.OPEN) {
         session.socket.send(
           JSON.stringify({
             type: 'pair.rejected',

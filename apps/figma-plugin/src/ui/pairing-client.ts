@@ -75,7 +75,7 @@ export class PairingClient {
 
   cancel(): void {
     this.stop();
-    this.#onState({ state: 'waiting' });
+    this.#onState({ state: 'error', message: 'Pairing cancelled. Run pair again or click Retry.' });
   }
 
   #connect(generation: number): void {

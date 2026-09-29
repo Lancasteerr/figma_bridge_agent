@@ -1,10 +1,10 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { createConfig, loadConfig, updateConfig } from './store.js';
+import { createConfig, ensureConfig, loadConfig, updateConfig } from './store.js';
 
 const temporaryDirectories: string[] = [];
 
@@ -23,6 +23,13 @@ describe('v2 config store', () => {
     expect(config.daemonSecret.length).toBeGreaterThanOrEqual(32);
   });
 
+  it('gives concurrent first-run callers one stable service identity', async () => {
+    const path = await configPath();
+    const configs = await Promise.all(Array.from({ length: 8 }, () => ensureConfig(path)));
+    expect(new Set(configs.map((config) => config.serverId))).toHaveLength(1);
+    expect(new Set(configs.map((config) => config.daemonSecret))).toHaveLength(1);
+  });
+
   it('migrates v1 by rotating the shared secret and requiring plugin re-pairing', async () => {
     const path = await configPath();
     const legacySecret = Buffer.alloc(32, 5).toString('base64url');
@@ -35,6 +42,20 @@ describe('v2 config store', () => {
     expect(migrated.daemonSecret).not.toBe(legacySecret);
     expect(migrated.pairedClients).toEqual({});
     expect(JSON.parse(await readFile(path, 'utf8'))).not.toHaveProperty('secret');
+  });
+
+  it('preserves a corrupt config and recovers with a fresh service identity', async () => {
+    const path = await configPath();
+    await writeFile(path, '{not-json');
+    const recovered = await ensureConfig(path);
+    expect(recovered).toMatchObject({ version: 2, pairedClients: {} });
+    expect(JSON.parse(await readFile(path, 'utf8'))).toMatchObject({
+      serverId: recovered.serverId,
+    });
+    const files = await readdir(join(path, '..'));
+    const backup = files.find((file) => file.startsWith('config.json.corrupt-'));
+    expect(backup).toBeDefined();
+    expect(await readFile(join(path, '..', backup!), 'utf8')).toBe('{not-json');
   });
 
   it('serializes concurrent device updates without losing either device', async () => {

@@ -272,8 +272,12 @@ export class BridgeDaemon {
       return;
     }
     if (request.method === '$daemon.pair.start') {
-      this.#sendSuccess(session.socket, request.id, this.#pairing.start());
-      this.#stateChanged();
+      try {
+        this.#sendSuccess(session.socket, request.id, this.#pairing.start());
+        this.#stateChanged();
+      } catch (error) {
+        this.#sendFailure(session.socket, request, error);
+      }
       return;
     }
     if (request.method === '$daemon.pair.status') {
@@ -300,8 +304,12 @@ export class BridgeDaemon {
       return;
     }
     if (request.method === '$daemon.devices.revoke') {
-      await this.#revokeDevices(request.params);
-      this.#sendSuccess(session.socket, request.id, { revoked: true });
+      try {
+        await this.#revokeDevices(request.params);
+        this.#sendSuccess(session.socket, request.id, { revoked: true });
+      } catch (error) {
+        this.#sendFailure(session.socket, request, error);
+      }
       return;
     }
 

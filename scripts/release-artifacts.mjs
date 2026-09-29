@@ -1,12 +1,15 @@
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { basename, dirname, resolve } from 'node:path';
 
 import JSZip from 'jszip';
 
 const workspace = resolve(import.meta.dirname, '..');
 const artifacts = resolve(workspace, 'artifacts');
+if (dirname(artifacts) !== workspace || basename(artifacts) !== 'artifacts') {
+  throw new Error('Refusing to clean an unexpected artifact directory.');
+}
 const pluginRoot = resolve(workspace, 'apps/figma-plugin');
 const serverRoot = resolve(workspace, 'apps/mcp-server');
 const pluginPackage = JSON.parse(await readFile(resolve(pluginRoot, 'package.json'), 'utf8'));
@@ -45,11 +48,11 @@ await writeFile(
 const npmArgs = ['pack', serverRoot, '--pack-destination', artifacts, '--ignore-scripts'];
 const packed =
   process.platform === 'win32'
-    ? spawnSync(
-        process.env.ComSpec ?? 'cmd.exe',
-        ['/d', '/c', 'npm', ...npmArgs],
-        { cwd: workspace, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] },
-      )
+    ? spawnSync(process.env.ComSpec ?? 'cmd.exe', ['/d', '/c', 'npm', ...npmArgs], {
+        cwd: workspace,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'inherit'],
+      })
     : spawnSync('npm', npmArgs, {
         cwd: workspace,
         encoding: 'utf8',

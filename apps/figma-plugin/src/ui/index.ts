@@ -13,6 +13,7 @@ const pairingCode = document.querySelector<HTMLElement>('#pairing-code');
 const confirmButton = document.querySelector<HTMLButtonElement>('#confirm-pairing');
 const cancelButton = document.querySelector<HTMLButtonElement>('#cancel-pairing');
 const deviceId = document.querySelector<HTMLElement>('#device-id');
+const lastConnected = document.querySelector<HTMLElement>('#last-connected');
 const migrationNotice = document.querySelector<HTMLElement>('#migration-notice');
 const command = document.querySelector<HTMLElement>('#pair-command');
 
@@ -41,6 +42,9 @@ function renderConnection(state: ConnectionState): void {
         ? 'Connecting…'
         : 'Disconnected';
   connection.dataset.state = state;
+  if (lastConnected && state === 'authenticated') {
+    lastConnected.textContent = new Date().toLocaleString();
+  }
   parent.postMessage({ pluginMessage: { type: 'bridge-state', state } }, '*');
 }
 
