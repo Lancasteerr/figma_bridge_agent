@@ -29,6 +29,23 @@
 
 首次配对后插件会自动重连。使用桥接期间需要保持插件窗口打开。Codex、ChatGPT Desktop、Claude Code/Desktop 和通用 MCP 客户端示例见[主机配置](docs/hosts.zh-CN.md)。
 
+## Development builds
+
+每次 `master` 成功更新后，都会发布一个滚动更新的 [Development build](https://github.com/Lancasteerr/figma_bridge_agent/releases/tag/development) prerelease，包含最新插件 ZIP、MCP tarball、校验和、commit 和构建信息。
+
+这些构建是未经充分测试的开发快照，不是正式稳定版本。请从同一个 Development build 下载插件 ZIP 和 MCP tarball，然后按普通用户流程安装：
+
+1. 解压 `figma-agent-bridge-plugin-development.zip`，在 Figma Desktop 中导入其中的 `figma-agent-bridge-plugin/manifest.json`。
+2. 在 tarball 所在目录运行：
+
+   ```powershell
+   npx -y ./figma-local-agent-mcp-development.tgz pair
+   ```
+
+3. MCP 主机使用 `npx.cmd`，参数依次为 `-y`、`./figma-local-agent-mcp-development.tgz` 和 `serve`。
+
+不要将 Development build 的插件与正式版 MCP 包混用，反之亦然。生产使用请查看[最新稳定版本](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest)。
+
 ## 更新与恢复
 
 - 插件 ZIP 与 npm 包必须使用相同版本。更新时覆盖原插件目录，并同步修改 MCP 配置中的版本号。

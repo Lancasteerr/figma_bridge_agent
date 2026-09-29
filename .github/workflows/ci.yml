@@ -5,6 +5,10 @@ on:
     branches: [master, main]
   pull_request:
 
+permissions:
+  actions: read
+  contents: read
+
 jobs:
   windows:
     runs-on: windows-latest
@@ -40,3 +44,136 @@ jobs:
           name: windows-release-artifacts
           path: artifacts/*
           if-no-files-found: error
+
+  development-release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    concurrency:
+      group: development-release
+      cancel-in-progress: false
+    steps:
+      - name: Download Windows release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-release-artifacts
+          path: artifacts
+      - name: Prepare stable development assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf development-assets
+          mkdir -p development-assets
+
+          plugin_archive="$(find artifacts -type f -name 'figma-agent-bridge-plugin-v*.zip' -print -quit)"
+          server_archive="$(find artifacts -type f -name 'figma-local-agent-mcp-*.tgz' -print -quit)"
+          test -n "$plugin_archive"
+          test -n "$server_archive"
+
+          # 使用固定资产名，避免版本号变化后滚动 Release 遗留旧文件。
+          cp "$plugin_archive" development-assets/figma-agent-bridge-plugin-development.zip
+          cp "$server_archive" development-assets/figma-local-agent-mcp-development.tgz
+          (
+            cd development-assets
+            sha256sum \
+              figma-agent-bridge-plugin-development.zip \
+              figma-local-agent-mcp-development.tgz \
+              > SHA256SUMS
+          )
+      - name: Write development release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          short_sha="${GITHUB_SHA:0:7}"
+          built_at="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          release_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/development"
+          stable_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/latest"
+          commit_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          cat > development-notes.md <<EOF
+          # Development build
+
+          Automated development build of the latest \`master\` branch.
+
+          - Commit: [\`${short_sha}\`](${commit_url})
+          - Built: ${built_at}
+          - Workflow: [GitHub Actions run](${run_url})
+
+          These are untested development builds of the latest \`master\`. They are not official releases. For stable builds, see the [latest release](${stable_url}).
+
+          ## Installation
+
+          1. Download \`figma-agent-bridge-plugin-development.zip\` and \`figma-local-agent-mcp-development.tgz\` from this release.
+          2. Extract the plugin ZIP and import \`figma-agent-bridge-plugin/manifest.json\` through **Figma Desktop → Plugins → Development → Import plugin from manifest**.
+          3. From the directory containing the tarball, run:
+
+             \`\`\`powershell
+             npx -y ./figma-local-agent-mcp-development.tgz pair
+             \`\`\`
+
+          Configure the MCP host with the same local tarball:
+
+          \`\`\`json
+          {
+            "command": "npx.cmd",
+            "args": ["-y", "./figma-local-agent-mcp-development.tgz", "serve"]
+          }
+          \`\`\`
+
+          Always use the plugin ZIP and tarball from this same release. Verify the files with \`SHA256SUMS\` when needed. This rolling release is also available at [${release_url}](${release_url}).
+          EOF
+      - name: Publish rolling development release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          release_tag=development
+          release_repo="$GITHUB_REPOSITORY"
+
+          if gh release view "$release_tag" --repo "$release_repo" >/dev/null 2>&1; then
+            while IFS= read -r asset; do
+              [ -z "$asset" ] && continue
+              case "$asset" in
+                figma-agent-bridge-plugin-development.zip|figma-local-agent-mcp-development.tgz|SHA256SUMS)
+                  ;;
+                *)
+                  gh release delete-asset "$release_tag" "$asset" --repo "$release_repo" --yes
+                  ;;
+              esac
+            done < <(gh api "repos/${release_repo}/releases/tags/${release_tag}" --jq '.assets[].name')
+
+            gh release edit "$release_tag" \
+              --repo "$release_repo" \
+              --title "Development build" \
+              --notes-file development-notes.md \
+              --prerelease
+            gh release upload "$release_tag" development-assets/* \
+              --repo "$release_repo" \
+              --clobber
+          else
+            gh release create "$release_tag" development-assets/* \
+              --repo "$release_repo" \
+              --title "Development build" \
+              --notes-file development-notes.md \
+              --prerelease \
+              --target "$GITHUB_SHA"
+          fi
+
+          # 将滚动 tag 指向本次构建提交，确保 Release 的源码链接与资产一致。
+          tag_ref="repos/${release_repo}/git/ref/tags/${release_tag}"
+          if gh api "$tag_ref" >/dev/null 2>&1; then
+            gh api --method PATCH "$tag_ref" \
+              -f sha="$GITHUB_SHA" \
+              -F force=true \
+              >/dev/null
+          else
+            gh api --method POST "repos/${release_repo}/git/refs" \
+              -f ref="refs/tags/${release_tag}" \
+              -f sha="$GITHUB_SHA" \
+              >/dev/null
+          fi

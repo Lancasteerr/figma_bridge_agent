@@ -29,6 +29,23 @@ Requirements: Windows, Node.js 20 or newer, Figma Desktop, and a coding agent wi
 
 The plugin reconnects automatically after the first pairing. Keep its window open while using the bridge. See [host-specific examples](docs/hosts.md) for Codex, ChatGPT Desktop, Claude Code/Desktop, and generic MCP clients.
 
+## Development builds
+
+Every successful update to `master` publishes a rolling [Development build](https://github.com/Lancasteerr/figma_bridge_agent/releases/tag/development) prerelease. It contains the latest plugin ZIP, MCP tarball, checksums, commit, and build information.
+
+These builds are untested development snapshots, not official stable releases. Download the plugin ZIP and MCP tarball from the same Development build, then follow the normal installation path:
+
+1. Extract `figma-agent-bridge-plugin-development.zip` and import `figma-agent-bridge-plugin/manifest.json` in Figma Desktop.
+2. From the directory containing the tarball, run:
+
+   ```powershell
+   npx -y ./figma-local-agent-mcp-development.tgz pair
+   ```
+
+3. Configure the MCP host with `npx.cmd`, `-y`, `./figma-local-agent-mcp-development.tgz`, and `serve`.
+
+Do not mix a development plugin with a stable MCP package, or vice versa. See the [latest stable release](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest) for production use.
+
 ## Update and recovery
 
 - Install matching plugin and npm versions. To update, overwrite the extracted plugin folder with the new ZIP and update the version in the MCP configuration.
