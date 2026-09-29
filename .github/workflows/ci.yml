@@ -165,9 +165,10 @@ jobs:
           fi
 
           # 将滚动 tag 指向本次构建提交，确保 Release 的源码链接与资产一致。
-          tag_ref="repos/${release_repo}/git/ref/tags/${release_tag}"
-          if gh api "$tag_ref" >/dev/null 2>&1; then
-            gh api --method PATCH "$tag_ref" \
+          tag_ref_get="repos/${release_repo}/git/ref/tags/${release_tag}"
+          tag_ref_update="repos/${release_repo}/git/refs/tags/${release_tag}"
+          if gh api "$tag_ref_get" >/dev/null 2>&1; then
+            gh api --method PATCH "$tag_ref_update" \
               -f sha="$GITHUB_SHA" \
               -F force=true \
               >/dev/null
