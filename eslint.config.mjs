@@ -4,7 +4,8 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/coverage/**', '**/node_modules/**'] },
+  // artifacts 可能包含用户为 Figma 导入而解压的压缩 bundle，不应被当作源码 lint。
+  { ignores: ['**/artifacts/**', '**/dist/**', '**/coverage/**', '**/node_modules/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

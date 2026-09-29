@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { basename, dirname, resolve } from 'node:path';
 
 import JSZip from 'jszip';
@@ -28,7 +28,6 @@ if (
   throw new Error('Release plugin network permissions are invalid.');
 }
 
-await rm(artifacts, { recursive: true, force: true });
 await mkdir(artifacts, { recursive: true });
 
 const zip = new JSZip();
@@ -36,6 +35,11 @@ for (const file of ['manifest.json', 'code.js', 'ui.html']) {
   zip.file(`figma-agent-bridge-plugin/${file}`, await readFile(resolve(pluginRoot, 'dist', file)));
 }
 const pluginArchive = `figma-agent-bridge-plugin-v${version}.zip`;
+const packageArchive = `figma-local-agent-mcp-${version}.tgz`;
+for (const generatedFile of [pluginArchive, packageArchive, 'SHA256SUMS']) {
+  // 只清理本次发行会覆盖的文件，保留用户可能解压在 artifacts 下的插件目录。
+  await unlink(resolve(artifacts, generatedFile)).catch(() => undefined);
+}
 await writeFile(
   resolve(artifacts, pluginArchive),
   await zip.generateAsync({
@@ -61,9 +65,9 @@ const packed =
 if (packed.status !== 0) {
   throw new Error(`npm pack failed: ${packed.error?.message ?? `exit ${String(packed.status)}`}`);
 }
-const packageArchive = packed.stdout.trim().split(/\r?\n/).at(-1);
-if (packageArchive !== `figma-local-agent-mcp-${version}.tgz`) {
-  throw new Error(`Unexpected npm archive name: ${packageArchive ?? 'none'}`);
+const packedArchive = packed.stdout.trim().split(/\r?\n/).at(-1);
+if (packedArchive !== packageArchive) {
+  throw new Error(`Unexpected npm archive name: ${packedArchive ?? 'none'}`);
 }
 
 const checksumLines = [];
