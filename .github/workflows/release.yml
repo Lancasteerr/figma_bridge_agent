@@ -72,7 +72,9 @@ jobs:
         shell: pwsh
         run: |
           $version = (Get-Content apps/mcp-server/package.json | ConvertFrom-Json).version
-          npm publish "artifacts/figma-local-agent-mcp-$version.tgz" --access public --provenance
+          # 显式使用绝对本地路径，避免 npm 将 artifacts/... 解析为 GitHub shorthand。
+          $packagePath = Join-Path $env:GITHUB_WORKSPACE "artifacts/figma-local-agent-mcp-$version.tgz"
+          npm publish $packagePath --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Create GitHub Release
