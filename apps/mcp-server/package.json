@@ -1,6 +1,6 @@
 {
   "name": "figma-local-agent-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Local-first MCP bridge between coding agents and a Figma Desktop development plugin",
   "license": "MIT",
   "type": "module",
