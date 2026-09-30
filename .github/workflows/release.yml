@@ -33,18 +33,26 @@ jobs:
     runs-on: windows-latest
     environment: release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag }}
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 11.19.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22.13.0
+          node-version: 24.21.0
           cache: pnpm
           registry-url: https://registry.npmjs.org
+      - name: Verify trusted publishing runtime
+        shell: pwsh
+        run: |
+          $nodeVersion = [version]((node --version).TrimStart('v'))
+          $npmVersion = [version](npm --version)
+          if ($nodeVersion -lt [version]'22.14.0') { throw "Node.js 22.14.0 or newer is required for npm trusted publishing" }
+          if ($npmVersion -lt [version]'11.5.1') { throw "npm 11.5.1 or newer is required for npm trusted publishing" }
+          Write-Host "Publishing runtime: Node.js $nodeVersion, npm $npmVersion"
       - run: pnpm install --frozen-lockfile
       - name: Validate tag and versions
         shell: pwsh
