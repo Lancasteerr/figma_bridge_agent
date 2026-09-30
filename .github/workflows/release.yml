@@ -57,10 +57,14 @@ jobs:
       - name: Validate tag and versions
         shell: pwsh
         run: |
-          $version = (Get-Content apps/mcp-server/package.json | ConvertFrom-Json).version
+          $serverPackage = Get-Content apps/mcp-server/package.json | ConvertFrom-Json
+          $version = $serverPackage.version
           $pluginVersion = (Get-Content apps/figma-plugin/package.json | ConvertFrom-Json).version
+          $expectedRepositoryUrl = "https://github.com/${{ github.repository }}"
           if ("v$version" -ne "${{ inputs.tag }}") { throw "Tag must equal v$version" }
           if ($pluginVersion -ne $version) { throw "Plugin and npm versions differ" }
+          # npm provenance 要求 package.json 中的仓库地址与 Actions 来源仓库完全一致。
+          if ($serverPackage.repository.url -cne $expectedRepositoryUrl) { throw "npm repository URL must equal $expectedRepositoryUrl" }
           if ((git describe --tags --exact-match) -ne "${{ inputs.tag }}") { throw "Checkout is not the requested tag" }
       - run: pnpm check
       - name: Build immutable release artifacts
