@@ -1,4 +1,5 @@
 import { BridgeFault } from '@figma-agent/protocol';
+import { recoverIncompleteDesignOperations } from './recovery.js';
 
 /** 让所有写操作串行执行，避免 Figma undo 栈和共享节点状态交叉。 */
 export class MutationCoordinator {
@@ -68,6 +69,7 @@ export async function atomicMutation<Prepared, Result>(
       anchorNode.locked = true;
       removeStaleUndoAnchors(page);
       anchorNode.setPluginData(MUTATION_UNDO_ANCHOR_KEY, anchor);
+      await recoverIncompleteDesignOperations(page);
       const result = await operation.mutate(prepared);
       anchorNode.remove();
       figma.commitUndo();

@@ -10,6 +10,14 @@ describe('DesignPlan font and text validation', () => {
       listAvailableFontsAsync: vi
         .fn()
         .mockResolvedValue([{ fontName: { family: 'Inter', style: 'Regular' } }]),
+      getLocalPaintStylesAsync: vi.fn().mockResolvedValue([]),
+      getLocalTextStylesAsync: vi.fn().mockResolvedValue([]),
+      getLocalEffectStylesAsync: vi.fn().mockResolvedValue([]),
+      getLocalGridStylesAsync: vi.fn().mockResolvedValue([]),
+      variables: {
+        getLocalVariableCollectionsAsync: vi.fn().mockResolvedValue([]),
+        getLocalVariablesAsync: vi.fn().mockResolvedValue([]),
+      },
     });
 
     const result = await validateDesignPlan(textPlan());
@@ -74,5 +82,6 @@ function textPlan() {
         },
       ],
     },
+    resources: [],
   };
 }

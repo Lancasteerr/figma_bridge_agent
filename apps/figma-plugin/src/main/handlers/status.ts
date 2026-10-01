@@ -25,6 +25,7 @@ export function getStatus(): StatusResult {
       'export-assets',
       'asset-staging-v1',
       'font-catalog-v1',
+      'design-resources-v1',
     ],
   };
 }

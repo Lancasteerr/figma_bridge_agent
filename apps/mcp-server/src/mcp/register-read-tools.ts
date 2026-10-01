@@ -13,6 +13,8 @@ import {
   TreeResultSchema,
   VariablesResultSchema,
   ListFontsInputSchema,
+  GetDesignResourcesInputSchema,
+  DesignResourcesResultSchema,
 } from '@figma-agent/protocol';
 import type { McpServer } from '@modelcontextprotocol/server';
 
@@ -21,6 +23,35 @@ import { structuredResult, toolError } from './result.js';
 
 /** 注册节点、树、变量、CSS 和原始 JSON 等只读工具。 */
 export function registerReadTools(server: McpServer, broker: BridgeTransport): void {
+  server.registerTool(
+    'figma_get_design_resources',
+    {
+      description:
+        'Return paginated local styles and variables plus reusable components and instances from the current Figma page. Team libraries are never queried.',
+      inputSchema: GetDesignResourcesInputSchema,
+      outputSchema: DesignResourcesResultSchema,
+      annotations: {
+        title: 'Get Figma Design Resources',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const parsed = GetDesignResourcesInputSchema.parse(input);
+        return structuredResult(
+          DesignResourcesResultSchema.parse(
+            await broker.request('getDesignResources', parsed, 30_000),
+          ),
+        );
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
   server.registerTool(
     'figma_list_fonts',
     {

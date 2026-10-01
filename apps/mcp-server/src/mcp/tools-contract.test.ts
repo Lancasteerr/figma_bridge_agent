@@ -18,6 +18,7 @@ const EXPECTED_TOOLS = [
   'figma_duplicate_as_proposal',
   'figma_export_asset',
   'figma_get_css',
+  'figma_get_design_resources',
   'figma_get_node',
   'figma_get_raw_node',
   'figma_get_selection',
@@ -44,7 +45,7 @@ afterEach(async () => {
 });
 
 describe('MCP tool contract', () => {
-  it('advertises exactly 21 closed-world tools with schemas and annotations', async () => {
+  it('advertises exactly 22 closed-world tools with schemas and annotations', async () => {
     const broker = new PluginConnectionBroker({
       version: 2,
       serverId: '11111111-1111-4111-8111-111111111111',
@@ -59,7 +60,7 @@ describe('MCP tool contract', () => {
 
     // 除名称外还检查 schema 和注解，防止工具虽然注册成功但失去客户端元数据。
     expect(tools.map((tool) => tool.name).sort()).toEqual(EXPECTED_TOOLS);
-    expect(tools).toHaveLength(21);
+    expect(tools).toHaveLength(22);
     for (const tool of tools) {
       expect(tool.inputSchema).toMatchObject({ type: 'object' });
       expect(tool.outputSchema).toMatchObject({ type: 'object' });

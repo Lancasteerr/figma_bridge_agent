@@ -6,11 +6,13 @@ import {
   type DesignNode,
   type DesignPlan,
   type DesignPlanWarning,
+  type DesignResourceRef,
 } from '@figma-agent/protocol';
 
 import { isInside } from '../proposal/marker.js';
 import { resolveCurrentPageNode } from '../serialization/resolve.js';
 import { assetCache, type StagedAssetEntry } from '../assets/asset-cache.js';
+import { prepareDesignResources, type PreparedDesignResources } from './resources.js';
 
 export interface ValidatedDesignSource {
   roots: SceneNode[];
@@ -18,6 +20,10 @@ export interface ValidatedDesignSource {
   assets: Map<string, StagedAssetEntry>;
   resolvedFonts: Map<string, DesignFontName>;
   warnings: DesignPlanWarning[];
+  resources: PreparedDesignResources;
+  instanceSources: Map<string, ComponentNode | InstanceNode>;
+  existingStyles: Map<string, BaseStyle>;
+  existingVariables: Map<string, Variable>;
 }
 
 /** 只读解析计划引用，所有文档写入必须留到 atomicMutation 的 mutate 阶段。 */
@@ -36,6 +42,8 @@ export async function validateDesignPlan(plan: DesignPlan): Promise<ValidatedDes
   const assets = new Map<string, StagedAssetEntry>();
   const resolvedFonts = new Map<string, DesignFontName>();
   const warnings: DesignPlanWarning[] = [];
+  const nodes: DesignNode[] = [];
+  const instanceSources = new Map<string, ComponentNode | InstanceNode>();
   const availableFonts = await figma.listAvailableFontsAsync();
   let nodeCount = 0;
 
@@ -49,6 +57,7 @@ export async function validateDesignPlan(plan: DesignPlan): Promise<ValidatedDes
     }
     if (refs.has(node.ref)) throw invalid(`Duplicate design ref: ${node.ref}.`, node.ref);
     refs.add(node.ref);
+    nodes.push(node);
 
     if (node.kind === 'CLONE') {
       if (!plan.source) throw invalid('CLONE nodes require a source declaration.', node.ref);
@@ -71,6 +80,17 @@ export async function validateDesignPlan(plan: DesignPlan): Promise<ValidatedDes
       }
     }
 
+    if (node.kind === 'INSTANCE') {
+      const candidate = await resolveCurrentPageNode(node.source.nodeId);
+      if (node.source.mode === 'CREATE_INSTANCE' && candidate.type !== 'COMPONENT') {
+        throw invalid(`INSTANCE ${node.ref} requires a current-page Component.`, node.ref);
+      }
+      if (node.source.mode === 'CLONE_INSTANCE' && candidate.type !== 'INSTANCE') {
+        throw invalid(`INSTANCE ${node.ref} requires a current-page Instance to clone.`, node.ref);
+      }
+      instanceSources.set(node.ref, candidate as ComponentNode | InstanceNode);
+    }
+
     if (node.kind === 'IMAGE' || node.kind === 'SVG') {
       const asset = assetCache.get(node.asset.assetId, node.asset.sha256);
       if (node.kind === 'IMAGE' && asset.kind !== 'RASTER') {
@@ -88,7 +108,38 @@ export async function validateDesignPlan(plan: DesignPlan): Promise<ValidatedDes
   };
 
   await visit(plan.root, 1);
-  return { roots, cloneSources, assets, resolvedFonts, warnings };
+  for (const resource of plan.resources) {
+    if (refs.has(resource.ref))
+      throw invalid(`Duplicate design ref: ${resource.ref}.`, resource.ref);
+    refs.add(resource.ref);
+    if (resource.kind === 'TEXT_STYLE') {
+      resolveFont(`resource:${resource.ref}:font`, resource.ref, resource.font);
+    }
+    if (resource.kind === 'VARIABLE_COLLECTION') {
+      for (const variable of resource.variables) {
+        if (refs.has(variable.ref))
+          throw invalid(`Duplicate design ref: ${variable.ref}.`, variable.ref);
+        refs.add(variable.ref);
+      }
+    }
+  }
+  const resources = await prepareDesignResources(plan, resolvedFonts);
+  const existingStyles = new Map<string, BaseStyle>();
+  const existingVariables = new Map<string, Variable>();
+  for (const node of nodes) {
+    await validateBindings(node, resources, existingStyles, existingVariables);
+  }
+  return {
+    roots,
+    cloneSources,
+    assets,
+    resolvedFonts,
+    warnings,
+    resources,
+    instanceSources,
+    existingStyles,
+    existingVariables,
+  };
 
   function resolveFont(
     key: string,
@@ -129,6 +180,65 @@ export async function validateDesignPlan(plan: DesignPlan): Promise<ValidatedDes
         message: `${selection.requested.family} ${selection.requested.style} was replaced by ${selected.family} ${selected.style}.`,
         ref,
       });
+    }
+  }
+}
+
+async function validateBindings(
+  node: DesignNode,
+  resources: PreparedDesignResources,
+  existingStyles: Map<string, BaseStyle>,
+  existingVariables: Map<string, Variable>,
+): Promise<void> {
+  if (node.kind === 'CLONE') return;
+  const expectedTypes: Array<[DesignResourceRef | undefined, StyleType, string]> = [
+    [node.styleBindings?.fill, 'PAINT', 'fill'],
+    [node.styleBindings?.stroke, 'PAINT', 'stroke'],
+    [node.styleBindings?.text, 'TEXT', 'text'],
+    [node.styleBindings?.effect, 'EFFECT', 'effect'],
+    [node.styleBindings?.grid, 'GRID', 'grid'],
+  ];
+  if (node.styleBindings?.text && node.kind !== 'TEXT') {
+    throw invalid(`Text style binding requires a TEXT node.`, node.ref);
+  }
+  if (node.styleBindings?.grid && node.kind !== 'FRAME') {
+    throw invalid(`Grid style binding requires a FRAME node.`, node.ref);
+  }
+  for (const [reference, expectedType, field] of expectedTypes) {
+    if (!reference) continue;
+    if ('ref' in reference) {
+      if (resources.styleTypes.get(reference.ref) !== expectedType) {
+        throw invalid(`Style ref ${reference.ref} is incompatible with ${field}.`, node.ref);
+      }
+    } else {
+      const style = await figma.getStyleByIdAsync(reference.id);
+      if (!style || style.type !== expectedType) {
+        throw invalid(
+          `Style ${reference.id} is unavailable or incompatible with ${field}.`,
+          node.ref,
+        );
+      }
+      existingStyles.set(reference.id, style);
+    }
+  }
+
+  for (const binding of node.variableBindings ?? []) {
+    const expectedType: VariableResolvedDataType =
+      binding.target === 'FILL_COLOR' || binding.target === 'STROKE_COLOR' ? 'COLOR' : 'FLOAT';
+    const reference = binding.variable;
+    if ('ref' in reference) {
+      if (resources.variableTypes.get(reference.ref) !== expectedType) {
+        throw invalid(
+          `Variable ref ${reference.ref} is incompatible with ${binding.target}.`,
+          node.ref,
+        );
+      }
+    } else {
+      const variable = await figma.variables.getVariableByIdAsync(reference.id);
+      if (!variable || variable.resolvedType !== expectedType) {
+        throw invalid(`Variable ${reference.id} is unavailable or incompatible.`, node.ref);
+      }
+      existingVariables.set(reference.id, variable);
     }
   }
 }

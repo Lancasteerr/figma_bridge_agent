@@ -7,11 +7,13 @@ import {
   type DesignPlan,
   type DesignText,
   type DesignVisual,
+  type DesignResourceRef,
   type LayoutSpec,
   type SizingSpec,
 } from '@figma-agent/protocol';
 
-import { markProposal } from '../proposal/marker.js';
+import { markProposal, markProposalBuilding } from '../proposal/marker.js';
+import type { AppliedDesignResources } from './resources.js';
 import type { ValidatedDesignSource } from './validator.js';
 
 export interface ExecutedDesignPlan {
@@ -23,24 +25,30 @@ export interface ExecutedDesignPlan {
 export async function executeDesignPlan(
   plan: DesignPlan,
   source: ValidatedDesignSource,
+  resources: AppliedDesignResources,
+  operationId: string,
 ): Promise<ExecutedDesignPlan> {
   const refMap: Record<string, string> = {};
   const root = figma.createFrame();
   root.visible = false;
   root.name = plan.proposal.name;
   figma.currentPage.appendChild(root);
+  markProposalBuilding(root, plan.source?.rootNodeIds ?? [], operationId);
   applyGeometry(root, plan.root.geometry);
   root.fills = [];
 
   try {
-    for (const child of plan.root.children) await appendNode(root, child, source, refMap);
+    for (const child of plan.root.children) {
+      await appendNode(root, child, source, resources, refMap);
+    }
     applyVisual(root, plan.root.visual);
     if (plan.root.clipsContent !== undefined) root.clipsContent = plan.root.clipsContent;
     applyContainerLayout(root, plan.root.layout, plan.root.placement?.sizing);
     applyPlacement(root, plan.root.placement);
+    await applyBindings(root, plan.root, source, resources);
     positionRoot(root, plan, source.roots);
     refMap[plan.root.ref] = root.id;
-    markProposal(root, plan.source?.rootNodeIds ?? []);
+    markProposal(root, plan.source?.rootNodeIds ?? [], plan.source?.rootNodeIds ?? [], operationId);
     root.visible = true;
     figma.currentPage.selection = [root];
     figma.viewport.scrollAndZoomIntoView([root]);
@@ -55,6 +63,7 @@ async function appendNode(
   parent: ChildrenMixin & SceneNode,
   spec: DesignNode,
   source: ValidatedDesignSource,
+  resources: AppliedDesignResources,
   refMap: Record<string, string>,
 ): Promise<void> {
   let node: SceneNode;
@@ -72,7 +81,7 @@ async function appendNode(
     parent.appendChild(node);
     applyGeometry(node, spec.geometry);
     node.fills = [];
-    for (const child of spec.children) await appendNode(node, child, source, refMap);
+    for (const child of spec.children) await appendNode(node, child, source, resources, refMap);
     applyVisual(node, spec.visual);
     if (spec.clipsContent !== undefined) node.clipsContent = spec.clipsContent;
     applyContainerLayout(node, spec.layout, spec.placement?.sizing);
@@ -99,6 +108,20 @@ async function appendNode(
     const image = figma.createImage(asset.rasterBytes);
     rectangle.fills = [{ type: 'IMAGE', imageHash: image.hash, scaleMode: spec.scaleMode }];
     applyPlacement(node, spec.placement);
+  } else if (spec.kind === 'INSTANCE') {
+    const original = source.instanceSources.get(spec.ref);
+    if (!original) throw invalid(`Instance source for ${spec.ref} is unavailable.`);
+    const instance =
+      spec.source.mode === 'CREATE_INSTANCE'
+        ? (original as ComponentNode).createInstance()
+        : (original as InstanceNode).clone();
+    node = instance;
+    node.name = spec.name;
+    parent.appendChild(node);
+    instance.setProperties(spec.properties);
+    applyGeometry(node, spec.geometry);
+    applyVisual(node, spec.visual);
+    applyPlacement(node, spec.placement);
   } else if (spec.kind === 'SVG') {
     const asset = requiredAsset(source, spec.ref);
     if (!asset.svgText) throw invalid(`SVG text for ${spec.ref} is unavailable.`);
@@ -117,7 +140,76 @@ async function appendNode(
     applyVisual(node, spec.visual);
     applyPlacement(node, spec.placement);
   }
+  if (spec.kind !== 'CLONE') await applyBindings(node, spec, source, resources);
   refMap[spec.ref] = node.id;
+}
+
+async function applyBindings(
+  node: SceneNode,
+  spec: Exclude<DesignNode, { kind: 'CLONE' }>,
+  source: ValidatedDesignSource,
+  resources: AppliedDesignResources,
+): Promise<void> {
+  const bindings = spec.styleBindings;
+  if (bindings?.fill && 'setFillStyleIdAsync' in node) {
+    await node.setFillStyleIdAsync(resolveStyle(bindings.fill, source, resources).id);
+  }
+  if (bindings?.stroke && 'setStrokeStyleIdAsync' in node) {
+    await node.setStrokeStyleIdAsync(resolveStyle(bindings.stroke, source, resources).id);
+  }
+  if (bindings?.effect && 'setEffectStyleIdAsync' in node) {
+    await node.setEffectStyleIdAsync(resolveStyle(bindings.effect, source, resources).id);
+  }
+  if (bindings?.grid && 'setGridStyleIdAsync' in node) {
+    await node.setGridStyleIdAsync(resolveStyle(bindings.grid, source, resources).id);
+  }
+  if (bindings?.text && node.type === 'TEXT') {
+    await node.setTextStyleIdAsync(resolveStyle(bindings.text, source, resources).id);
+  }
+
+  for (const binding of spec.variableBindings ?? []) {
+    const variable = resolveVariable(binding.variable, source, resources);
+    if (binding.target === 'PROPERTY') {
+      node.setBoundVariable(binding.field, variable);
+      continue;
+    }
+    const property = binding.target === 'FILL_COLOR' ? 'fills' : 'strokes';
+    if (!(property in node)) throw invalid(`${binding.target} is unsupported on ${spec.ref}.`);
+    const paintNode = node as SceneNode & { fills: readonly Paint[]; strokes: readonly Paint[] };
+    const paints = [...paintNode[property]];
+    const paint = paints[binding.paintIndex];
+    if (!paint || paint.type !== 'SOLID') {
+      throw invalid(`${binding.target} ${binding.paintIndex} must reference a solid paint.`);
+    }
+    paints[binding.paintIndex] = figma.variables.setBoundVariableForPaint(paint, 'color', variable);
+    paintNode[property] = paints;
+  }
+}
+
+function resolveStyle(
+  reference: DesignResourceRef,
+  source: ValidatedDesignSource,
+  resources: AppliedDesignResources,
+): BaseStyle {
+  const result =
+    'ref' in reference
+      ? resources.styles.get(reference.ref)
+      : source.existingStyles.get(reference.id);
+  if (!result) throw invalid(`Style reference is unavailable.`);
+  return result;
+}
+
+function resolveVariable(
+  reference: DesignResourceRef,
+  source: ValidatedDesignSource,
+  resources: AppliedDesignResources,
+): Variable {
+  const result =
+    'ref' in reference
+      ? resources.variables.get(reference.ref)
+      : source.existingVariables.get(reference.id);
+  if (!result) throw invalid(`Variable reference is unavailable.`);
+  return result;
 }
 
 function createPrimitiveNode(kind: 'RECTANGLE' | 'ELLIPSE' | 'LINE'): SceneNode {

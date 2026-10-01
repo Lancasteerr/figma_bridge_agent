@@ -88,6 +88,29 @@ const BlurEffectSchema = z
 export const DesignEffectSchema = z.union([ShadowEffectSchema, BlurEffectSchema]);
 export type DesignEffect = z.infer<typeof DesignEffectSchema>;
 
+export const DesignLayoutGridSchema = z.discriminatedUnion('pattern', [
+  z
+    .object({
+      pattern: z.literal('GRID'),
+      sectionSize: z.number().positive(),
+      visible: z.boolean().default(true),
+      color: RgbaSchema,
+    })
+    .strict(),
+  z
+    .object({
+      pattern: z.enum(['ROWS', 'COLUMNS']),
+      alignment: z.enum(['MIN', 'MAX', 'CENTER', 'STRETCH']),
+      gutterSize: z.number().nonnegative(),
+      offset: z.number().nonnegative(),
+      count: z.number().int().positive(),
+      sectionSize: z.number().positive().optional(),
+      visible: z.boolean().default(true),
+      color: RgbaSchema,
+    })
+    .strict(),
+]);
+
 export const CornerRadiusSchema = z.union([
   z.number().nonnegative(),
   z
@@ -215,12 +238,154 @@ export const DesignTextSchema = z
   .strict();
 export type DesignText = z.infer<typeof DesignTextSchema>;
 
+export const DesignResourceRefSchema = z.union([
+  z.object({ id: z.string().min(1) }).strict(),
+  z.object({ ref: z.string().min(1).max(200) }).strict(),
+]);
+export type DesignResourceRef = z.infer<typeof DesignResourceRefSchema>;
+
+export const DesignStyleBindingsSchema = z
+  .object({
+    fill: DesignResourceRefSchema.optional(),
+    stroke: DesignResourceRefSchema.optional(),
+    text: DesignResourceRefSchema.optional(),
+    effect: DesignResourceRefSchema.optional(),
+    grid: DesignResourceRefSchema.optional(),
+  })
+  .strict();
+
+export const DesignVariableBindingSchema = z.discriminatedUnion('target', [
+  z
+    .object({
+      target: z.literal('PROPERTY'),
+      field: z.enum([
+        'width',
+        'height',
+        'opacity',
+        'cornerRadius',
+        'itemSpacing',
+        'paddingTop',
+        'paddingRight',
+        'paddingBottom',
+        'paddingLeft',
+        'fontSize',
+        'lineHeight',
+        'letterSpacing',
+      ]),
+      variable: DesignResourceRefSchema,
+    })
+    .strict(),
+  z
+    .object({
+      target: z.enum(['FILL_COLOR', 'STROKE_COLOR']),
+      paintIndex: z.number().int().nonnegative().default(0),
+      variable: DesignResourceRefSchema,
+    })
+    .strict(),
+]);
+export type DesignVariableBinding = z.infer<typeof DesignVariableBindingSchema>;
+
+const ResourceBaseFields = {
+  ref: z.string().min(1).max(200),
+  name: z.string().min(1).max(200),
+};
+
+export const DesignStyleResourceSchema = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: z.literal('PAINT_STYLE'),
+      ...ResourceBaseFields,
+      paints: z.array(DesignPaintSchema),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('TEXT_STYLE'),
+      ...ResourceBaseFields,
+      font: FontSelectionSchema,
+      fontSize: z.number().positive().default(12),
+      lineHeight: LineHeightSchema.default({ unit: 'AUTO' }),
+      letterSpacing: LetterSpacingSchema.default({ value: 0, unit: 'PIXELS' }),
+      paragraphSpacing: z.number().nonnegative().default(0),
+      textCase: z.enum(['ORIGINAL', 'UPPER', 'LOWER', 'TITLE']).default('ORIGINAL'),
+      textDecoration: z.enum(['NONE', 'UNDERLINE', 'STRIKETHROUGH']).default('NONE'),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('EFFECT_STYLE'),
+      ...ResourceBaseFields,
+      effects: z.array(DesignEffectSchema),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('GRID_STYLE'),
+      ...ResourceBaseFields,
+      layoutGrids: z.array(DesignLayoutGridSchema),
+    })
+    .strict(),
+]);
+export type DesignStyleResource = z.infer<typeof DesignStyleResourceSchema>;
+
+const DesignVariableDefinitionSchema = z.discriminatedUnion('resolvedType', [
+  z
+    .object({
+      ref: z.string().min(1).max(200),
+      name: z.string().min(1).max(200),
+      resolvedType: z.literal('COLOR'),
+      value: RgbaSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ref: z.string().min(1).max(200),
+      name: z.string().min(1).max(200),
+      resolvedType: z.literal('FLOAT'),
+      value: z.number(),
+    })
+    .strict(),
+  z
+    .object({
+      ref: z.string().min(1).max(200),
+      name: z.string().min(1).max(200),
+      resolvedType: z.literal('STRING'),
+      value: z.string(),
+    })
+    .strict(),
+  z
+    .object({
+      ref: z.string().min(1).max(200),
+      name: z.string().min(1).max(200),
+      resolvedType: z.literal('BOOLEAN'),
+      value: z.boolean(),
+    })
+    .strict(),
+]);
+export const DesignVariableCollectionResourceSchema = z
+  .object({
+    kind: z.literal('VARIABLE_COLLECTION'),
+    ...ResourceBaseFields,
+    variables: z.array(DesignVariableDefinitionSchema).min(1),
+  })
+  .strict();
+export type DesignVariableCollectionResource = z.infer<
+  typeof DesignVariableCollectionResourceSchema
+>;
+export const DesignPlanResourceSchema = z.union([
+  DesignStyleResourceSchema,
+  DesignVariableCollectionResourceSchema,
+]);
+export type DesignPlanResource = z.infer<typeof DesignPlanResourceSchema>;
+
 interface CommonDesignNode {
   ref: string;
   name: string;
   geometry: DesignGeometry;
   placement?: DesignPlacement | undefined;
   visual?: DesignVisual | undefined;
+  styleBindings?: z.infer<typeof DesignStyleBindingsSchema> | undefined;
+  variableBindings?: DesignVariableBinding[] | undefined;
 }
 
 export interface ContainerDesignNode extends CommonDesignNode {
@@ -259,12 +424,22 @@ export interface CloneDesignNode {
   placement?: DesignPlacement | undefined;
 }
 
+export interface InstanceDesignNode extends CommonDesignNode {
+  kind: 'INSTANCE';
+  source: {
+    mode: 'CREATE_INSTANCE' | 'CLONE_INSTANCE';
+    nodeId: string;
+  };
+  properties: Record<string, string | boolean>;
+}
+
 export type DesignNode =
   | ContainerDesignNode
   | PrimitiveDesignNode
   | TextDesignNode
   | ImageDesignNode
   | SvgDesignNode
+  | InstanceDesignNode
   | CloneDesignNode;
 
 const CommonNodeFields = {
@@ -273,6 +448,8 @@ const CommonNodeFields = {
   geometry: DesignGeometrySchema,
   placement: DesignPlacementSchema.optional(),
   visual: DesignVisualSchema.optional(),
+  styleBindings: DesignStyleBindingsSchema.optional(),
+  variableBindings: z.array(DesignVariableBindingSchema).optional(),
 };
 
 export const DesignNodeSchema: z.ZodType<DesignNode> = z.lazy(() =>
@@ -316,6 +493,19 @@ export const DesignNodeSchema: z.ZodType<DesignNode> = z.lazy(() =>
       .strict(),
     z
       .object({
+        kind: z.literal('INSTANCE'),
+        ...CommonNodeFields,
+        source: z
+          .object({
+            mode: z.enum(['CREATE_INSTANCE', 'CLONE_INSTANCE']),
+            nodeId: z.string().min(1),
+          })
+          .strict(),
+        properties: z.record(z.string(), z.union([z.string(), z.boolean()])).default({}),
+      })
+      .strict(),
+    z
+      .object({
         kind: z.literal('CLONE'),
         ref: z.string().min(1).max(200),
         name: z.string().min(1).max(200).optional(),
@@ -349,6 +539,7 @@ export const DesignPlanSchema = z
         offsetY: z.number().default(0),
       })
       .strict(),
+    resources: z.array(DesignPlanResourceSchema).default([]),
     root: DesignFrameNodeSchema,
   })
   .strict();

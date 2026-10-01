@@ -14,6 +14,7 @@ import {
 } from '../design-plan/validator.js';
 import { atomicMutation } from '../mutation/coordinator.js';
 import { fingerprintNodeTree } from '../serialization/node-snapshot.js';
+import { applyDesignResources } from '../design-plan/resources.js';
 
 /** DesignPlan 验证阶段只读取当前页、字体和资源，不触碰 Undo 历史。 */
 export async function validateDesignPlan(params: unknown): Promise<DesignPlanValidationResult> {
@@ -28,7 +29,9 @@ export async function validateDesignPlan(params: unknown): Promise<DesignPlanVal
   } catch (error) {
     if (
       error instanceof BridgeFault &&
-      (error.bridgeError.code === 'PLAN_INVALID' || error.bridgeError.code === 'MISSING_FONT')
+      (error.bridgeError.code === 'PLAN_INVALID' ||
+        error.bridgeError.code === 'MISSING_FONT' ||
+        error.bridgeError.code === 'RESOURCE_CONFLICT')
     ) {
       return {
         valid: false,
@@ -54,13 +57,21 @@ export async function applyDesignPlan(params: unknown): Promise<DesignPlanApplyR
       return { plan, source };
     },
     mutate: async ({ plan, source }) => {
-      const executed = await executeDesignPlan(plan, source);
-      return {
-        proposalRootId: executed.root.id,
-        refMap: executed.refMap,
-        resourceMap: {},
-        fingerprint: await fingerprintNodeTree([executed.root]),
-      };
+      const operationId = `design-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+      const resources = applyDesignResources(source.resources, source.resolvedFonts, operationId);
+      try {
+        const executed = await executeDesignPlan(plan, source, resources, operationId);
+        resources.commit();
+        return {
+          proposalRootId: executed.root.id,
+          refMap: executed.refMap,
+          resourceMap: resources.resourceMap,
+          fingerprint: await fingerprintNodeTree([executed.root]),
+        };
+      } catch (error) {
+        resources.rollback();
+        throw error;
+      }
     },
   });
 }

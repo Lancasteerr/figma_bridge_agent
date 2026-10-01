@@ -3,6 +3,7 @@ import { assetCache } from './assets/asset-cache.js';
 import { startEvents } from './events.js';
 import { stageAsset } from './handlers/assets.js';
 import { listFonts } from './handlers/fonts.js';
+import { getDesignResources } from './handlers/resources.js';
 import { getNode, getSelection, getTree } from './handlers/read.js';
 import { getStatus } from './handlers/status.js';
 import { exportAsset, renderNode } from './handlers/render.js';
@@ -42,6 +43,7 @@ router.register('validateDesignPlan', validateDesignPlan);
 router.register('applyDesignPlan', applyDesignPlan);
 router.register('stageAsset', stageAsset);
 router.register('listFonts', listFonts);
+router.register('getDesignResources', getDesignResources);
 startEvents((event) => figma.ui.postMessage({ type: 'rpc-response', payload: event }));
 
 // UI 消息先过 shared schema，再根据 type 分发，避免不可信 payload 直接触碰 Figma API。

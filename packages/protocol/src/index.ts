@@ -10,5 +10,6 @@ export * from './layout.js';
 export * from './node.js';
 export * from './pairing.js';
 export * from './proposal.js';
+export * from './resources.js';
 export * from './rpc.js';
 export * from './tools.js';

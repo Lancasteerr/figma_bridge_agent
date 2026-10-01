@@ -13,6 +13,7 @@ export function markProposal(
   root: SceneNode,
   sourceRootIds: string[],
   requestedTargetIds: string[] = sourceRootIds,
+  operationId?: string,
 ): void {
   const marker: ProposalMarker = {
     version: 3,
@@ -20,6 +21,25 @@ export function markProposal(
     sourceRootIds,
     requestedTargetIds,
     state: 'COMMITTED',
+    ...(operationId ? { operationId } : {}),
+    createdAt: new Date().toISOString(),
+  };
+  root.setPluginData(PROPOSAL_PLUGIN_DATA_KEY, JSON.stringify(marker));
+}
+
+/** 构建期先写入不可见根，插件异常退出后可由下一次写操作识别并清理。 */
+export function markProposalBuilding(
+  root: SceneNode,
+  sourceRootIds: string[],
+  operationId: string,
+): void {
+  const marker: ProposalMarker = {
+    version: 3,
+    origin: sourceRootIds.length > 0 ? 'CLONED' : 'GENERATED',
+    sourceRootIds,
+    requestedTargetIds: sourceRootIds,
+    state: 'BUILDING',
+    operationId,
     createdAt: new Date().toISOString(),
   };
   root.setPluginData(PROPOSAL_PLUGIN_DATA_KEY, JSON.stringify(marker));
