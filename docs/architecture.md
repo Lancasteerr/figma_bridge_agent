@@ -34,7 +34,7 @@ The first adapter starts the Daemon when needed. Closing one host only closes it
 
 ## Source immutability
 
-Write handlers accept only nodes inside a root carrying the `figma-agent-mcp:proposal` plugin-data marker. Marker v2 contains source clone roots, the agent-requested edit targets, and creation time, so it survives plugin restarts. Requested targets describe intent; the Proposal root remains the write boundary and every cloned context node inside it is writable.
+Write handlers accept only nodes inside a root carrying the `figma-agent-mcp:proposal` plugin-data marker. Marker v3 adds `GENERATED`/`CLONED` origin, build state, and operation ID while marker v2 remains readable and writable. Requested targets describe intent; the Proposal root remains the write boundary and every cloned context node inside it is writable.
 
 `figma_duplicate_as_proposal` accepts edit targets and resolves clone roots automatically. Flow children include their direct Auto Layout parent; ordinary leaves include their nearest structural container; Page and Section stop the search. Component Set variants and absolute Auto Layout children do not expand. The resolved scope is capped at 1000 scene nodes: an oversized inferred context falls back to the target with a warning, while an oversized target or aggregate request is rejected. Single roots are moved directly to the Page and multiple roots enter a transparent Page-level wrapper, so no Proposal remains in the original layout context. The response returns clone roots, requested-target mappings, resolution reasons, warnings, and the complete original-to-clone ID map.
 
@@ -42,16 +42,24 @@ Before cloning, the plugin fingerprints each source root plus its immediate layo
 
 Discard requires the last inspected Proposal fingerprint. A user edit after inspection produces `PROPOSAL_CHANGED` instead of deletion.
 
-## LayoutPlan lifecycle
+## DesignPlan lifecycle
 
-1. The agent reads normalized snapshots, bounded trees, and an optional render.
-2. `figma_validate_layout_plan` checks current-page membership, source-root separation, unique references, instance boundaries, complete coverage, and current source fingerprint.
+1. The agent inspects normalized trees/renders, calls `figma_list_fonts` and `figma_get_design_resources`, and optionally stages one Base64 asset at a time.
+2. `figma_validate_design_plan` checks the 1000-node/32-depth limits, globally unique refs, current-page sources/components, explicit fonts, staged-asset digests, style/variable compatibility, resource-name conflicts, and the optional source fingerprint.
 3. A valid plan receives a single-use validation ID that expires after five minutes.
-4. `figma_apply_layout_plan` consumes the ID and recomputes the source fingerprint.
-5. The plugin clones source nodes, hides the temporary Proposal, constructs nested Frames from leaves to root, applies Auto Layout, places the result beside the source, marks it, and reveals it.
-6. Any preparation failure exits before opening an undo boundary. A write-phase failure removes the temporary root and triggers the anchored internal rollback boundary.
+4. `figma_apply_design_plan` consumes the ID and repeats every mutable check before opening the write boundary.
+5. The plugin creates a hidden marker-v3 root, creates or reuses namespaced local resources, builds the node tree, binds resources, commits operation markers, then reveals the Proposal.
+6. Preparation failures create nothing. Write failures explicitly remove newly created resources and use the anchored rollback. The next write removes orphan `BUILDING` roots/resources after a plugin crash; resources associated with a committed Proposal are completed instead.
 
-The v1 schema permits horizontal/vertical Auto Layout, sizing, alignment, and absolute overlays. It rejects GRID, WRAP, detach, duplicate references, ancestor/descendant double references, and omissions in an existing container.
+DesignPlan v1 supports Frame, Text, Rectangle, Ellipse, Line, Image, SVG, Clone, and Instance nodes; full geometry/visual/Auto Layout/text ranges; explicit font fallbacks; style and variable binding; and current-page component reuse. It never detaches instances or edits protected instance internals.
+
+## Asset and resource boundaries
+
+- Inputs are Base64 only. The MCP server never fetches URLs or reads caller-supplied local paths.
+- Raster assets are magic-checked and limited to 8 MiB/4096 px. SVG is parsed, sanitized, limited to 2 MiB/16384 units, then reserialized before hashing.
+- The plugin cache is 32 MiB with a ten-minute TTL and is cleared on disconnect. `assetId` is always paired with SHA-256.
+- Created resources use `Agent/<Proposal>/<name>`. Identical same-name resources are reused; different content returns `RESOURCE_CONFLICT`. Successful resources persist when a Proposal is discarded.
+- Variables have one `Default` mode and only COLOR/FLOAT/STRING/BOOLEAN are created. Team Library APIs and import-by-key APIs are not called.
 
 ## Read limits
 

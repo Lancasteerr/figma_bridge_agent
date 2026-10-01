@@ -43,7 +43,7 @@ export async function recoverIncompleteDesignOperations(page: PageNode): Promise
       removedCollections.add(collection.id);
       collection.remove();
     } else if (marker?.state === 'BUILDING') {
-      markCommitted(collection, marker.operationId);
+      markCommitted(collection, marker.operationId, marker.planDigest);
     }
   }
   for (const variable of variables) {
@@ -58,7 +58,9 @@ export async function recoverIncompleteDesignOperations(page: PageNode): Promise
   for (const root of buildingRoots) root.remove();
 }
 
-function resourceMarker(raw: string): { operationId: string; state: string } | undefined {
+function resourceMarker(
+  raw: string,
+): { operationId: string; planDigest?: string; state: string } | undefined {
   const value = parseJson(raw);
   if (
     value &&
@@ -67,7 +69,7 @@ function resourceMarker(raw: string): { operationId: string; state: string } | u
     typeof (value as { operationId?: unknown }).operationId === 'string' &&
     typeof (value as { state?: unknown }).state === 'string'
   ) {
-    return value as { operationId: string; state: string };
+    return value as { operationId: string; planDigest?: string; state: string };
   }
   return undefined;
 }
@@ -75,14 +77,20 @@ function resourceMarker(raw: string): { operationId: string; state: string } | u
 function recoverResource(resource: BaseStyle | Variable, committedOperations: Set<string>): void {
   const marker = resourceMarker(resource.getPluginData(GENERATED_RESOURCE_PLUGIN_DATA_KEY));
   if (marker?.state !== 'BUILDING') return;
-  if (committedOperations.has(marker.operationId)) markCommitted(resource, marker.operationId);
-  else resource.remove();
+  if (committedOperations.has(marker.operationId)) {
+    markCommitted(resource, marker.operationId, marker.planDigest);
+  } else resource.remove();
 }
 
-function markCommitted(resource: PluginDataMixin, operationId: string): void {
+function markCommitted(resource: PluginDataMixin, operationId: string, planDigest?: string): void {
   resource.setPluginData(
     GENERATED_RESOURCE_PLUGIN_DATA_KEY,
-    JSON.stringify({ version: 1, operationId, state: 'COMMITTED' }),
+    JSON.stringify({
+      version: 1,
+      operationId,
+      ...(planDigest ? { planDigest } : {}),
+      state: 'COMMITTED',
+    }),
   );
 }
 

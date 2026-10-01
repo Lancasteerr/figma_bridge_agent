@@ -44,6 +44,57 @@ describe('DesignPlan font and text validation', () => {
       bridgeError: { code: 'PLAN_INVALID' },
     });
   });
+
+  it('creates an Instance through a current-page instance with an accessible main component', async () => {
+    const page = { id: 'page-1', type: 'PAGE', parent: null };
+    const component = { id: 'component-main', type: 'COMPONENT', name: 'Button' };
+    const instance = {
+      id: 'instance-source',
+      type: 'INSTANCE',
+      name: 'Imported Button',
+      x: 0,
+      width: 100,
+      parent: page,
+      getMainComponentAsync: vi.fn().mockResolvedValue(component),
+    };
+    vi.stubGlobal('figma', {
+      currentPage: page,
+      getNodeByIdAsync: vi.fn().mockResolvedValue(instance),
+      listAvailableFontsAsync: vi.fn().mockResolvedValue([]),
+      getLocalPaintStylesAsync: vi.fn().mockResolvedValue([]),
+      getLocalTextStylesAsync: vi.fn().mockResolvedValue([]),
+      getLocalEffectStylesAsync: vi.fn().mockResolvedValue([]),
+      getLocalGridStylesAsync: vi.fn().mockResolvedValue([]),
+      variables: {
+        getLocalVariableCollectionsAsync: vi.fn().mockResolvedValue([]),
+        getLocalVariablesAsync: vi.fn().mockResolvedValue([]),
+      },
+    });
+
+    const result = await validateDesignPlan({
+      version: 1,
+      proposal: { name: 'Page', offsetX: 0, offsetY: 0 },
+      resources: [],
+      root: {
+        kind: 'FRAME',
+        ref: 'page',
+        name: 'Page',
+        geometry: { x: 0, y: 0, width: 1440, height: 900, rotation: 0 },
+        children: [
+          {
+            kind: 'INSTANCE',
+            ref: 'button',
+            name: 'Button',
+            geometry: { x: 0, y: 0, width: 100, height: 40, rotation: 0 },
+            source: { mode: 'CREATE_INSTANCE', nodeId: instance.id },
+            properties: {},
+          },
+        ],
+      },
+    });
+
+    expect(result.instanceSources.get('button')).toBe(component);
+  });
 });
 
 function textPlan() {

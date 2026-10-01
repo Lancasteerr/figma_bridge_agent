@@ -18,10 +18,10 @@
 ## 2. 连接和读取路径
 
 1. 使用 `docs/hosts.zh-CN.md` 中的配置启动 Codex。
-2. 调用 `figma_status`；确认协议 v3 已认证，并返回文件/页面元数据、选择摘要和 `adaptive-proposal-scope-v2` 能力。
+2. 调用 `figma_status`；确认协议 v4 已认证，并返回文件/页面元数据、选择摘要，以及 `design-plan-v1`、`asset-staging-v1`、`font-catalog-v1`、`design-resources-v1` 能力。
 3. 关闭插件并再次调用；确认约一秒内返回 `PLUGIN_NOT_CONNECTED`，而不是一直挂起。
 4. 重新打开插件，确认能够自动重连。
-5. 再打开两个 Codex 任务，确认三个任务都发现相同的 19 个工具，并能通过同一插件调用 `figma_status`。
+5. 再打开两个 Codex 任务，确认三个任务都发现相同的 22 个工具，并能通过同一插件调用 `figma_status`。
 6. 关闭其中一个任务，确认另两个任务仍保持连接。运行 `bridge status`，确认客户端数量变化且插件不断线。
 7. 选择粗略的 ArticleCard，并调用 selection、node、tree 和 render 工具。
 8. 确认规范化树和图像足以识别行/列关系以及覆盖层。
@@ -36,31 +36,32 @@
 6. 构造超过 1000 个节点的上下文；确认推导上下文退回目标并返回 `CLONE_CONTEXT_TRUNCATED`。若目标自身子树超限，确认返回 `LIMIT_EXCEEDED` 且不创建节点。
 7. 在 Proposal 内创建 Content Frame，以 `FLOW` 或 `ABSOLUTE` 重挂目标子节点，并应用两到三层 Auto Layout。
 8. 手动编辑 Proposal，然后使用旧指纹尝试丢弃；确认返回 `PROPOSAL_CHANGED`。读取新指纹并丢弃整个 Proposal。
-9. 在页面保留一个 marker v1 Proposal，确认写入返回 `PROPOSAL_VERSION_UNSUPPORTED` 且不发生修改。
+9. 确认已有 marker v2 Proposal 仍可读写；不支持的 marker 版本必须返回 `PROPOSAL_VERSION_UNSUPPORTED` 且不发生修改。
 
-## 4. 声明式 LayoutPlan 路径
+## 4. 声明式 DesignPlan 路径
 
-1. 使用当前源指纹和完整的源节点覆盖范围构建 v1 计划。
+1. 构建根为 1440 px Frame 的 v1 计划，包含嵌套 Auto Layout、图形、固定宽度/自动高度文本、渐变、描边、圆角、效果和绝对定位覆盖层；源节点声明可省略。
 2. 对其进行验证。确认没有创建 Figma 节点，并记录五分钟有效期的 `validationId`。
 3. 修改源节点，然后应用计划；确认返回 `PLAN_STALE`，且没有临时 Frame 残留。撤销手动源节点修改。
-4. 再次验证并应用一次；确认完整的 Proposal 先隐藏创建，再显示在源节点右侧。
+4. 再次验证并应用一次；确认完整 Proposal 先隐藏创建，再显示在源节点右侧，且 `refMap` 覆盖每个计划节点。
 5. 重复使用相同 ID；确认由于 ID 只能使用一次而返回 `VALIDATION_EXPIRED`。
-6. 确认覆盖层仍是绝对定位，并且位置正确。
+6. 确认覆盖层仍是绝对定位且位置正确。再分别验证恰好 1000 节点/深度 32 能通过，增加一个节点/层级后被拒绝。
 
 ## 5. 语义和资源路径
 
-1. 更新混合字体文本。如果所需字体不可用，确认没有字符或文本范围发生改变。
-2. 将 Proposal 根 Frame 转换为 Component，并确认重启插件后仍能识别其 Proposal 标记。
-3. 在 Proposal 中创建或选择一个 Instance，修改其暴露的文本、布尔值或变体属性；确认它仍然是 Instance。
-4. 读取 CSS，确认它被标记为提示；当变量足够多时，读取至少包含两个页面的本地变量。
-5. 渲染最终 Component，并导出 PNG 和 SVG 资源。
-6. 确认结果包含临时本地路径和 SHA-256，且没有文件写入当前前端仓库。
+1. 列出字体，分别以 STRICT 和 ALLOW_FALLBACK 验证混合字体；确认只使用 Agent 显式列出的回退，缺失字体不产生半成品。
+2. 暂存合法 PNG/JPEG/GIF/SVG，覆盖全部图片缩放模式并确认摘要；拒绝伪造 MIME、损坏/超限文件、恶意 SVG、过期 ID 和 SHA 不匹配。
+3. 调用 `figma_get_design_resources`，确认本地样式/变量和当前页 Component/Component Set/Instance 分页返回；不得出现其他页面或 Team Library 项。
+4. 创建 Paint/Text/Effect/Grid 样式和单模式 COLOR/FLOAT/STRING/BOOLEAN 变量；确认 `Agent/<Proposal>/...` 命名、同结构复用、不同结构冲突、绑定及 `resourceMap`。
+5. 从当前页 Component 创建 Instance，并克隆已经放到当前页的外部 Instance；设置暴露的文本/布尔/变体/instance-swap 值，拒绝非当前页来源，且绝不 detach。
+6. 强制中途异常并确认节点/资源清理；模拟 `BUILDING` 标记并确认下一次写操作恢复；丢弃成功 Proposal 后确认已提交资源仍保留。
+7. 渲染最终根并导出 PNG/SVG；确认临时路径、SHA-256，且前端仓库没有新文件。
 
 ## 6. Codex 自然语言场景
 
 使用以下验收提示词：
 
-> 检查 Figma 中选中的粗略 ArticleCard。读取其有界树并进行渲染，解释当前结构，然后提出一个保留源节点和覆盖层的 LayoutPlan。验证并将其作为 Proposal 应用，将 Proposal 根节点转换为 Component，重新读取结果，并导出 PNG 和 SVG 资源。如果出现过期指纹或字体问题，请停止并报告，不要绕过安全检查。
+> 检查选中的粗略 ArticleCard 和参考网页。读取有界树、渲染、字体及当前页设计资源；把所需图片/SVG 以 Base64 提供，构建完整 DesignPlan 且不查询 Team Library，验证并应用为隔离 Proposal，然后重新读取并渲染结果。遇到依赖过期、素材错误、资源冲突或显式字体不可用时停止，不要绕过校验。
 
 通过标准：源截图、指纹和层级结构保持不变；Proposal 具备预期的 Auto Layout；没有 Instance 被分离；取消或失败后不留下临时节点；插件重启后仍能识别 Proposal；导出的资源是临时文件并带有校验和。
 

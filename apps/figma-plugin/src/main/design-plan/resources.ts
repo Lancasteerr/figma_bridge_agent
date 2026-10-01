@@ -5,6 +5,8 @@ import {
   type DesignStyleResource,
   type DesignVariableCollectionResource,
 } from '@figma-agent/protocol';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { utf8ToBytes } from '@noble/hashes/utils.js';
 
 export const GENERATED_RESOURCE_PLUGIN_DATA_KEY = 'figma-agent-mcp:generated-resource';
 
@@ -19,6 +21,7 @@ interface PreparedCollection {
   finalName: string;
   existing?: VariableCollection;
   existingVariables: Map<string, Variable>;
+  variableNames: Map<string, string>;
 }
 
 export interface PreparedDesignResources {
@@ -59,24 +62,48 @@ export async function prepareDesignResources(
   const variableTypes = new Map<string, VariableResolvedDataType>();
   const reusedStyles = new Map<string, BaseStyle>();
   const reusedVariables = new Map<string, Variable>();
+  const plannedNames = new Set<string>();
 
   for (const resource of plan.resources) {
     assertNewRef(resource.ref, refs);
     if (resource.kind === 'VARIABLE_COLLECTION') {
       const finalName = resourceName(plan.proposal.name, resource.name);
+      assertNewName(finalName, plannedNames);
+      if (
+        allStyles.some((item) => item.name === finalName) ||
+        variables.some((item) => item.name === finalName)
+      ) {
+        conflict(finalName, 'An existing resource with another type has this name.');
+      }
       const sameName = collections.filter((item) => item.name === finalName);
       if (sameName.length > 1) conflict(finalName, 'More than one local collection has this name.');
       const existing = sameName[0];
       const existingVariables = new Map<string, Variable>();
+      const variableNames = new Map<string, string>();
       for (const variable of resource.variables) {
         assertNewRef(variable.ref, refs);
         variableTypes.set(variable.ref, variable.resolvedType);
+        const variableName = resourceName(plan.proposal.name, variable.name);
+        assertNewName(variableName, plannedNames);
+        if (
+          allStyles.some((item) => item.name === variableName) ||
+          collections.some((item) => item.name === variableName) ||
+          variables.some(
+            (item) => item.name === variableName && item.variableCollectionId !== existing?.id,
+          )
+        ) {
+          conflict(
+            variableName,
+            'An existing resource with another type or collection has this name.',
+          );
+        }
+        variableNames.set(variable.ref, variableName);
       }
       if (existing) {
         const members = variables.filter((item) => item.variableCollectionId === existing.id);
-        assertCollectionMatches(resource, existing, members, finalName);
+        assertCollectionMatches(resource, existing, members, variableNames, finalName);
         for (const definition of resource.variables) {
-          const member = members.find((item) => item.name === definition.name)!;
+          const member = members.find((item) => item.name === variableNames.get(definition.ref))!;
           existingVariables.set(definition.ref, member);
           reusedVariables.set(definition.ref, member);
         }
@@ -86,11 +113,19 @@ export async function prepareDesignResources(
         finalName,
         ...(existing ? { existing } : {}),
         existingVariables,
+        variableNames,
       });
       continue;
     }
 
     const finalName = resourceName(plan.proposal.name, resource.name);
+    assertNewName(finalName, plannedNames);
+    if (
+      collections.some((item) => item.name === finalName) ||
+      variables.some((item) => item.name === finalName)
+    ) {
+      conflict(finalName, 'An existing resource with another type has this name.');
+    }
     const expectedType = styleType(resource);
     styleTypes.set(resource.ref, expectedType);
     const sameName = allStyles.filter((item) => item.name === finalName);
@@ -122,13 +157,14 @@ export function applyDesignResources(
   prepared: PreparedDesignResources,
   fonts: Map<string, DesignFontName>,
   operationId: string,
+  planDigest: string,
 ): AppliedDesignResources {
   const styles = new Map(prepared.reusedStyles);
   const variables = new Map(prepared.reusedVariables);
   const resourceMap: Record<string, string> = {};
   const created: Array<BaseStyle | VariableCollection> = [];
   const marked: Array<BaseStyle | VariableCollection | Variable> = [];
-  const marker = JSON.stringify({ version: 1, operationId, state: 'BUILDING' });
+  const marker = JSON.stringify({ version: 1, operationId, planDigest, state: 'BUILDING' });
 
   try {
     for (const item of prepared.styles) {
@@ -159,7 +195,7 @@ export function applyDesignResources(
       resourceMap[item.definition.ref] = collection.id;
       for (const definition of item.definition.variables) {
         const variable = figma.variables.createVariable(
-          definition.name,
+          item.variableNames.get(definition.ref)!,
           collection,
           definition.resolvedType,
         );
@@ -180,13 +216,25 @@ export function applyDesignResources(
     variables,
     resourceMap,
     commit() {
-      const committed = JSON.stringify({ version: 1, operationId, state: 'COMMITTED' });
+      const committed = JSON.stringify({
+        version: 1,
+        operationId,
+        planDigest,
+        state: 'COMMITTED',
+      });
       for (const item of marked) item.setPluginData(GENERATED_RESOURCE_PLUGIN_DATA_KEY, committed);
     },
     rollback() {
       for (const item of [...created].reverse()) item.remove();
     },
   };
+}
+
+/** operation marker 记录稳定的 SHA-256 计划摘要，便于崩溃后审计关联。 */
+export function designPlanDigest(plan: DesignPlan): string {
+  return [...sha256(utf8ToBytes(JSON.stringify(plan)))]
+    .map((value) => value.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 export function resourceName(proposalName: string, providedName: string): string {
@@ -264,6 +312,7 @@ function assertCollectionMatches(
   definition: DesignVariableCollectionResource,
   collection: VariableCollection,
   variables: Variable[],
+  variableNames: Map<string, string>,
   finalName: string,
 ): void {
   if (collection.modes.length !== 1 || collection.modes[0]?.name !== 'Default') {
@@ -273,7 +322,7 @@ function assertCollectionMatches(
     conflict(finalName, 'The existing collection has a different variable set.');
   }
   for (const expected of definition.variables) {
-    const actual = variables.find((item) => item.name === expected.name);
+    const actual = variables.find((item) => item.name === variableNames.get(expected.ref));
     const modeId = collection.defaultModeId;
     if (
       !actual ||
@@ -295,6 +344,11 @@ function styleType(resource: DesignStyleResource): StyleType {
 function assertNewRef(ref: string, refs: Set<string>): void {
   if (refs.has(ref)) throw invalid(`Duplicate resource ref: ${ref}.`);
   refs.add(ref);
+}
+
+function assertNewName(name: string, names: Set<string>): void {
+  if (names.has(name)) conflict(name, 'The DesignPlan declares this resource name more than once.');
+  names.add(name);
 }
 
 function sameStructure(left: unknown, right: unknown): boolean {

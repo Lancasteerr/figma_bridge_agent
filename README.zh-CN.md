@@ -56,9 +56,9 @@
 
 ## 安全边界与工具
 
-桥接工具不会直接修改源稿。所有公开写操作要么创建 Proposal，要么必须提供 Proposal 根节点 ID。普通 Proposal 创建只接收编辑目标，由插件自动解析有界的布局上下文并在编辑前把副本移到 Page；隔离后的整个 Proposal 均可写。声明式布局修改使用有效期五分钟且只能消费一次的验证 ID，并在克隆前重新检查源指纹。
+桥接工具不会直接修改源稿。所有公开写操作要么创建 Proposal，要么必须提供 Proposal 根节点 ID。普通 Proposal 创建只接收编辑目标，由插件自动解析有界的布局上下文并在编辑前把副本移到 Page；隔离后的整个 Proposal 均可写。声明式 DesignPlan 还可以创建完整的顶层 Frame、文本、图片、SVG、带命名空间的本地样式/变量，以及当前页已有组件的 Instance。验证 ID 五分钟过期且只能消费一次，应用前会重新检查源节点和全部资源。
 
-服务器恰好暴露 19 个封闭集合 MCP 工具，覆盖状态/读取、渲染/导出、Proposal 写入和经过验证的布局计划。参见[架构与安全](docs/architecture.zh-CN.md)、[安全说明](docs/security.zh-CN.md)和[验收运行手册](docs/acceptance.zh-CN.md)。
+服务器恰好暴露 22 个封闭集合 MCP 工具，覆盖状态/读取、渲染/导出、Base64 素材暂存、字体/资源发现、Proposal 写入和经过验证的 DesignPlan。服务器不会查询 Team Library；如需复用团队组件，用户必须先把实例放到当前页面。参见[架构与安全](docs/architecture.zh-CN.md)、[安全说明](docs/security.zh-CN.md)和[验收运行手册](docs/acceptance.zh-CN.md)。
 
 ## 开发
 

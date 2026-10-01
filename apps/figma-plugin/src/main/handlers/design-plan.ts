@@ -14,7 +14,7 @@ import {
 } from '../design-plan/validator.js';
 import { atomicMutation } from '../mutation/coordinator.js';
 import { fingerprintNodeTree } from '../serialization/node-snapshot.js';
-import { applyDesignResources } from '../design-plan/resources.js';
+import { applyDesignResources, designPlanDigest } from '../design-plan/resources.js';
 
 /** DesignPlan 验证阶段只读取当前页、字体和资源，不触碰 Undo 历史。 */
 export async function validateDesignPlan(params: unknown): Promise<DesignPlanValidationResult> {
@@ -58,9 +58,15 @@ export async function applyDesignPlan(params: unknown): Promise<DesignPlanApplyR
     },
     mutate: async ({ plan, source }) => {
       const operationId = `design-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-      const resources = applyDesignResources(source.resources, source.resolvedFonts, operationId);
+      const planDigest = designPlanDigest(plan);
+      const resources = applyDesignResources(
+        source.resources,
+        source.resolvedFonts,
+        operationId,
+        planDigest,
+      );
       try {
-        const executed = await executeDesignPlan(plan, source, resources, operationId);
+        const executed = await executeDesignPlan(plan, source, resources, operationId, planDigest);
         resources.commit();
         return {
           proposalRootId: executed.root.id,

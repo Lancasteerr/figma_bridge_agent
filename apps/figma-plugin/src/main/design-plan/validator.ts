@@ -82,13 +82,26 @@ export async function validateDesignPlan(plan: DesignPlan): Promise<ValidatedDes
 
     if (node.kind === 'INSTANCE') {
       const candidate = await resolveCurrentPageNode(node.source.nodeId);
-      if (node.source.mode === 'CREATE_INSTANCE' && candidate.type !== 'COMPONENT') {
-        throw invalid(`INSTANCE ${node.ref} requires a current-page Component.`, node.ref);
+      if (node.source.mode === 'CREATE_INSTANCE') {
+        const component =
+          candidate.type === 'COMPONENT'
+            ? candidate
+            : candidate.type === 'INSTANCE'
+              ? await candidate.getMainComponentAsync()
+              : null;
+        if (!component) {
+          throw invalid(
+            `INSTANCE ${node.ref} requires a current-page Component or an Instance with an accessible main component.`,
+            node.ref,
+          );
+        }
+        instanceSources.set(node.ref, component);
+        return;
       }
       if (node.source.mode === 'CLONE_INSTANCE' && candidate.type !== 'INSTANCE') {
         throw invalid(`INSTANCE ${node.ref} requires a current-page Instance to clone.`, node.ref);
       }
-      instanceSources.set(node.ref, candidate as ComponentNode | InstanceNode);
+      instanceSources.set(node.ref, candidate as InstanceNode);
     }
 
     if (node.kind === 'IMAGE' || node.kind === 'SVG') {
@@ -223,6 +236,34 @@ async function validateBindings(
   }
 
   for (const binding of node.variableBindings ?? []) {
+    if (binding.target === 'FILL_COLOR' && node.styleBindings?.fill) {
+      throw invalid(
+        'A node cannot bind a fill style and a fill color variable together.',
+        node.ref,
+      );
+    }
+    if (binding.target === 'STROKE_COLOR' && node.styleBindings?.stroke) {
+      throw invalid(
+        'A node cannot bind a stroke style and a stroke color variable together.',
+        node.ref,
+      );
+    }
+    if (
+      binding.target === 'PROPERTY' &&
+      ['itemSpacing', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'].includes(
+        binding.field,
+      ) &&
+      node.kind !== 'FRAME'
+    ) {
+      throw invalid(`${binding.field} variable binding requires a FRAME node.`, node.ref);
+    }
+    if (
+      binding.target === 'PROPERTY' &&
+      ['fontSize', 'lineHeight', 'letterSpacing'].includes(binding.field) &&
+      node.kind !== 'TEXT'
+    ) {
+      throw invalid(`${binding.field} variable binding requires a TEXT node.`, node.ref);
+    }
     const expectedType: VariableResolvedDataType =
       binding.target === 'FILL_COLOR' || binding.target === 'STROKE_COLOR' ? 'COLOR' : 'FLOAT';
     const reference = binding.variable;

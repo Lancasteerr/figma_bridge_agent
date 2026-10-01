@@ -34,7 +34,7 @@ Figma 插件主进程
 
 ## 源稿不可变
 
-写入处理器只接受位于带有 `figma-agent-mcp:proposal` 插件数据标记的根节点内的节点。v2 标记包含源复制根、Agent 请求的编辑目标和创建时间，因此在插件重启后仍然有效。请求目标只描述意图；Proposal 根仍是写入边界，其中复制进来的全部上下文节点均可写。
+写入处理器只接受位于带有 `figma-agent-mcp:proposal` 插件数据标记的根节点内的节点。v3 标记增加 `GENERATED`/`CLONED` 来源、构建状态和 operation ID，同时继续读写 v2 Proposal。请求目标只描述意图；Proposal 根仍是写入边界，其中复制进来的全部上下文节点均可写。
 
 `figma_duplicate_as_proposal` 接收编辑目标并自动解析复制根。Auto Layout 流式子节点包含其直接父级，普通叶节点包含最近的结构容器，Page 和 Section 会停止上探；Component Set 变体和绝对定位子节点不会扩张。解析范围最多包含 1000 个场景节点：推导出的上下文超限时会退回目标并返回警告，目标自身或合并请求超限时直接拒绝。单根副本直接移动到 Page，多根副本进入 Page 级透明包装器，因此 Proposal 不会留在原布局上下文。返回值包含复制根、目标映射、解析原因、警告和完整源到副本 ID 映射。
 
@@ -42,16 +42,24 @@ Figma 插件主进程
 
 丢弃 Proposal 时必须提供最近一次检查得到的 Proposal 指纹。如果用户在检查后编辑了 Proposal，则返回 `PROPOSAL_CHANGED`，而不会删除它。
 
-## LayoutPlan 生命周期
+## DesignPlan 生命周期
 
-1. agent 读取规范化快照、有界树以及可选的渲染结果。
-2. `figma_validate_layout_plan` 检查当前页面归属、源根节点隔离、引用唯一性、Instance 边界、完整覆盖范围以及当前源指纹。
+1. Agent 检查规范化树和渲染结果，调用 `figma_list_fonts`、`figma_get_design_resources`，并按需逐个暂存 Base64 素材。
+2. `figma_validate_design_plan` 检查 1000 节点/32 层上限、全局唯一 ref、当前页源节点和组件、显式字体、素材摘要、样式/变量兼容性、资源命名冲突和可选源指纹。
 3. 有效计划会获得一个五分钟后过期且只能使用一次的验证 ID。
-4. `figma_apply_layout_plan` 消费该 ID，并重新计算源指纹。
-5. 插件克隆源节点，隐藏临时 Proposal，从叶节点到根节点构建嵌套 Frame，应用 Auto Layout，将结果放置在源节点旁边，添加标记后显示结果。
-6. 预检失败会在打开 undo 边界之前退出；写入阶段失败会移除临时根节点，并触发带锚点的内部回滚边界。
+4. `figma_apply_design_plan` 消费该 ID，并在打开写入边界前重新检查所有可变依赖。
+5. 插件创建带 v3 标记的隐藏根，创建或复用命名隔离的本地资源，构建节点树并绑定资源，提交 operation 标记后才显示 Proposal。
+6. 预检失败不产生写入；写入失败会显式删除本次新资源并触发带锚点的回滚。插件崩溃后，下一次写操作会删除孤立的 `BUILDING` 根/资源；若 Proposal 已提交，则补全对应资源标记。
 
-v1 schema 允许水平/垂直 Auto Layout、尺寸设置、对齐和绝对定位覆盖层。它会拒绝 GRID、WRAP、detach、重复引用、祖先/后代双重引用，以及现有容器中的遗漏引用。
+DesignPlan v1 支持 Frame、Text、Rectangle、Ellipse、Line、Image、SVG、Clone 和 Instance，支持完整几何/视觉/Auto Layout/文本 range、显式字体回退、样式和变量绑定，以及当前页组件复用。它不会 detach Instance，也不会修改受保护的 Instance 内部结构。
+
+## 素材和资源边界
+
+- 输入只接受 Base64；MCP Server 不抓取 URL，也不读取调用方提供的本地路径。
+- 位图校验魔数并限制为 8 MiB/4096 px；SVG 经解析、清理和重新序列化，限制为 2 MiB/16384 单位。
+- 插件缓存上限 32 MiB、TTL 十分钟，断线清空；`assetId` 始终与 SHA-256 配对。
+- 新资源命名为 `Agent/<Proposal>/<name>`；同名同结构复用，不同内容返回 `RESOURCE_CONFLICT`。成功资源不会随 Proposal 丢弃而删除。
+- 变量只有一个 `Default` 模式，仅创建 COLOR/FLOAT/STRING/BOOLEAN。不会调用 Team Library 或 import-by-key API。
 
 ## 读取限制
 

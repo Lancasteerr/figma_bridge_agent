@@ -16,6 +16,9 @@ This project is a local development tool, not a remote service.
 - X25519 and HKDF-SHA-256 derive a unique token for every paired plugin. The token is never transmitted over WebSocket and is separate from the Daemon credential used by MCP adapters.
 - Long-running file output is bounded by payload and disk quotas.
 - Temporary exports do not write into an agent workspace or user-selected project path.
+- Inbound design assets are accepted only as Base64, validated and bounded before reaching the plugin, and never trigger an external network request.
+- DesignPlan component discovery is limited to the current page. The plugin has no `teamlibrary` permission and never calls Team Library or import-by-key APIs.
+- Existing styles, variables, and components are read-only. New local resources use the `Agent/<Proposal>/...` namespace, are removed on failed builds, and persist after a successful build.
 
 ## Operational guidance
 
@@ -27,4 +30,4 @@ This project is a local development tool, not a remote service.
 
 ## Explicit non-goals
 
-There is no arbitrary script tool, source mutation switch, general delete, instance detach, OAuth flow, remote access, multi-host arbitration, or collaboration synchronization in v0.2.
+There is no arbitrary script tool, source mutation switch, general delete, instance detach, Team Library crawler, OAuth flow, remote access, multi-host arbitration, or collaboration synchronization in v0.2.

@@ -19,6 +19,10 @@ export const ProposalMarkerV3Schema = z.object({
   requestedTargetIds: z.array(z.string()),
   state: z.enum(['BUILDING', 'COMMITTED']).default('COMMITTED'),
   operationId: z.string().optional(),
+  planDigest: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .optional(),
   createdAt: z.string().datetime(),
 });
 

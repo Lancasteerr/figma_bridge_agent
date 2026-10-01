@@ -27,13 +27,14 @@ export async function executeDesignPlan(
   source: ValidatedDesignSource,
   resources: AppliedDesignResources,
   operationId: string,
+  planDigest: string,
 ): Promise<ExecutedDesignPlan> {
   const refMap: Record<string, string> = {};
   const root = figma.createFrame();
   root.visible = false;
   root.name = plan.proposal.name;
   figma.currentPage.appendChild(root);
-  markProposalBuilding(root, plan.source?.rootNodeIds ?? [], operationId);
+  markProposalBuilding(root, plan.source?.rootNodeIds ?? [], operationId, planDigest);
   applyGeometry(root, plan.root.geometry);
   root.fills = [];
 
@@ -48,7 +49,13 @@ export async function executeDesignPlan(
     await applyBindings(root, plan.root, source, resources);
     positionRoot(root, plan, source.roots);
     refMap[plan.root.ref] = root.id;
-    markProposal(root, plan.source?.rootNodeIds ?? [], plan.source?.rootNodeIds ?? [], operationId);
+    markProposal(
+      root,
+      plan.source?.rootNodeIds ?? [],
+      plan.source?.rootNodeIds ?? [],
+      operationId,
+      planDigest,
+    );
     root.visible = true;
     figma.currentPage.selection = [root];
     figma.viewport.scrollAndZoomIntoView([root]);

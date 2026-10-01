@@ -103,10 +103,8 @@ export async function getDesignResources(params: unknown): Promise<DesignResourc
         nodeId: node.id,
         name: node.name,
         nodeType: 'INSTANCE',
-        reusableBy: ['CLONE_INSTANCE'],
-        ...(main && nodes.some((candidate) => candidate.id === main.id)
-          ? { mainComponentId: main.id }
-          : {}),
+        reusableBy: main ? ['CREATE_INSTANCE', 'CLONE_INSTANCE'] : ['CLONE_INSTANCE'],
+        ...(main ? { mainComponentId: main.id } : {}),
         properties: toJsonValue(node.componentProperties),
       });
     }

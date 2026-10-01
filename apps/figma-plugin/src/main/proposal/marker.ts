@@ -14,6 +14,7 @@ export function markProposal(
   sourceRootIds: string[],
   requestedTargetIds: string[] = sourceRootIds,
   operationId?: string,
+  planDigest?: string,
 ): void {
   const marker: ProposalMarker = {
     version: 3,
@@ -22,6 +23,7 @@ export function markProposal(
     requestedTargetIds,
     state: 'COMMITTED',
     ...(operationId ? { operationId } : {}),
+    ...(planDigest ? { planDigest } : {}),
     createdAt: new Date().toISOString(),
   };
   root.setPluginData(PROPOSAL_PLUGIN_DATA_KEY, JSON.stringify(marker));
@@ -32,6 +34,7 @@ export function markProposalBuilding(
   root: SceneNode,
   sourceRootIds: string[],
   operationId: string,
+  planDigest: string,
 ): void {
   const marker: ProposalMarker = {
     version: 3,
@@ -40,6 +43,7 @@ export function markProposalBuilding(
     requestedTargetIds: sourceRootIds,
     state: 'BUILDING',
     operationId,
+    planDigest,
     createdAt: new Date().toISOString(),
   };
   root.setPluginData(PROPOSAL_PLUGIN_DATA_KEY, JSON.stringify(marker));

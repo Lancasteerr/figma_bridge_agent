@@ -42,7 +42,7 @@ describe('design resources', () => {
         expect.objectContaining({
           kind: 'COMPONENT',
           nodeId: 'instance-1',
-          reusableBy: ['CLONE_INSTANCE'],
+          reusableBy: ['CREATE_INSTANCE', 'CLONE_INSTANCE'],
         }),
       ]),
     );
@@ -57,11 +57,12 @@ describe('design resources', () => {
     const plan = resourcePlan();
 
     const prepared = await prepareDesignResources(plan, new Map());
-    const applied = applyDesignResources(prepared, new Map(), 'operation-1');
+    const applied = applyDesignResources(prepared, new Map(), 'operation-1', 'a'.repeat(64));
     applied.commit();
 
     expect(paintStyle.name).toBe('Agent/Landing/Brand');
     expect(collection.name).toBe('Agent/Landing/Tokens');
+    expect(variable.name).toBe('Agent/Landing/Spacing');
     expect(applied.resourceMap).toMatchObject({
       brand: 'paint-created',
       tokens: 'collection-created',
@@ -159,7 +160,10 @@ function installWriteFigma(
         collection.name = name;
         return collection;
       }),
-      createVariable: vi.fn(() => variable),
+      createVariable: vi.fn((name: string) => {
+        variable.name = name;
+        return variable;
+      }),
     },
   });
 }

@@ -56,9 +56,9 @@ Do not mix a development plugin with a stable MCP package, or vice versa. See th
 
 ## Safety and tools
 
-The bridge deliberately does not mutate source artwork. Every public write either creates a Proposal or requires a Proposal root ID. Primitive Proposal creation accepts edit targets, resolves a bounded layout context automatically, and moves the clones to the Page before editing; the whole isolated Proposal remains writable. Declarative layout changes use a five-minute, single-use validation ID and re-check the source fingerprint immediately before cloning.
+The bridge deliberately does not mutate source artwork. Every public write either creates a Proposal or requires a Proposal root ID. Primitive Proposal creation accepts edit targets, resolves a bounded layout context automatically, and moves the clones to the Page before editing; the whole isolated Proposal remains writable. A declarative DesignPlan can also create a complete top-level Frame, text, images, SVG, namespaced local styles/variables, and instances of components already present on the current page. Validation IDs are single-use, expire after five minutes, and all source/resources are re-checked immediately before applying.
 
-It exposes exactly 19 closed-world MCP tools covering status/read, rendering/export, Proposal writes, and validated layout plans. See [architecture and safety](docs/architecture.md), [security notes](docs/security.md), and the [acceptance runbook](docs/acceptance.md).
+It exposes exactly 22 closed-world MCP tools covering status/read, rendering/export, Base64 asset staging, font/resource discovery, Proposal writes, and validated DesignPlans. It never queries Team Library; users first place any library instance on the current page. See [architecture and safety](docs/architecture.md), [security notes](docs/security.md), and the [acceptance runbook](docs/acceptance.md).
 
 ## Development
 

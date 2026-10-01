@@ -141,4 +141,46 @@ describe('DesignPlan v1 schema', () => {
       }),
     ).toMatchObject({ root: { children: [{ kind: 'IMAGE' }, { kind: 'SVG' }] } });
   });
+
+  it('accepts namespaced resources, bindings, and current-page instance reuse', () => {
+    const parsed = DesignPlanSchema.parse({
+      ...plan,
+      resources: [
+        {
+          kind: 'PAINT_STYLE',
+          ref: 'brand',
+          name: 'Brand',
+          paints: [{ type: 'SOLID', color: { r: 0.1, g: 0.2, b: 0.3 } }],
+        },
+        {
+          kind: 'VARIABLE_COLLECTION',
+          ref: 'tokens',
+          name: 'Tokens',
+          variables: [{ ref: 'radius', name: 'Radius', resolvedType: 'FLOAT', value: 12 }],
+        },
+      ],
+      root: {
+        ...plan.root,
+        styleBindings: { fill: { ref: 'brand' } },
+        variableBindings: [
+          { target: 'PROPERTY', field: 'cornerRadius', variable: { ref: 'radius' } },
+        ],
+        children: [
+          {
+            kind: 'INSTANCE',
+            ref: 'button',
+            name: 'Button',
+            geometry: { width: 160, height: 48 },
+            source: { mode: 'CREATE_INSTANCE', nodeId: '1:2' },
+            properties: { Label: 'Buy', Enabled: true },
+          },
+        ],
+      },
+    });
+
+    expect(parsed).toMatchObject({
+      resources: [{ kind: 'PAINT_STYLE' }, { kind: 'VARIABLE_COLLECTION' }],
+      root: { children: [{ kind: 'INSTANCE', properties: { Label: 'Buy' } }] },
+    });
+  });
 });
