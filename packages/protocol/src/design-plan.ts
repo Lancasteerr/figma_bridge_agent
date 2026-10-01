@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { DesignAssetRefSchema, type DesignAssetRef } from './assets.js';
 import { LayoutSpecSchema, SizingSpecSchema } from './layout.js';
 import { PositioningSchema } from './node.js';
 
@@ -238,6 +239,17 @@ export interface TextDesignNode extends CommonDesignNode {
   text: DesignText;
 }
 
+export interface ImageDesignNode extends CommonDesignNode {
+  kind: 'IMAGE';
+  asset: DesignAssetRef;
+  scaleMode: 'FILL' | 'FIT' | 'CROP' | 'TILE';
+}
+
+export interface SvgDesignNode extends CommonDesignNode {
+  kind: 'SVG';
+  asset: DesignAssetRef;
+}
+
 export interface CloneDesignNode {
   kind: 'CLONE';
   ref: string;
@@ -248,7 +260,12 @@ export interface CloneDesignNode {
 }
 
 export type DesignNode =
-  ContainerDesignNode | PrimitiveDesignNode | TextDesignNode | CloneDesignNode;
+  | ContainerDesignNode
+  | PrimitiveDesignNode
+  | TextDesignNode
+  | ImageDesignNode
+  | SvgDesignNode
+  | CloneDesignNode;
 
 const CommonNodeFields = {
   ref: z.string().min(1).max(200),
@@ -280,6 +297,21 @@ export const DesignNodeSchema: z.ZodType<DesignNode> = z.lazy(() =>
         kind: z.literal('TEXT'),
         ...CommonNodeFields,
         text: DesignTextSchema,
+      })
+      .strict(),
+    z
+      .object({
+        kind: z.literal('IMAGE'),
+        ...CommonNodeFields,
+        asset: DesignAssetRefSchema,
+        scaleMode: z.enum(['FILL', 'FIT', 'CROP', 'TILE']).default('FILL'),
+      })
+      .strict(),
+    z
+      .object({
+        kind: z.literal('SVG'),
+        ...CommonNodeFields,
+        asset: DesignAssetRefSchema,
       })
       .strict(),
     z
