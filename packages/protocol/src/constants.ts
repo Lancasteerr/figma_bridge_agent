@@ -1,7 +1,7 @@
 /**
  * 桥接协议的稳定参数集中存放于此，服务端与插件必须使用同一版本和消息上限。
  */
-export const BRIDGE_PROTOCOL_VERSION = 3 as const;
+export const BRIDGE_PROTOCOL_VERSION = 4 as const;
 /** 用户显式开启配对窗口后的有效时间。 */
 export const PAIRING_SESSION_TTL_MS = 120_000;
 /** 单个本地服务允许保存的插件设备上限。 */

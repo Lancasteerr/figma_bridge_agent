@@ -10,7 +10,7 @@ import { updateText } from './handlers/text.js';
 import { setInstanceProperties } from './handlers/instance.js';
 import { createComponentFromNode } from './handlers/component.js';
 import { getCss, getRawNode, getVariables } from './handlers/codegen.js';
-import { applyLayoutPlan, validateLayoutPlan } from './handlers/layout-plan.js';
+import { applyDesignPlan, validateDesignPlan } from './handlers/design-plan.js';
 import { RpcRouter } from './rpc/router.js';
 import { publishPluginState, setBridgeState } from './state.js';
 
@@ -35,8 +35,8 @@ router.register('createComponentFromNode', createComponentFromNode);
 router.register('getCss', getCss);
 router.register('getVariables', getVariables);
 router.register('getRawNode', getRawNode);
-router.register('validateLayoutPlan', validateLayoutPlan);
-router.register('applyLayoutPlan', applyLayoutPlan);
+router.register('validateDesignPlan', validateDesignPlan);
+router.register('applyDesignPlan', applyDesignPlan);
 startEvents((event) => figma.ui.postMessage({ type: 'rpc-response', payload: event }));
 
 // UI 消息先过 shared schema，再根据 type 分发，避免不可信 payload 直接触碰 Figma API。

@@ -20,7 +20,7 @@ export function getStatus(): StatusResult {
       'proposal-only-mutations',
       'adaptive-proposal-scope-v2',
       'node-snapshots',
-      'layout-plan-v1',
+      'design-plan-v1',
       'render-png',
       'export-assets',
     ],

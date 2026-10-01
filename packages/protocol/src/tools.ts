@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
-import { LayoutPlanSchema, LayoutSpecSchema, SizingSpecSchema } from './layout-plan.js';
+import { DesignPlanSchema } from './design-plan.js';
+import { LayoutSpecSchema, SizingSpecSchema } from './layout.js';
 import { PositioningSchema } from './node.js';
 
 /** MCP 工具输入和输出 schema 集中定义，服务端与插件共享同一边界。 */
@@ -91,8 +92,8 @@ export const DiscardProposalInputSchema = z.object({
   proposalRootId: z.string().min(1),
   expectedFingerprint: z.string().min(8),
 });
-export const ValidateLayoutPlanInputSchema = z.object({ plan: LayoutPlanSchema });
-export const ApplyLayoutPlanInputSchema = z.object({ validationId: z.string().min(1) });
+export const ValidateDesignPlanInputSchema = z.object({ plan: DesignPlanSchema });
+export const ApplyDesignPlanInputSchema = z.object({ validationId: z.string().min(1) });
 
 /** PNG 渲染结果可附带本地临时文件信息，但 data 始终是插件返回的 base64。 */
 export const RenderResultSchema = z.object({

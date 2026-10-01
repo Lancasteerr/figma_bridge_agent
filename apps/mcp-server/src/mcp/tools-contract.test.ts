@@ -11,7 +11,7 @@ import { TempAssetStore } from '../temp/asset-store.js';
 import { createMcpServer } from '../server.js';
 
 const EXPECTED_TOOLS = [
-  'figma_apply_layout_plan',
+  'figma_apply_design_plan',
   'figma_create_component_from_node',
   'figma_create_frame',
   'figma_discard_proposal',
@@ -29,7 +29,7 @@ const EXPECTED_TOOLS = [
   'figma_set_layout',
   'figma_status',
   'figma_update_text',
-  'figma_validate_layout_plan',
+  'figma_validate_design_plan',
 ];
 
 // 该列表刻意形成 closed-world 契约：新增或误删工具都必须显式更新测试和文档。

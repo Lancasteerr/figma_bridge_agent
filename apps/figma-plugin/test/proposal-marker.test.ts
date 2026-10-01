@@ -17,20 +17,50 @@ import {
   resolveProposalRoot,
 } from '../src/main/proposal/marker.js';
 
-describe('Proposal marker v2', () => {
+describe('Proposal marker compatibility', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('persists clone roots and requested edit targets', () => {
+  it('writes v3 markers with clone roots and requested edit targets', () => {
     const data = new Map<string, string>();
     const root = markerNode(data);
 
     markProposal(root, ['source-root'], ['requested-target']);
 
     expect(readProposalMarker(root)).toMatchObject({
-      version: 2,
+      version: 3,
+      origin: 'CLONED',
       sourceRootIds: ['source-root'],
       requestedTargetIds: ['requested-target'],
     });
+  });
+
+  it('writes generated markers without source nodes', () => {
+    const data = new Map<string, string>();
+    const root = markerNode(data);
+
+    markProposal(root, []);
+
+    expect(readProposalMarker(root)).toMatchObject({
+      version: 3,
+      origin: 'GENERATED',
+      sourceRootIds: [],
+      requestedTargetIds: [],
+    });
+  });
+
+  it('continues to read v2 markers', () => {
+    const data = new Map([
+      [
+        'figma-agent-mcp:proposal',
+        JSON.stringify({
+          version: 2,
+          sourceRootIds: ['source-root'],
+          requestedTargetIds: ['requested-target'],
+          createdAt: '2026-01-01T00:00:00.000Z',
+        }),
+      ],
+    ]);
+    expect(readProposalMarker(markerNode(data))).toMatchObject({ version: 2 });
   });
 
   it('reports a stable error for a legacy marker instead of treating it as writable', async () => {

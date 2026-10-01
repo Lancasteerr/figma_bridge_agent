@@ -6,7 +6,7 @@ import type { BridgeTransport } from './bridge/transport.js';
 import type { ServerConfig } from './config/store.js';
 import { registerReadTools } from './mcp/register-read-tools.js';
 import { registerMediaTools } from './mcp/register-media-tools.js';
-import { registerLayoutTools } from './mcp/register-layout-tools.js';
+import { registerDesignTools } from './mcp/register-design-tools.js';
 import { registerMutationTools } from './mcp/register-mutation-tools.js';
 import { registerStatusTool } from './mcp/register-status.js';
 import { TempAssetStore } from './temp/asset-store.js';
@@ -24,7 +24,7 @@ export function createMcpServer(broker: BridgeTransport, assets: TempAssetStore)
   registerReadTools(server, broker);
   registerMediaTools(server, broker, assets);
   registerMutationTools(server, broker);
-  registerLayoutTools(server, broker);
+  registerDesignTools(server, broker);
   return server;
 }
 

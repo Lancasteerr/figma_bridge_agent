@@ -3,10 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   assertProposalTargets: vi.fn(),
-  executeLayoutPlan: vi.fn(),
+  executeDesignPlan: vi.fn(),
   fingerprintNodeTree: vi.fn(),
   takeValidation: vi.fn(),
-  validateLayoutTopology: vi.fn(),
+  validateDesignPlan: vi.fn(),
 }));
 
 vi.mock('../src/main/proposal/marker.js', () => ({
@@ -17,20 +17,20 @@ vi.mock('../src/main/proposal/marker.js', () => ({
 vi.mock('../src/main/serialization/node-snapshot.js', () => ({
   fingerprintNodeTree: mocks.fingerprintNodeTree,
 }));
-vi.mock('../src/main/layout-plan/validation-cache.js', () => ({
-  layoutValidationCache: {
+vi.mock('../src/main/design-plan/validation-cache.js', () => ({
+  designValidationCache: {
     put: vi.fn(),
     take: mocks.takeValidation,
   },
 }));
-vi.mock('../src/main/layout-plan/validator.js', () => ({
-  validateLayoutTopology: mocks.validateLayoutTopology,
+vi.mock('../src/main/design-plan/validator.js', () => ({
+  validateDesignPlan: mocks.validateDesignPlan,
 }));
-vi.mock('../src/main/layout-plan/executor.js', () => ({
-  executeLayoutPlan: mocks.executeLayoutPlan,
+vi.mock('../src/main/design-plan/executor.js', () => ({
+  executeDesignPlan: mocks.executeDesignPlan,
 }));
 
-import { applyLayoutPlan } from '../src/main/handlers/layout-plan.js';
+import { applyDesignPlan } from '../src/main/handlers/design-plan.js';
 import { setLayout } from '../src/main/handlers/layout.js';
 import { discardProposal } from '../src/main/handlers/proposal.js';
 
@@ -117,7 +117,7 @@ describe('mutation preflight boundaries', () => {
     expect(figmaSpy.triggerUndo).not.toHaveBeenCalled();
   });
 
-  it('rejects a stale LayoutPlan before opening an undo boundary', async () => {
+  it('rejects a stale DesignPlan before opening an undo boundary', async () => {
     const figmaSpy = installFigmaSpy();
     const plan = {
       source: {
@@ -126,15 +126,15 @@ describe('mutation preflight boundaries', () => {
     };
     const source = { roots: [{ id: 'source-root' }] };
     mocks.takeValidation.mockReturnValue(plan);
-    mocks.validateLayoutTopology.mockResolvedValue(source);
+    mocks.validateDesignPlan.mockResolvedValue(source);
     mocks.fingerprintNodeTree.mockResolvedValue('actual-fingerprint');
 
-    await expect(applyLayoutPlan({ validationId: 'validation-id' })).rejects.toMatchObject({
+    await expect(applyDesignPlan({ validationId: 'validation-id' })).rejects.toMatchObject({
       bridgeError: { code: 'PLAN_STALE' },
     });
 
     expect(figmaSpy.commitUndo).not.toHaveBeenCalled();
     expect(figmaSpy.triggerUndo).not.toHaveBeenCalled();
-    expect(mocks.executeLayoutPlan).not.toHaveBeenCalled();
+    expect(mocks.executeDesignPlan).not.toHaveBeenCalled();
   });
 });

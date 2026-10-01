@@ -3,13 +3,26 @@ import { z } from 'zod';
 /** Proposal 标记写入 Figma pluginData 时使用的稳定 key。 */
 export const PROPOSAL_PLUGIN_DATA_KEY = 'figma-agent-mcp:proposal';
 
-/** 标记记录 Proposal 的来源节点和创建时间，用于限制后续写操作范围。 */
-export const ProposalMarkerSchema = z.object({
+/** v2 保持只读兼容，已有 Proposal 无需迁移即可继续编辑。 */
+export const ProposalMarkerV2Schema = z.object({
   version: z.literal(2),
   sourceRootIds: z.array(z.string()).min(1),
   requestedTargetIds: z.array(z.string()).min(1),
   createdAt: z.string().datetime(),
 });
+
+/** v3 可以表达完全由 Agent 生成、没有源节点的 Proposal。 */
+export const ProposalMarkerV3Schema = z.object({
+  version: z.literal(3),
+  origin: z.enum(['CLONED', 'GENERATED']),
+  sourceRootIds: z.array(z.string()),
+  requestedTargetIds: z.array(z.string()),
+  state: z.enum(['BUILDING', 'COMMITTED']).default('COMMITTED'),
+  operationId: z.string().optional(),
+  createdAt: z.string().datetime(),
+});
+
+export const ProposalMarkerSchema = z.union([ProposalMarkerV2Schema, ProposalMarkerV3Schema]);
 /** Proposal pluginData 的结构化类型。 */
 export type ProposalMarker = z.infer<typeof ProposalMarkerSchema>;
 

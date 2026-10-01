@@ -15,9 +15,11 @@ export function markProposal(
   requestedTargetIds: string[] = sourceRootIds,
 ): void {
   const marker: ProposalMarker = {
-    version: 2,
+    version: 3,
+    origin: sourceRootIds.length > 0 ? 'CLONED' : 'GENERATED',
     sourceRootIds,
     requestedTargetIds,
+    state: 'COMMITTED',
     createdAt: new Date().toISOString(),
   };
   root.setPluginData(PROPOSAL_PLUGIN_DATA_KEY, JSON.stringify(marker));
@@ -73,7 +75,7 @@ function hasUnsupportedMarkerVersion(raw: string): boolean {
   if (!raw) return false;
   try {
     const value = JSON.parse(raw) as { version?: unknown };
-    return typeof value.version === 'number' && value.version !== 2;
+    return typeof value.version === 'number' && value.version !== 2 && value.version !== 3;
   } catch {
     return false;
   }
