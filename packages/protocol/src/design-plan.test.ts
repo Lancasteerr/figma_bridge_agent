@@ -109,4 +109,36 @@ describe('DesignPlan v1 schema', () => {
       children: [{ kind: 'TEXT', text: { fontSize: 64, paragraphSpacing: 0 } }],
     });
   });
+
+  it('accepts staged raster and SVG references', () => {
+    const asset = {
+      assetId: '11111111-1111-4111-8111-111111111111',
+      sha256: 'a'.repeat(64),
+    };
+    expect(
+      DesignPlanSchema.parse({
+        ...plan,
+        root: {
+          ...plan.root,
+          children: [
+            {
+              kind: 'IMAGE',
+              ref: 'photo',
+              name: 'Photo',
+              geometry: { width: 640, height: 480 },
+              asset,
+              scaleMode: 'CROP',
+            },
+            {
+              kind: 'SVG',
+              ref: 'icon',
+              name: 'Icon',
+              geometry: { width: 24, height: 24 },
+              asset,
+            },
+          ],
+        },
+      }),
+    ).toMatchObject({ root: { children: [{ kind: 'IMAGE' }, { kind: 'SVG' }] } });
+  });
 });

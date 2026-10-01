@@ -23,6 +23,7 @@ export function getStatus(): StatusResult {
       'design-plan-v1',
       'render-png',
       'export-assets',
+      'asset-staging-v1',
     ],
   };
 }

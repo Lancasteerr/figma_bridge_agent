@@ -10,10 +10,12 @@ import {
 
 import { isInside } from '../proposal/marker.js';
 import { resolveCurrentPageNode } from '../serialization/resolve.js';
+import { assetCache, type StagedAssetEntry } from '../assets/asset-cache.js';
 
 export interface ValidatedDesignSource {
   roots: SceneNode[];
   cloneSources: Map<string, SceneNode>;
+  assets: Map<string, StagedAssetEntry>;
   resolvedFonts: Map<string, DesignFontName>;
   warnings: DesignPlanWarning[];
 }
@@ -31,6 +33,7 @@ export async function validateDesignPlan(plan: DesignPlan): Promise<ValidatedDes
 
   const refs = new Set<string>();
   const cloneSources = new Map<string, SceneNode>();
+  const assets = new Map<string, StagedAssetEntry>();
   const resolvedFonts = new Map<string, DesignFontName>();
   const warnings: DesignPlanWarning[] = [];
   const availableFonts = await figma.listAvailableFontsAsync();
@@ -68,13 +71,24 @@ export async function validateDesignPlan(plan: DesignPlan): Promise<ValidatedDes
       }
     }
 
+    if (node.kind === 'IMAGE' || node.kind === 'SVG') {
+      const asset = assetCache.get(node.asset.assetId, node.asset.sha256);
+      if (node.kind === 'IMAGE' && asset.kind !== 'RASTER') {
+        throw invalid(`IMAGE ${node.ref} requires a raster asset.`, node.ref);
+      }
+      if (node.kind === 'SVG' && asset.kind !== 'SVG') {
+        throw invalid(`SVG ${node.ref} requires an SVG asset.`, node.ref);
+      }
+      assets.set(node.ref, asset);
+    }
+
     if (node.kind === 'FRAME') {
       for (const child of node.children) await visit(child, depth + 1);
     }
   };
 
   await visit(plan.root, 1);
-  return { roots, cloneSources, resolvedFonts, warnings };
+  return { roots, cloneSources, assets, resolvedFonts, warnings };
 
   function resolveFont(
     key: string,

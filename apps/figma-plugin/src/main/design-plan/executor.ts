@@ -87,6 +87,28 @@ async function appendNode(
     text.textAutoResize = spec.text.textAutoResize;
     applyVisual(text, spec.visual);
     applyPlacement(text, spec.placement);
+  } else if (spec.kind === 'IMAGE') {
+    const rectangle = figma.createRectangle();
+    node = rectangle;
+    node.name = spec.name;
+    parent.appendChild(node);
+    applyGeometry(node, spec.geometry);
+    applyVisual(node, spec.visual);
+    const asset = requiredAsset(source, spec.ref);
+    if (!asset.rasterBytes) throw invalid(`Raster bytes for ${spec.ref} are unavailable.`);
+    const image = figma.createImage(asset.rasterBytes);
+    rectangle.fills = [{ type: 'IMAGE', imageHash: image.hash, scaleMode: spec.scaleMode }];
+    applyPlacement(node, spec.placement);
+  } else if (spec.kind === 'SVG') {
+    const asset = requiredAsset(source, spec.ref);
+    if (!asset.svgText) throw invalid(`SVG text for ${spec.ref} is unavailable.`);
+    const svg = figma.createNodeFromSvg(asset.svgText);
+    node = svg;
+    node.name = spec.name;
+    parent.appendChild(node);
+    applyGeometry(node, spec.geometry);
+    applyVisual(node, spec.visual);
+    applyPlacement(node, spec.placement);
   } else {
     node = createPrimitiveNode(spec.kind);
     node.name = spec.name;
@@ -228,6 +250,12 @@ function requiredFont(source: ValidatedDesignSource, key: string): FontName {
   return font.variationSettings
     ? { family: font.family, style: font.style, variationSettings: font.variationSettings }
     : { family: font.family, style: font.style };
+}
+
+function requiredAsset(source: ValidatedDesignSource, ref: string) {
+  const asset = source.assets.get(ref);
+  if (!asset) throw invalid(`Resolved asset for ${ref} is unavailable.`);
+  return asset;
 }
 
 function toPaint(paint: DesignPaint): Paint {

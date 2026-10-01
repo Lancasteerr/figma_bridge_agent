@@ -1,5 +1,7 @@
 import { PluginAuthSchema, UiToMainMessageSchema } from '../shared/messages.js';
+import { assetCache } from './assets/asset-cache.js';
 import { startEvents } from './events.js';
+import { stageAsset } from './handlers/assets.js';
 import { getNode, getSelection, getTree } from './handlers/read.js';
 import { getStatus } from './handlers/status.js';
 import { exportAsset, renderNode } from './handlers/render.js';
@@ -37,6 +39,7 @@ router.register('getVariables', getVariables);
 router.register('getRawNode', getRawNode);
 router.register('validateDesignPlan', validateDesignPlan);
 router.register('applyDesignPlan', applyDesignPlan);
+router.register('stageAsset', stageAsset);
 startEvents((event) => figma.ui.postMessage({ type: 'rpc-response', payload: event }));
 
 // UI 消息先过 shared schema，再根据 type 分发，避免不可信 payload 直接触碰 Figma API。
@@ -60,6 +63,7 @@ figma.ui.onmessage = async (raw: unknown) => {
     });
   } else if (message.type === 'bridge-state') {
     setBridgeState(message.state);
+    if (message.state === 'disconnected') assetCache.clear();
     publishPluginState();
   } else if (message.type === 'save-auth') {
     await figma.clientStorage.setAsync('bridge-auth-v2', message.auth);
