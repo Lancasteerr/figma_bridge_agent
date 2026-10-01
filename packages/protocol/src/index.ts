@@ -4,6 +4,7 @@ export * from './assets.js';
 export * from './constants.js';
 export * from './daemon.js';
 export * from './errors.js';
+export * from './fonts.js';
 export * from './design-plan.js';
 export * from './layout.js';
 export * from './node.js';

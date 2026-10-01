@@ -3,6 +3,7 @@ import {
   EmptyInputSchema,
   GetCssInputSchema,
   GetVariablesInputSchema,
+  FontCatalogResultSchema,
   GetNodeInputSchema,
   GetRawNodeInputSchema,
   GetTreeInputSchema,
@@ -11,6 +12,7 @@ import {
   SelectionResultSchema,
   TreeResultSchema,
   VariablesResultSchema,
+  ListFontsInputSchema,
 } from '@figma-agent/protocol';
 import type { McpServer } from '@modelcontextprotocol/server';
 
@@ -19,6 +21,33 @@ import { structuredResult, toolError } from './result.js';
 
 /** 注册节点、树、变量、CSS 和原始 JSON 等只读工具。 */
 export function registerReadTools(server: McpServer, broker: BridgeTransport): void {
+  server.registerTool(
+    'figma_list_fonts',
+    {
+      description:
+        'Return a filtered, stable, paginated catalog of fonts currently available to the Figma editor, including variable-font axis tags.',
+      inputSchema: ListFontsInputSchema,
+      outputSchema: FontCatalogResultSchema,
+      annotations: {
+        title: 'List Available Figma Fonts',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const parsed = ListFontsInputSchema.parse(input);
+        return structuredResult(
+          FontCatalogResultSchema.parse(await broker.request('listFonts', parsed, 30_000)),
+        );
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
   server.registerTool(
     'figma_get_raw_node',
     {

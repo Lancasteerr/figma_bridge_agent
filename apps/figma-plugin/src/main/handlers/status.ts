@@ -24,6 +24,7 @@ export function getStatus(): StatusResult {
       'render-png',
       'export-assets',
       'asset-staging-v1',
+      'font-catalog-v1',
     ],
   };
 }
