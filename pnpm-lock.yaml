@@ -68,6 +68,15 @@ importers:
       '@noble/hashes':
         specifier: ^2.4.0
         version: 2.4.0
+      '@xmldom/xmldom':
+        specifier: ^0.8.15
+        version: 0.8.15
+      file-type:
+        specifier: ^21.3.4
+        version: 21.3.4(supports-color@7.1.0)
+      image-size:
+        specifier: ^2.0.4
+        version: 2.0.4
       ws:
         specifier: ^8.18.3
         version: 8.21.3
@@ -83,7 +92,7 @@ importers:
         version: link:../../packages/test-support
       '@types/ws':
         specifier: ^8.18.1
-        version: 8.18.1
+        version: 8.18.2
       esbuild:
         specifier: ^0.25.10
         version: 0.25.10
@@ -111,9 +120,15 @@ importers:
     devDependencies:
       '@types/ws':
         specifier: ^8.18.1
-        version: 8.18.1
+        version: 8.18.2
 
 packages:
+  '@borewit/text-codec@0.2.2':
+    resolution:
+      {
+        integrity: sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ==,
+      }
+
   '@esbuild/aix-ppc64@0.25.10':
     resolution:
       {
@@ -959,6 +974,19 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@tokenizer/inflate@0.4.1':
+    resolution:
+      {
+        integrity: sha512-2mAv+8pkG6GIZiF1kNg1jAjh27IDxEPKwdGul3snfztFerfPGI1LjDezZp3i7BElXompqEtPmoPx6c2wgtWsOA==,
+      }
+    engines: { node: '>=18' }
+
+  '@tokenizer/token@0.3.0':
+    resolution:
+      {
+        integrity: sha512-OvjF+z51L3ov0OyAU0duzsYuvO01PH7x4t6DJx+guahgTnBHkhJdG7soQeTSFLWN3efnHyibZ4Z8l2EuWwJN3A==,
+      }
+
   '@types/chai@5.2.3':
     resolution:
       {
@@ -989,10 +1017,10 @@ packages:
         integrity: sha512-SGrw/h3KPFshy3OE6ZL53LMBG5vGQQ8/gIpiqz/kRZhPJ7HgwCEs8LBuNtWLa8dvGZVpSF7+Bf+c11HUrCb/yg==,
       }
 
-  '@types/ws@8.18.1':
+  '@types/ws@8.18.2':
     resolution:
       {
-        integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==,
+        integrity: sha512-67MQl+fpWKVTT1NYdnmo3U4sc/xPo/zQBncVnI74qmQa0z/b+1g6iYqNmGCPbxO+zz2aklb08a0oHfegiVd0/w==,
       }
 
   '@typescript-eslint/eslint-plugin@8.70.1':
@@ -1133,6 +1161,13 @@ packages:
       {
         integrity: sha512-x6BDOd7dyo3PFLY3I9/HJ25X/6OurhGXk2/B9gOZNPF7XDVjeBK4k01lQE5uvDpbuheErh91qYuE1E2OEjK3Rw==,
       }
+
+  '@xmldom/xmldom@0.8.15':
+    resolution:
+      {
+        integrity: sha512-/5NV/vDALVFDXgLmfsy9TRCBlKwO2LNBFzpzvb9iIj+jR+eSc6DLYYvVOdivT/jm7MtU6TebYuRmzEOI7w40UA==,
+      }
+    engines: { node: '>=10.0.0' }
 
   acorn-jsx@5.3.2:
     resolution:
@@ -1511,6 +1546,13 @@ packages:
       }
     engines: { node: '>=16.0.0' }
 
+  file-type@21.3.4:
+    resolution:
+      {
+        integrity: sha512-Ievi/yy8DS3ygGvT47PjSfdFoX+2isQueoYP1cntFW1JLYAuS4GD7NUPGg4zv2iZfV52uDyk5w5Z0TdpRS6Q1g==,
+      }
+    engines: { node: '>=20' }
+
   find-up@5.0.0:
     resolution:
       {
@@ -1582,6 +1624,12 @@ packages:
       }
     engines: { node: '>=8' }
 
+  ieee754@1.2.1:
+    resolution:
+      {
+        integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==,
+      }
+
   ignore@5.2.0:
     resolution:
       {
@@ -1595,6 +1643,14 @@ packages:
         integrity: sha512-HpbUakT7xp5miBUywCHf36ZEuAJNklBJDDsGpUIjMzOSmM8ELSfA9Sa/QDPeNeqeoN31u+UTCkL4klCOVvRm4Q==,
       }
     engines: { node: '>= 4' }
+
+  image-size@2.0.4:
+    resolution:
+      {
+        integrity: sha512-QRUkFFsRV/6fuESxb9Vkq+a0LkSrgKXuc2NEqfikiXxxN/G3tjWt5EVUlMaImRBZRZK/jRBEbYvpPYZL8t08Zw==,
+      }
+    engines: { node: '>=18' }
+    hasBin: true
 
   immediate@3.0.6:
     resolution:
@@ -2068,6 +2124,13 @@ packages:
         integrity: sha512-TcccoMhJOM3OebGhSBEmp3UZ2SfDMZUEBdRA/9ynfLi8yYajyWX3JiXArcJt4Umh4vISpspkQIY8ZZoCqjbviA==,
       }
 
+  strtok3@10.3.5:
+    resolution:
+      {
+        integrity: sha512-ki4hZQfh5rX0QDLLkOCj+h+CVNkqmp/CMf8v8kZpkNVK6jGQooMytqzLZYUVYIZcFZ6yDB70EfD8POcFXiF5oA==,
+      }
+    engines: { node: '>=18' }
+
   supports-color@7.1.0:
     resolution:
       {
@@ -2115,6 +2178,13 @@ packages:
       }
     engines: { node: '>=14.0.0' }
 
+  token-types@6.1.2:
+    resolution:
+      {
+        integrity: sha512-dRXchy+C0IgK8WPC6xvCHFRIWYUbqqdEIKPaKo/AcTUNzwLTK6AH7RjdLWsEZcAN/TBdtfUw3PYEgPr5VPr6ww==,
+      }
+    engines: { node: '>=14.16' }
+
   ts-api-utils@2.5.0:
     resolution:
       {
@@ -2148,6 +2218,13 @@ packages:
       }
     engines: { node: '>=14.17' }
     hasBin: true
+
+  uint8array-extras@1.6.0:
+    resolution:
+      {
+        integrity: sha512-8iAasVS4wUx0gPLjH8Xtz2PeDzTSiy8QiLGu2DT3X5GU+egFEQhpnbtkehbAwjvDcxIERmCYcysiODFmE3Ud0Q==,
+      }
+    engines: { node: '>=18' }
 
   undici-types@7.18.2:
     resolution:
@@ -2308,6 +2385,8 @@ packages:
       }
 
 snapshots:
+  '@borewit/text-codec@0.2.2': {}
+
   '@esbuild/aix-ppc64@0.25.10':
     optional: true
 
@@ -2635,6 +2714,15 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.63.5':
     optional: true
 
+  '@tokenizer/inflate@0.4.1(supports-color@7.1.0)':
+    dependencies:
+      debug: 4.4.3(supports-color@7.1.0)
+      token-types: 6.1.2
+    transitivePeerDependencies:
+      - supports-color
+
+  '@tokenizer/token@0.3.0': {}
+
   '@types/chai@5.2.3':
     dependencies:
       '@types/deep-eql': 4.0.2
@@ -2650,7 +2738,7 @@ snapshots:
     dependencies:
       undici-types: 7.18.2
 
-  '@types/ws@8.18.1':
+  '@types/ws@8.18.2':
     dependencies:
       '@types/node': 24.13.6
 
@@ -2786,6 +2874,8 @@ snapshots:
       '@vitest/pretty-format': 3.2.7
       loupe: 3.2.1
       tinyrainbow: 2.0.0
+
+  '@xmldom/xmldom@0.8.15': {}
 
   acorn-jsx@5.3.2(acorn@8.18.0):
     dependencies:
@@ -3040,6 +3130,15 @@ snapshots:
     dependencies:
       flat-cache: 4.0.0
 
+  file-type@21.3.4(supports-color@7.1.0):
+    dependencies:
+      '@tokenizer/inflate': 0.4.1(supports-color@7.1.0)
+      strtok3: 10.3.5
+      token-types: 6.1.2
+      uint8array-extras: 1.6.0
+    transitivePeerDependencies:
+      - supports-color
+
   find-up@5.0.0:
     dependencies:
       locate-path: 6.0.0
@@ -3080,9 +3179,13 @@ snapshots:
 
   has-flag@4.0.0: {}
 
+  ieee754@1.2.1: {}
+
   ignore@5.2.0: {}
 
   ignore@7.0.10: {}
+
+  image-size@2.0.4: {}
 
   immediate@3.0.6: {}
 
@@ -3337,6 +3440,10 @@ snapshots:
     dependencies:
       js-tokens: 9.0.1
 
+  strtok3@10.3.5:
+    dependencies:
+      '@tokenizer/token': 0.3.0
+
   supports-color@7.1.0:
     dependencies:
       has-flag: 4.0.0
@@ -3355,6 +3462,12 @@ snapshots:
   tinyrainbow@2.0.0: {}
 
   tinyspy@4.0.6: {}
+
+  token-types@6.1.2:
+    dependencies:
+      '@borewit/text-codec': 0.2.2
+      '@tokenizer/token': 0.3.0
+      ieee754: 1.2.1
 
   ts-api-utils@2.5.0(typescript@5.9.2):
     dependencies:
@@ -3376,6 +3489,8 @@ snapshots:
       - supports-color
 
   typescript@5.9.2: {}
+
+  uint8array-extras@1.6.0: {}
 
   undici-types@7.18.2: {}
 

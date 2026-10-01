@@ -32,6 +32,9 @@
     "@modelcontextprotocol/server": "^2.1.0",
     "@noble/curves": "^2.4.0",
     "@noble/hashes": "^2.4.0",
+    "@xmldom/xmldom": "^0.8.15",
+    "file-type": "^21.3.4",
+    "image-size": "^2.0.4",
     "ws": "^8.18.3",
     "zod": "^4.1.11"
   },

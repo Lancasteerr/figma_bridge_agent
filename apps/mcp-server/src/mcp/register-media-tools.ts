@@ -1,15 +1,21 @@
+import { randomUUID } from 'node:crypto';
+
 import {
   ExportAssetInputSchema,
   ExportResultSchema,
   RenderNodeInputSchema,
   RenderResultSchema,
+  StageAssetInputSchema,
+  StageAssetRpcInputSchema,
+  StagedAssetResultSchema,
 } from '@figma-agent/protocol';
 import type { McpServer } from '@modelcontextprotocol/server';
 
 import type { BridgeTransport } from '../bridge/transport.js';
+import { validateInboundAsset } from '../inbound/asset-validator.js';
 import type { TempAssetStore } from '../temp/asset-store.js';
 import { sanitizeName } from '../temp/asset-store.js';
-import { toolError } from './result.js';
+import { structuredResult, toolError } from './result.js';
 
 /** 注册导出和渲染工具；媒体结果统一落到临时资源目录，不写入用户项目。 */
 export function registerMediaTools(
@@ -17,6 +23,35 @@ export function registerMediaTools(
   broker: BridgeTransport,
   assets: TempAssetStore,
 ): void {
+  server.registerTool(
+    'figma_stage_asset',
+    {
+      description:
+        'Validate Agent-provided Base64 PNG, JPEG, GIF, or SVG data and stage it in the connected Figma plugin memory. URLs and local paths are not accepted.',
+      inputSchema: StageAssetInputSchema,
+      outputSchema: StagedAssetResultSchema,
+      annotations: {
+        title: 'Stage Figma Design Asset',
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const parsed = StageAssetInputSchema.parse(input);
+        const validated = await validateInboundAsset(parsed);
+        const rpcInput = StageAssetRpcInputSchema.parse({ assetId: randomUUID(), ...validated });
+        return structuredResult(
+          StagedAssetResultSchema.parse(await broker.request('stageAsset', rpcInput, 30_000)),
+        );
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
   server.registerTool(
     'figma_export_asset',
     {
