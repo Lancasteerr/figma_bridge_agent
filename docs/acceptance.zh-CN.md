@@ -18,7 +18,7 @@
 ## 2. 连接和读取路径
 
 1. 使用 `docs/hosts.zh-CN.md` 中的配置启动 Codex。
-2. 调用 `figma_status`；确认协议 v2 已认证，并返回文件/页面元数据和选择摘要。
+2. 调用 `figma_status`；确认协议 v3 已认证，并返回文件/页面元数据、选择摘要和 `adaptive-proposal-scope-v2` 能力。
 3. 关闭插件并再次调用；确认约一秒内返回 `PLUGIN_NOT_CONNECTED`，而不是一直挂起。
 4. 重新打开插件，确认能够自动重连。
 5. 再打开两个 Codex 任务，确认三个任务都发现相同的 19 个工具，并能通过同一插件调用 `figma_status`。
@@ -28,14 +28,15 @@
 
 ## 3. 基础 Proposal 路径
 
-1. 记录源根节点指纹、层级结构和截图。
-2. 使用 `figma_duplicate_as_proposal` 复制它。
-3. 在 Proposal 内创建 Content Frame。
-4. 重新挂载目标子节点，在 Auto Layout 下明确选择 `FLOW` 或 `ABSOLUTE`。
-5. 使用 `figma_set_layout` 应用两到三层 Auto Layout。
-6. 重新读取源节点和 Proposal。确认源指纹未改变，且重要子节点的几何偏移不超过 1 px。
-7. 手动编辑 Proposal，然后使用旧指纹尝试丢弃；确认返回 `PROPOSAL_CHANGED`。
-8. 读取新指纹并丢弃；确认整个 Proposal 被移除。
+1. 创建一个至少包含三张卡片的 Auto Layout 列表，记录列表和卡片的指纹、层级、几何、锁定状态和截图。
+2. 调用 `figma_duplicate_as_proposal`，把中间卡片放入 `editTargetNodeIds`。确认结果以 `AUTO_LAYOUT_PARENT` 解析到列表、返回目标卡片映射，并把 Proposal 放为 Page 子节点而不是源列表内部。
+3. 确认源列表和所有卡片的指纹、顺序、几何、可见性和锁定状态不变；确认 Proposal 副本已递归解锁。
+4. 同时修改请求卡片和复制进来的兄弟/上下文节点；确认二者都成功，因为整个 Proposal 可写。使用原卡片 ID 写入时应返回 `NODE_NOT_IN_PROPOSAL`。
+5. 分别测试绝对定位子节点、Component Set 变体、Group 内叶节点和共享同一 Auto Layout 父级的两个目标；确认返回的复制根和解析原因符合规则，且不会重复复制根。
+6. 构造超过 1000 个节点的上下文；确认推导上下文退回目标并返回 `CLONE_CONTEXT_TRUNCATED`。若目标自身子树超限，确认返回 `LIMIT_EXCEEDED` 且不创建节点。
+7. 在 Proposal 内创建 Content Frame，以 `FLOW` 或 `ABSOLUTE` 重挂目标子节点，并应用两到三层 Auto Layout。
+8. 手动编辑 Proposal，然后使用旧指纹尝试丢弃；确认返回 `PROPOSAL_CHANGED`。读取新指纹并丢弃整个 Proposal。
+9. 在页面保留一个 marker v1 Proposal，确认写入返回 `PROPOSAL_VERSION_UNSUPPORTED` 且不发生修改。
 
 ## 4. 声明式 LayoutPlan 路径
 

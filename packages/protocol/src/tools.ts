@@ -37,12 +37,14 @@ export const ExportAssetInputSchema = z.object({
   scale: z.number().positive().max(4).default(1),
 });
 
-export const DuplicateProposalInputSchema = z.object({
-  nodeIds: z.array(z.string().min(1)).min(1).optional(),
-  nameSuffix: z.string().min(1).max(100).default(' / Agent Proposal'),
-  offsetX: z.number().default(64),
-  offsetY: z.number().default(0),
-});
+export const DuplicateProposalInputSchema = z
+  .object({
+    editTargetNodeIds: z.array(z.string().min(1)).min(1).optional(),
+    nameSuffix: z.string().min(1).max(100).default(' / Agent Proposal'),
+    offsetX: z.number().default(64),
+    offsetY: z.number().default(0),
+  })
+  .strict();
 /** 所有 Proposal 内部写操作都必须携带根节点，并可用指纹做乐观并发校验。 */
 export const ProposalTargetSchema = z.object({
   proposalRootId: z.string().min(1),

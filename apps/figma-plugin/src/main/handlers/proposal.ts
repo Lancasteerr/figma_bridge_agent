@@ -7,32 +7,47 @@ import {
 
 import { atomicMutation } from '../mutation/coordinator.js';
 import { mapClonedSubtree } from '../proposal/id-map.js';
-import { assertProposalTargets, isInside, markProposal } from '../proposal/marker.js';
+import { assertProposalTargets, markProposal } from '../proposal/marker.js';
+import { resolveProposalScope, type ResolvedProposalScope } from '../proposal/scope.js';
+import { sourceContextFingerprint } from '../proposal/source-context.js';
 import { fingerprintNodeTree } from '../serialization/node-snapshot.js';
-import { resolveCurrentPageNode } from '../serialization/resolve.js';
+import { isSceneNode, resolveCurrentPageNode } from '../serialization/resolve.js';
 
 /** 将当前选区或显式节点复制到原稿旁的 Proposal，原始节点不直接修改。 */
 export async function duplicateAsProposal(params: unknown): Promise<ProposalResult> {
   const input = DuplicateProposalInputSchema.parse(params);
   return await atomicMutation({
     prepare: async () => {
-      const sourceIds = input.nodeIds ?? figma.currentPage.selection.map((node) => node.id);
-      if (sourceIds.length === 0) {
+      const targetIds =
+        input.editTargetNodeIds ?? figma.currentPage.selection.map((node) => node.id);
+      if (targetIds.length === 0) {
         throw new BridgeFault({
           code: 'NODE_NOT_FOUND',
-          message: 'Select at least one node or provide nodeIds.',
+          message: 'Select at least one node or provide editTargetNodeIds.',
           retryable: true,
         });
       }
-      const sources = await Promise.all(sourceIds.map(resolveCurrentPageNode));
-      // 祖先和后代同时复制会产生歧义的相对层级，因此在克隆前拒绝重叠来源。
-      assertNonOverlapping(sources);
-      return sources;
+      const targets = await Promise.all(targetIds.map(resolveCurrentPageNode));
+      const scope = resolveProposalScope(targets);
+      const bounds = scope.roots.map(({ node }) => {
+        const box = node.absoluteBoundingBox ?? node;
+        return { x: box.x, y: box.y, width: box.width, height: box.height };
+      });
+      return {
+        scope,
+        bounds,
+        sourceFingerprint: await sourceContextFingerprint(scope.roots.map(({ node }) => node)),
+      };
     },
-    mutate: async (sources) =>
-      sources.length === 1
-        ? await duplicateSingle(sources[0]!, input.nameSuffix, input.offsetX, input.offsetY)
-        : await duplicateMultiple(sources, input.nameSuffix, input.offsetX, input.offsetY),
+    mutate: async ({ scope, bounds, sourceFingerprint }) =>
+      await duplicateResolvedScope(
+        scope,
+        bounds,
+        sourceFingerprint,
+        input.nameSuffix,
+        input.offsetX,
+        input.offsetY,
+      ),
   });
 }
 
@@ -58,107 +73,122 @@ export async function discardProposal(
   });
 }
 
-async function duplicateSingle(
-  source: SceneNode,
+async function duplicateResolvedScope(
+  scope: ResolvedProposalScope,
+  bounds: Array<{ x: number; y: number; width: number; height: number }>,
+  expectedSourceFingerprint: string,
   suffix: string,
   offsetX: number,
   offsetY: number,
 ): Promise<ProposalResult> {
-  const clone = source.clone();
-  try {
-    // 先隐藏并完成定位，避免用户看到尚未标记和布局完成的中间状态。
-    clone.visible = false;
-    clone.name = `${source.name}${suffix}`;
-    clone.x = source.x + source.width + offsetX;
-    clone.y = source.y + offsetY;
-    const idMap = mapClonedSubtree(source, clone);
-    markProposal(clone, [source.id]);
-    clone.visible = true;
-    figma.currentPage.selection = [clone];
-    figma.viewport.scrollAndZoomIntoView([clone]);
-    return {
-      proposalRootId: clone.id,
-      originalRootIds: [source.id],
-      idMap,
-      fingerprint: await fingerprintNodeTree([clone]),
-    };
-  } catch (error) {
-    // clone 已经进入文档，后续任何一步失败都必须主动删除它。
-    clone.remove();
-    throw error;
-  }
-}
-
-async function duplicateMultiple(
-  sources: SceneNode[],
-  suffix: string,
-  offsetX: number,
-  offsetY: number,
-): Promise<ProposalResult> {
-  const bounds = sources.map((node) => node.absoluteBoundingBox ?? node);
+  const sources = scope.roots.map(({ node }) => node);
   const minX = Math.min(...bounds.map((box) => box.x));
   const minY = Math.min(...bounds.map((box) => box.y));
   const maxX = Math.max(...bounds.map((box) => box.x + box.width));
   const maxY = Math.max(...bounds.map((box) => box.y + box.height));
-  const wrapper = figma.createFrame();
+  const idMap: Record<string, string> = {};
+  let root: SceneNode | undefined;
   try {
-    wrapper.visible = false;
-    wrapper.name = `Selection${suffix}`;
-    wrapper.fills = [];
-    wrapper.clipsContent = false;
-    wrapper.resizeWithoutConstraints(Math.max(1, maxX - minX), Math.max(1, maxY - minY));
-    wrapper.x = maxX + offsetX;
-    wrapper.y = minY + offsetY;
-
-    const idMap: Record<string, string> = {};
-    for (let index = 0; index < sources.length; index += 1) {
-      const source = sources[index]!;
-      const sourceBounds = bounds[index]!;
+    if (sources.length === 1) {
+      const source = sources[0]!;
       const clone = source.clone();
+      root = clone;
+      // clone() 会先在原父级生成节点；立即移到 Page，避免副本继续参与原布局。
+      figma.currentPage.appendChild(clone);
+      clone.visible = false;
+      clone.name = `${source.name}${suffix}`;
+      clone.x = maxX + offsetX;
+      clone.y = minY + offsetY;
       mapClonedSubtree(source, clone, idMap);
-      wrapper.appendChild(clone);
-      clone.x = sourceBounds.x - minX;
-      clone.y = sourceBounds.y - minY;
+    } else {
+      const wrapper = figma.createFrame();
+      root = wrapper;
+      wrapper.visible = false;
+      wrapper.name = `Selection${suffix}`;
+      wrapper.fills = [];
+      wrapper.clipsContent = false;
+      wrapper.resizeWithoutConstraints(Math.max(1, maxX - minX), Math.max(1, maxY - minY));
+      wrapper.x = maxX + offsetX;
+      wrapper.y = minY + offsetY;
+
+      for (let index = 0; index < sources.length; index += 1) {
+        const source = sources[index]!;
+        const sourceBounds = bounds[index]!;
+        const clone = source.clone();
+        // 与单根路径相同，克隆后第一时间脱离原父级。
+        wrapper.appendChild(clone);
+        mapClonedSubtree(source, clone, idMap);
+        clone.x = sourceBounds.x - minX;
+        clone.y = sourceBounds.y - minY;
+      }
     }
+
+    unlockSubtree(root);
     markProposal(
-      wrapper,
+      root,
       sources.map((source) => source.id),
+      scope.targets.map((target) => target.id),
     );
-    wrapper.visible = true;
-    figma.currentPage.selection = [wrapper];
-    figma.viewport.scrollAndZoomIntoView([wrapper]);
+
+    const actualSourceFingerprint = await sourceContextFingerprint(sources);
+    if (actualSourceFingerprint !== expectedSourceFingerprint) {
+      throw new BridgeFault({
+        code: 'SOURCE_CHANGED_DURING_CLONE',
+        message: 'The source layout changed while the Proposal was being isolated.',
+        retryable: true,
+        details: {
+          expectedFingerprint: expectedSourceFingerprint,
+          actualFingerprint: actualSourceFingerprint,
+        },
+      });
+    }
+
+    const targetMap = scope.bindings.map((binding) => ({
+      sourceNodeId: binding.target.id,
+      proposalNodeId: requireMappedId(idMap, binding.target.id),
+      cloneRootSourceNodeId: binding.root.id,
+      resolution: binding.resolution,
+    }));
+    const cloneRoots = scope.roots.map(({ node, nodeCount }) => ({
+      sourceNodeId: node.id,
+      proposalNodeId: requireMappedId(idMap, node.id),
+      nodeCount,
+    }));
+
+    root.visible = true;
+    figma.currentPage.selection = [root];
+    figma.viewport.scrollAndZoomIntoView([root]);
     return {
-      proposalRootId: wrapper.id,
-      originalRootIds: sources.map((source) => source.id),
+      proposalRootId: root.id,
+      requestedTargetIds: scope.targets.map((target) => target.id),
+      cloneRoots,
+      targetMap,
       idMap,
-      fingerprint: await fingerprintNodeTree([wrapper]),
+      warnings: scope.warnings,
+      fingerprint: await fingerprintNodeTree([root]),
     };
   } catch (error) {
-    // 多选复制使用 wrapper 作为唯一回滚根，避免留下部分克隆。
-    wrapper.remove();
+    if (root && !root.removed) root.remove();
     throw error;
   }
 }
 
-function assertNonOverlapping(nodes: SceneNode[]): void {
-  const ids = new Set(nodes.map((node) => node.id));
-  if (ids.size !== nodes.length) {
+function unlockSubtree(root: SceneNode): void {
+  if ('locked' in root) root.locked = false;
+  if ('children' in root) {
+    for (const child of root.children.filter(isSceneNode)) unlockSubtree(child);
+  }
+}
+
+function requireMappedId(idMap: Record<string, string>, sourceNodeId: string): string {
+  const mapped = idMap[sourceNodeId];
+  if (!mapped) {
     throw new BridgeFault({
-      code: 'INVALID_LAYOUT',
-      message: 'Duplicate source node IDs.',
+      code: 'INTERNAL_ERROR',
+      message: `Clone mapping for ${sourceNodeId} is unavailable.`,
       retryable: false,
+      nodeId: sourceNodeId,
     });
   }
-  for (const node of nodes) {
-    for (const candidate of nodes) {
-      if (node !== candidate && isInside(candidate, node)) {
-        throw new BridgeFault({
-          code: 'INVALID_LAYOUT',
-          message: 'A source selection cannot include both an ancestor and its descendant.',
-          retryable: false,
-          nodeId: node.id,
-        });
-      }
-    }
-  }
+  return mapped;
 }

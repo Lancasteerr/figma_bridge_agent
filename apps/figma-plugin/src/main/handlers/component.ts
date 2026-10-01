@@ -35,7 +35,7 @@ export async function createComponentFromNode(params: unknown): Promise<CreateCo
       const component = figma.createComponentFromNode(node);
       // createComponentFromNode 会替换原 Frame，因此根 Proposal 的 marker 不能依赖旧节点。
       const proposalRoot = replacesRoot ? component : root;
-      if (marker) markProposal(component, marker.sourceNodeIds);
+      if (marker) markProposal(component, marker.sourceRootIds, marker.requestedTargetIds);
       return {
         proposalRootId: proposalRoot.id,
         componentId: component.id,

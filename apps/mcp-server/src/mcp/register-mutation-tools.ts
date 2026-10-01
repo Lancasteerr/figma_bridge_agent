@@ -23,7 +23,7 @@ export function registerMutationTools(server: McpServer, broker: BridgeTransport
     'figma_duplicate_as_proposal',
     {
       description:
-        'Clone the supplied current-page nodes, or the current selection, into a bridge-marked Proposal beside the original. The original is never modified.',
+        'Clone the supplied edit targets, or the current selection, with automatically resolved layout context into an isolated, fully editable Proposal beside the original. The original is never modified.',
       inputSchema: DuplicateProposalInputSchema,
       outputSchema: ProposalResultSchema,
       annotations: {

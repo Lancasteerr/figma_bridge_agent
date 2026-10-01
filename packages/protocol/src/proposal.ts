@@ -5,18 +5,50 @@ export const PROPOSAL_PLUGIN_DATA_KEY = 'figma-agent-mcp:proposal';
 
 /** 标记记录 Proposal 的来源节点和创建时间，用于限制后续写操作范围。 */
 export const ProposalMarkerSchema = z.object({
-  version: z.literal(1),
-  sourceNodeIds: z.array(z.string()).min(1),
+  version: z.literal(2),
+  sourceRootIds: z.array(z.string()).min(1),
+  requestedTargetIds: z.array(z.string()).min(1),
   createdAt: z.string().datetime(),
 });
 /** Proposal pluginData 的结构化类型。 */
 export type ProposalMarker = z.infer<typeof ProposalMarkerSchema>;
 
-/** 克隆 Proposal 后返回源节点到副本节点的映射及初始指纹。 */
+export const CloneScopeResolutionSchema = z.enum([
+  'TARGET',
+  'AUTO_LAYOUT_PARENT',
+  'NEAREST_CONTAINER',
+  'SHARED_CONTEXT',
+  'LIMIT_FALLBACK',
+]);
+export type CloneScopeResolution = z.infer<typeof CloneScopeResolutionSchema>;
+
+export const ProposalCloneRootSchema = z.object({
+  sourceNodeId: z.string(),
+  proposalNodeId: z.string(),
+  nodeCount: z.number().int().positive(),
+});
+
+export const ProposalTargetMapSchema = z.object({
+  sourceNodeId: z.string(),
+  proposalNodeId: z.string(),
+  cloneRootSourceNodeId: z.string(),
+  resolution: CloneScopeResolutionSchema,
+});
+
+export const ProposalScopeWarningSchema = z.object({
+  code: z.string(),
+  message: z.string(),
+  nodeId: z.string().optional(),
+});
+
+/** 克隆 Proposal 后返回自动范围决策、源节点映射及初始指纹。 */
 export const ProposalResultSchema = z.object({
   proposalRootId: z.string(),
-  originalRootIds: z.array(z.string()),
+  requestedTargetIds: z.array(z.string()),
+  cloneRoots: z.array(ProposalCloneRootSchema).min(1),
+  targetMap: z.array(ProposalTargetMapSchema).min(1),
   idMap: z.record(z.string(), z.string()),
+  warnings: z.array(ProposalScopeWarningSchema),
   fingerprint: z.string(),
 });
 /** 创建 Proposal 的结果类型。 */

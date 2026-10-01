@@ -8,6 +8,8 @@ This project is a local development tool, not a remote service.
 
 - Original Figma nodes are read-only by policy and by write-handler scope checks.
 - Proposal identity is persisted in plugin data and cannot be supplied by name alone.
+- Agent-supplied IDs express edit intent only. Clone roots are resolved by the plugin, detached to the Page, and checked against a source-context fingerprint before the isolated Proposal is revealed.
+- The entire Proposal is writable, including cloned layout context, but writes cannot cross its marked root.
 - A second plugin connection is rejected and cannot evict the active one.
 - A captured authentication proof cannot be reused because each connection receives a fresh server nonce and supplies a fresh plugin nonce.
 - Pairing is disabled by default. An explicit `pair` command opens one 120-second session, and the user must compare a six-digit SAS before the device credential is stored.

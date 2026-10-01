@@ -56,7 +56,7 @@ Do not mix a development plugin with a stable MCP package, or vice versa. See th
 
 ## Safety and tools
 
-The bridge deliberately does not mutate source artwork. Every public write either creates a Proposal or requires a Proposal root ID. Declarative layout changes use a five-minute, single-use validation ID and re-check the source fingerprint immediately before cloning.
+The bridge deliberately does not mutate source artwork. Every public write either creates a Proposal or requires a Proposal root ID. Primitive Proposal creation accepts edit targets, resolves a bounded layout context automatically, and moves the clones to the Page before editing; the whole isolated Proposal remains writable. Declarative layout changes use a five-minute, single-use validation ID and re-check the source fingerprint immediately before cloning.
 
 It exposes exactly 19 closed-world MCP tools covering status/read, rendering/export, Proposal writes, and validated layout plans. See [architecture and safety](docs/architecture.md), [security notes](docs/security.md), and the [acceptance runbook](docs/acceptance.md).
 

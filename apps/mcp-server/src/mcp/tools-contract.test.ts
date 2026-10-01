@@ -66,6 +66,20 @@ describe('MCP tool contract', () => {
     expect(tools.find((tool) => tool.name === 'figma_discard_proposal')?.annotations).toMatchObject(
       { destructiveHint: true },
     );
+    const duplicate = tools.find((tool) => tool.name === 'figma_duplicate_as_proposal');
+    expect(duplicate?.inputSchema).toMatchObject({
+      properties: { editTargetNodeIds: expect.any(Object) },
+    });
+    expect(
+      (duplicate?.inputSchema as { properties?: Record<string, unknown> }).properties,
+    ).not.toHaveProperty('nodeIds');
+    expect(duplicate?.outputSchema).toMatchObject({
+      properties: {
+        cloneRoots: expect.any(Object),
+        targetMap: expect.any(Object),
+        warnings: expect.any(Object),
+      },
+    });
   });
 
   it('advertises all tools for three independent MCP sessions before the daemon is ready', async () => {

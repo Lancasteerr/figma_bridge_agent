@@ -8,11 +8,16 @@ import {
 import { fingerprintNodeTree } from '../serialization/node-snapshot.js';
 import { resolveCurrentPageNode } from '../serialization/resolve.js';
 
-/** 将来源节点 ID 和创建时间写入 Proposal 根节点的 pluginData。 */
-export function markProposal(root: SceneNode, sourceNodeIds: string[]): void {
+/** 将来源根、Agent 请求目标和创建时间写入 Proposal 根节点的 pluginData。 */
+export function markProposal(
+  root: SceneNode,
+  sourceRootIds: string[],
+  requestedTargetIds: string[] = sourceRootIds,
+): void {
   const marker: ProposalMarker = {
-    version: 1,
-    sourceNodeIds,
+    version: 2,
+    sourceRootIds,
+    requestedTargetIds,
     createdAt: new Date().toISOString(),
   };
   root.setPluginData(PROPOSAL_PLUGIN_DATA_KEY, JSON.stringify(marker));
@@ -43,7 +48,17 @@ export function isInside(root: SceneNode, node: SceneNode): boolean {
 /** 解析当前页上的 Proposal 根，并拒绝普通设计节点作为写入目标。 */
 export async function resolveProposalRoot(proposalRootId: string): Promise<SceneNode> {
   const root = await resolveCurrentPageNode(proposalRootId);
-  if (!readProposalMarker(root)) {
+  const raw = root.getPluginData(PROPOSAL_PLUGIN_DATA_KEY);
+  const marker = readProposalMarker(root);
+  if (!marker && hasUnsupportedMarkerVersion(raw)) {
+    throw new BridgeFault({
+      code: 'PROPOSAL_VERSION_UNSUPPORTED',
+      message: `Proposal ${proposalRootId} uses an unsupported marker version; recreate it with the current bridge.`,
+      retryable: false,
+      nodeId: proposalRootId,
+    });
+  }
+  if (!marker) {
     throw new BridgeFault({
       code: 'NODE_NOT_IN_PROPOSAL',
       message: `Node ${proposalRootId} is not a bridge-created Proposal root.`,
@@ -52,6 +67,16 @@ export async function resolveProposalRoot(proposalRootId: string): Promise<Scene
     });
   }
   return root;
+}
+
+function hasUnsupportedMarkerVersion(raw: string): boolean {
+  if (!raw) return false;
+  try {
+    const value = JSON.parse(raw) as { version?: unknown };
+    return typeof value.version === 'number' && value.version !== 2;
+  } catch {
+    return false;
+  }
 }
 
 /**

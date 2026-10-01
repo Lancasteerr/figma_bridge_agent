@@ -18,7 +18,7 @@ Do not continue acceptance if this gate fails.
 ## 2. Connection and read path
 
 1. Start Codex with the configuration in `docs/hosts.md`.
-2. Call `figma_status`; confirm authenticated protocol v2, file/page metadata, and selection summary.
+2. Call `figma_status`; confirm authenticated protocol v3, file/page metadata, selection summary, and the `adaptive-proposal-scope-v2` capability.
 3. Close the plugin and call it again; confirm `PLUGIN_NOT_CONNECTED` returns in about one second rather than hanging.
 4. Reopen the plugin and confirm automatic reconnection.
 5. Open two additional Codex tasks. Confirm all three tasks discover the same 19 tools and can call `figma_status` through the same plugin.
@@ -28,14 +28,15 @@ Do not continue acceptance if this gate fails.
 
 ## 3. Primitive Proposal path
 
-1. Record the source root fingerprint, hierarchy, and screenshot.
-2. Duplicate it with `figma_duplicate_as_proposal`.
-3. Create a Content Frame inside the Proposal.
-4. Reparent intended children, explicitly choosing `FLOW` or `ABSOLUTE` under Auto Layout.
-5. Apply two or three Auto Layout levels with `figma_set_layout`.
-6. Re-read source and Proposal. Confirm the source fingerprint is unchanged and important child geometry drift is at most 1 px.
-7. Edit the Proposal manually, then attempt discard with its old fingerprint; confirm `PROPOSAL_CHANGED`.
-8. Read the new fingerprint and discard; confirm the whole Proposal is removed.
+1. Build an Auto Layout list containing at least three cards. Record the list and cards' fingerprints, hierarchy, geometry, locks, and screenshot.
+2. Call `figma_duplicate_as_proposal` with the middle card in `editTargetNodeIds`. Confirm the response resolves the list as an `AUTO_LAYOUT_PARENT`, maps the requested card, and places the Proposal as a Page child rather than inside the source list.
+3. Confirm the source list and all cards retain their original fingerprints, order, geometry, visibility, and locks. Confirm the Proposal copy is recursively unlocked.
+4. Modify both the requested card and a cloned sibling/context node. Confirm both succeed because the whole Proposal is writable, while a write using the original card ID returns `NODE_NOT_IN_PROPOSAL`.
+5. Repeat with an absolute child, a Component Set variant, a leaf inside a Group, and two targets sharing one Auto Layout parent. Confirm the reported roots and resolution reasons match the documented rules and no root is cloned twice.
+6. Use a generated context above 1000 nodes. Confirm inferred context falls back to the requested target with `CLONE_CONTEXT_TRUNCATED`; confirm a target whose own subtree exceeds the limit returns `LIMIT_EXCEEDED` without creating nodes.
+7. Create a Content Frame inside the Proposal, reparent intended children with explicit `FLOW` or `ABSOLUTE`, and apply two or three Auto Layout levels.
+8. Edit the Proposal manually, then attempt discard with its old fingerprint; confirm `PROPOSAL_CHANGED`. Read the new fingerprint and discard the whole Proposal.
+9. Leave a marker-v1 Proposal on the page and confirm a write returns `PROPOSAL_VERSION_UNSUPPORTED` with no mutation.
 
 ## 4. Declarative LayoutPlan path
 
