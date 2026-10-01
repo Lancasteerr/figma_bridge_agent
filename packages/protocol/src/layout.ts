@@ -11,6 +11,7 @@ export const CounterAxisAlignSchema = z.enum(['MIN', 'CENTER', 'MAX']);
 export const LayoutSpecSchema = z
   .object({
     mode: WritableLayoutModeSchema,
+    wrap: z.enum(['NO_WRAP', 'WRAP']).default('NO_WRAP'),
     gap: z.number().min(0).max(10_000).default(0),
     padding: z.object({
       top: z.number().min(0).max(10_000),

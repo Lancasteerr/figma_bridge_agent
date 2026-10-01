@@ -2,8 +2,10 @@ import {
   BridgeFault,
   DESIGN_PLAN_MAX_DEPTH,
   DESIGN_PLAN_MAX_NODES,
+  type DesignFontName,
   type DesignNode,
   type DesignPlan,
+  type DesignPlanWarning,
 } from '@figma-agent/protocol';
 
 import { isInside } from '../proposal/marker.js';
@@ -12,6 +14,8 @@ import { resolveCurrentPageNode } from '../serialization/resolve.js';
 export interface ValidatedDesignSource {
   roots: SceneNode[];
   cloneSources: Map<string, SceneNode>;
+  resolvedFonts: Map<string, DesignFontName>;
+  warnings: DesignPlanWarning[];
 }
 
 /** 只读解析计划引用，所有文档写入必须留到 atomicMutation 的 mutate 阶段。 */
@@ -27,6 +31,9 @@ export async function validateDesignPlan(plan: DesignPlan): Promise<ValidatedDes
 
   const refs = new Set<string>();
   const cloneSources = new Map<string, SceneNode>();
+  const resolvedFonts = new Map<string, DesignFontName>();
+  const warnings: DesignPlanWarning[] = [];
+  const availableFonts = await figma.listAvailableFontsAsync();
   let nodeCount = 0;
 
   const visit = async (node: DesignNode, depth: number): Promise<void> => {
@@ -53,13 +60,98 @@ export async function validateDesignPlan(plan: DesignPlan): Promise<ValidatedDes
       return;
     }
 
+    if (node.kind === 'TEXT') {
+      validateTextRanges(node);
+      resolveFont(`${node.ref}:base`, node.ref, node.text.font);
+      for (const [index, range] of node.text.ranges.entries()) {
+        if (range.font) resolveFont(`${node.ref}:range:${index}`, node.ref, range.font);
+      }
+    }
+
     if (node.kind === 'FRAME') {
       for (const child of node.children) await visit(child, depth + 1);
     }
   };
 
   await visit(plan.root, 1);
-  return { roots, cloneSources };
+  return { roots, cloneSources, resolvedFonts, warnings };
+
+  function resolveFont(
+    key: string,
+    ref: string,
+    selection: {
+      requested: DesignFontName;
+      fallbacks: DesignFontName[];
+      policy: 'STRICT' | 'ALLOW_FALLBACK';
+    },
+  ): void {
+    const candidates =
+      selection.policy === 'ALLOW_FALLBACK'
+        ? [selection.requested, ...selection.fallbacks]
+        : [selection.requested];
+    const selected = candidates.find((candidate) =>
+      availableFonts.some(
+        (font) =>
+          font.fontName.family === candidate.family && font.fontName.style === candidate.style,
+      ),
+    );
+    if (!selected) {
+      throw new BridgeFault({
+        code: 'MISSING_FONT',
+        message: `No permitted font is available for ${ref}: ${candidates
+          .map((font) => `${font.family} ${font.style}`)
+          .join(', ')}.`,
+        retryable: true,
+        details: { ref },
+      });
+    }
+    resolvedFonts.set(key, selected);
+    if (
+      selected.family !== selection.requested.family ||
+      selected.style !== selection.requested.style
+    ) {
+      warnings.push({
+        code: 'FONT_FALLBACK',
+        message: `${selection.requested.family} ${selection.requested.style} was replaced by ${selected.family} ${selected.style}.`,
+        ref,
+      });
+    }
+  }
+}
+
+/** apply 的只读预检阶段加载全部字体，确保进入 Undo 边界后不会因字体失败。 */
+export async function preloadDesignFonts(source: ValidatedDesignSource): Promise<void> {
+  const unique = new Map(
+    [...source.resolvedFonts.values()].map((font) => [
+      `${font.family}\u0000${font.style}\u0000${JSON.stringify(font.variationSettings ?? {})}`,
+      font,
+    ]),
+  );
+  try {
+    await Promise.all(
+      [...unique.values()].map((font) =>
+        figma.loadFontAsync(
+          font.variationSettings
+            ? { family: font.family, style: font.style, variationSettings: font.variationSettings }
+            : { family: font.family, style: font.style },
+        ),
+      ),
+    );
+  } catch (error) {
+    throw new BridgeFault({
+      code: 'MISSING_FONT',
+      message: error instanceof Error ? error.message : 'A DesignPlan font could not be loaded.',
+      retryable: true,
+    });
+  }
+}
+
+function validateTextRanges(node: Extract<DesignNode, { kind: 'TEXT' }>): void {
+  for (const range of node.text.ranges) {
+    if (range.end <= range.start || range.end > node.text.characters.length) {
+      throw invalid(`Text range ${range.start}:${range.end} is outside ${node.ref}.`, node.ref);
+    }
+  }
 }
 
 function assertUnique(values: string[], label: string): void {

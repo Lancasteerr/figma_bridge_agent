@@ -1,8 +1,12 @@
 import {
   BridgeFault,
+  type DesignGeometry,
   type DesignNode,
+  type DesignPaint,
   type DesignPlacement,
   type DesignPlan,
+  type DesignText,
+  type DesignVisual,
   type LayoutSpec,
   type SizingSpec,
 } from '@figma-agent/protocol';
@@ -30,6 +34,8 @@ export async function executeDesignPlan(
 
   try {
     for (const child of plan.root.children) await appendNode(root, child, source, refMap);
+    applyVisual(root, plan.root.visual);
+    if (plan.root.clipsContent !== undefined) root.clipsContent = plan.root.clipsContent;
     applyContainerLayout(root, plan.root.layout, plan.root.placement?.sizing);
     applyPlacement(root, plan.root.placement);
     positionRoot(root, plan, source.roots);
@@ -60,45 +66,65 @@ async function appendNode(
     parent.appendChild(node);
     if (spec.geometry) applyGeometry(node, spec.geometry);
     applyPlacement(node, spec.placement);
-  } else {
-    node = createBasicNode(spec.kind);
+  } else if (spec.kind === 'FRAME') {
+    node = figma.createFrame();
     node.name = spec.name;
     parent.appendChild(node);
     applyGeometry(node, spec.geometry);
-    if (spec.kind === 'FRAME' && node.type === 'FRAME') {
-      node.fills = [];
-      for (const child of spec.children) await appendNode(node, child, source, refMap);
-      applyContainerLayout(node, spec.layout, spec.placement?.sizing);
-    }
+    node.fills = [];
+    for (const child of spec.children) await appendNode(node, child, source, refMap);
+    applyVisual(node, spec.visual);
+    if (spec.clipsContent !== undefined) node.clipsContent = spec.clipsContent;
+    applyContainerLayout(node, spec.layout, spec.placement?.sizing);
+    applyPlacement(node, spec.placement);
+  } else if (spec.kind === 'TEXT') {
+    const text = figma.createText();
+    node = text;
+    node.name = spec.name;
+    parent.appendChild(node);
+    applyText(text, spec.ref, spec.text, source);
+    applyGeometry(text, spec.geometry);
+    text.textAutoResize = spec.text.textAutoResize;
+    applyVisual(text, spec.visual);
+    applyPlacement(text, spec.placement);
+  } else {
+    node = createPrimitiveNode(spec.kind);
+    node.name = spec.name;
+    parent.appendChild(node);
+    applyGeometry(node, spec.geometry);
+    applyVisual(node, spec.visual);
     applyPlacement(node, spec.placement);
   }
   refMap[spec.ref] = node.id;
 }
 
-function createBasicNode(kind: Exclude<DesignNode['kind'], 'CLONE'>): SceneNode {
-  if (kind === 'FRAME') return figma.createFrame();
+function createPrimitiveNode(kind: 'RECTANGLE' | 'ELLIPSE' | 'LINE'): SceneNode {
   if (kind === 'RECTANGLE') return figma.createRectangle();
   if (kind === 'ELLIPSE') return figma.createEllipse();
   if (kind === 'LINE') return figma.createLine();
   throw invalid(`Unsupported basic node kind: ${String(kind)}.`);
 }
 
-function applyGeometry(
-  node: SceneNode,
-  geometry: { x: number; y: number; width: number; height: number; rotation: number },
-): void {
+function applyGeometry(node: SceneNode, geometry: DesignGeometry): void {
   if ('resizeWithoutConstraints' in node)
     node.resizeWithoutConstraints(geometry.width, geometry.height);
   else if ('resize' in node) node.resize(geometry.width, geometry.height);
   node.x = geometry.x;
   node.y = geometry.y;
   if ('rotation' in node) node.rotation = geometry.rotation;
+  if ('minWidth' in node) {
+    if (geometry.minWidth !== undefined) node.minWidth = geometry.minWidth;
+    if (geometry.maxWidth !== undefined) node.maxWidth = geometry.maxWidth;
+    if (geometry.minHeight !== undefined) node.minHeight = geometry.minHeight;
+    if (geometry.maxHeight !== undefined) node.maxHeight = geometry.maxHeight;
+  }
+  if (geometry.constraints && 'constraints' in node) node.constraints = geometry.constraints;
 }
 
 function applyContainerLayout(node: FrameNode, layout?: LayoutSpec, sizing?: SizingSpec): void {
   if (layout) {
     node.layoutMode = layout.mode;
-    node.layoutWrap = 'NO_WRAP';
+    node.layoutWrap = layout.wrap;
     node.itemSpacing = layout.gap;
     node.paddingTop = layout.padding.top;
     node.paddingRight = layout.padding.right;
@@ -115,7 +141,97 @@ function applyPlacement(node: SceneNode, placement?: DesignPlacement): void {
   if (placement.positioning && 'layoutPositioning' in node) {
     node.layoutPositioning = placement.positioning;
   }
+  if (placement.layoutGrow !== undefined && 'layoutGrow' in node) {
+    node.layoutGrow = placement.layoutGrow;
+  }
+  if (placement.layoutAlign !== undefined && 'layoutAlign' in node) {
+    node.layoutAlign = placement.layoutAlign;
+  }
   applySizing(node, placement.sizing);
+}
+
+function applyVisual(node: SceneNode, visual?: DesignVisual): void {
+  if (!visual) return;
+  if (visual.fills && 'fills' in node) node.fills = visual.fills.map(toPaint);
+  if (visual.strokes && 'strokes' in node) node.strokes = visual.strokes.map(toPaint);
+  if (visual.strokeWeight !== undefined && 'strokeWeight' in node) {
+    node.strokeWeight = visual.strokeWeight;
+  }
+  if (visual.strokeAlign !== undefined && 'strokeAlign' in node) {
+    node.strokeAlign = visual.strokeAlign;
+  }
+  if (visual.dashPattern !== undefined && 'dashPattern' in node) {
+    node.dashPattern = visual.dashPattern;
+  }
+  if (visual.cornerRadius !== undefined && 'cornerRadius' in node) {
+    if ('topLeftRadius' in node) {
+      const radii =
+        typeof visual.cornerRadius === 'number'
+          ? {
+              topLeft: visual.cornerRadius,
+              topRight: visual.cornerRadius,
+              bottomRight: visual.cornerRadius,
+              bottomLeft: visual.cornerRadius,
+            }
+          : visual.cornerRadius;
+      node.topLeftRadius = radii.topLeft;
+      node.topRightRadius = radii.topRight;
+      node.bottomRightRadius = radii.bottomRight;
+      node.bottomLeftRadius = radii.bottomLeft;
+    }
+  }
+  if (visual.opacity !== undefined && 'opacity' in node) node.opacity = visual.opacity;
+  if (visual.blendMode !== undefined && 'blendMode' in node) node.blendMode = visual.blendMode;
+  if (visual.effects !== undefined && 'effects' in node) {
+    node.effects = visual.effects as readonly Effect[];
+  }
+}
+
+function applyText(
+  node: TextNode,
+  ref: string,
+  text: DesignText,
+  source: ValidatedDesignSource,
+): void {
+  node.textAutoResize = 'NONE';
+  node.fontName = requiredFont(source, `${ref}:base`);
+  node.characters = text.characters;
+  node.fontSize = text.fontSize;
+  node.lineHeight = text.lineHeight;
+  node.letterSpacing = text.letterSpacing;
+  node.textAlignHorizontal = text.textAlignHorizontal;
+  node.textAlignVertical = text.textAlignVertical;
+  node.textCase = text.textCase;
+  node.textDecoration = text.textDecoration;
+  node.paragraphSpacing = text.paragraphSpacing;
+
+  for (const [index, range] of text.ranges.entries()) {
+    const { start, end } = range;
+    if (range.font)
+      node.setRangeFontName(start, end, requiredFont(source, `${ref}:range:${index}`));
+    if (range.fontSize !== undefined) node.setRangeFontSize(start, end, range.fontSize);
+    if (range.lineHeight !== undefined) node.setRangeLineHeight(start, end, range.lineHeight);
+    if (range.letterSpacing !== undefined) {
+      node.setRangeLetterSpacing(start, end, range.letterSpacing);
+    }
+    if (range.fills !== undefined) node.setRangeFills(start, end, range.fills.map(toPaint));
+    if (range.textCase !== undefined) node.setRangeTextCase(start, end, range.textCase);
+    if (range.textDecoration !== undefined) {
+      node.setRangeTextDecoration(start, end, range.textDecoration);
+    }
+  }
+}
+
+function requiredFont(source: ValidatedDesignSource, key: string): FontName {
+  const font = source.resolvedFonts.get(key);
+  if (!font) throw invalid(`Resolved font ${key} is unavailable.`);
+  return font.variationSettings
+    ? { family: font.family, style: font.style, variationSettings: font.variationSettings }
+    : { family: font.family, style: font.style };
+}
+
+function toPaint(paint: DesignPaint): Paint {
+  return paint as Paint;
 }
 
 function applySizing(node: SceneNode, sizing?: SizingSpec): void {

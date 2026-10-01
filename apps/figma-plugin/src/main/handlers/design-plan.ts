@@ -8,7 +8,10 @@ import {
 
 import { executeDesignPlan } from '../design-plan/executor.js';
 import { designValidationCache } from '../design-plan/validation-cache.js';
-import { validateDesignPlan as validatePlanTopology } from '../design-plan/validator.js';
+import {
+  preloadDesignFonts,
+  validateDesignPlan as validatePlanTopology,
+} from '../design-plan/validator.js';
 import { atomicMutation } from '../mutation/coordinator.js';
 import { fingerprintNodeTree } from '../serialization/node-snapshot.js';
 
@@ -21,9 +24,12 @@ export async function validateDesignPlan(params: unknown): Promise<DesignPlanVal
       const actual = await fingerprintNodeTree(source.roots);
       if (actual !== plan.source.fingerprint) throw stale(plan.source.fingerprint, actual);
     }
-    return { valid: true, ...designValidationCache.put(plan), warnings: [] };
+    return { valid: true, ...designValidationCache.put(plan), warnings: source.warnings };
   } catch (error) {
-    if (error instanceof BridgeFault && error.bridgeError.code === 'PLAN_INVALID') {
+    if (
+      error instanceof BridgeFault &&
+      (error.bridgeError.code === 'PLAN_INVALID' || error.bridgeError.code === 'MISSING_FONT')
+    ) {
       return {
         valid: false,
         warnings: [{ code: error.bridgeError.code, message: error.bridgeError.message }],
@@ -44,6 +50,7 @@ export async function applyDesignPlan(params: unknown): Promise<DesignPlanApplyR
         const actual = await fingerprintNodeTree(source.roots);
         if (actual !== plan.source.fingerprint) throw stale(plan.source.fingerprint, actual);
       }
+      await preloadDesignFonts(source);
       return { plan, source };
     },
     mutate: async ({ plan, source }) => {
