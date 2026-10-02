@@ -6,7 +6,7 @@ export function getStatus(): StatusResult {
     connected: true,
     authenticated: true,
     protocolVersion: BRIDGE_PROTOCOL_VERSION,
-    pluginVersion: '0.1.0',
+    pluginVersion: __PLUGIN_VERSION__,
     document: { name: figma.root.name },
     page: { id: figma.currentPage.id, name: figma.currentPage.name },
     selection: figma.currentPage.selection.map((node) => ({
