@@ -46,7 +46,7 @@ afterEach(async () => {
 });
 
 describe('MCP tool contract', () => {
-  it('advertises exactly 23 closed-world tools with schemas and annotations', async () => {
+  it('advertises its package version and exactly 23 closed-world tools', async () => {
     const broker = new PluginConnectionBroker({
       version: 2,
       serverId: '11111111-1111-4111-8111-111111111111',
@@ -57,7 +57,10 @@ describe('MCP tool contract', () => {
     });
     const mcp = createMcpServer(broker, new TempAssetStore());
     servers.push(mcp);
-    const tools = await listTools(mcp);
+    const snapshot = await inspectServer(mcp);
+    const tools = snapshot.tools;
+
+    expect(snapshot.serverInfo?.version).toBe(__CLI_VERSION__);
 
     // 除名称外还检查 schema 和注解，防止工具虽然注册成功但失去客户端元数据。
     expect(tools.map((tool) => tool.name).sort()).toEqual(EXPECTED_TOOLS);
@@ -130,7 +133,21 @@ interface ListedTool {
   annotations?: Record<string, unknown>;
 }
 
+interface ServerInfo {
+  name?: string;
+  version?: string;
+}
+
+interface ServerSnapshot {
+  serverInfo: ServerInfo | undefined;
+  tools: ListedTool[];
+}
+
 async function listTools(server: ReturnType<typeof createMcpServer>): Promise<ListedTool[]> {
+  return (await inspectServer(server)).tools;
+}
+
+async function inspectServer(server: ReturnType<typeof createMcpServer>): Promise<ServerSnapshot> {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const responses = new Map<number, (message: JSONRPCMessage) => void>();
   clientTransport.onmessage = (message) => {
@@ -138,17 +155,21 @@ async function listTools(server: ReturnType<typeof createMcpServer>): Promise<Li
   };
   await clientTransport.start();
   await server.connect(serverTransport);
-  await request(clientTransport, responses, 1, 'initialize', {
+  const initializeMessage = await request(clientTransport, responses, 1, 'initialize', {
     protocolVersion: LATEST_PROTOCOL_VERSION,
     capabilities: {},
     clientInfo: { name: 'contract-test', version: '1.0.0' },
   });
+  if (!('result' in initializeMessage)) {
+    throw new Error('initialize did not return a result.');
+  }
+  const initializeResult = initializeMessage.result as { serverInfo?: ServerInfo };
   await clientTransport.send({ jsonrpc: '2.0', method: 'notifications/initialized' });
   const message = await request(clientTransport, responses, 2, 'tools/list', {});
   if (!('result' in message)) throw new Error('tools/list did not return a result.');
   const result = message.result as { tools?: ListedTool[] };
   if (!Array.isArray(result.tools)) throw new Error('tools/list returned no tools array.');
-  return result.tools;
+  return { serverInfo: initializeResult.serverInfo, tools: result.tools };
 }
 
 async function request(

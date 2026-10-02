@@ -19,7 +19,7 @@ export interface RunningServer {
 
 /** 创建 MCP 工具集合；工具按读、媒体、Proposal 写入和布局计划分组注册。 */
 export function createMcpServer(broker: BridgeTransport, assets: TempAssetStore): McpServer {
-  const server = new McpServer({ name: 'figma-local-agent', version: '0.1.0' });
+  const server = new McpServer({ name: 'figma-local-agent', version: __CLI_VERSION__ });
   registerStatusTool(server, broker);
   registerReadTools(server, broker);
   registerMediaTools(server, broker, assets);
