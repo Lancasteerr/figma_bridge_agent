@@ -54,11 +54,11 @@ export async function applyDesignPlan(params: unknown): Promise<DesignPlanApplyR
         if (actual !== plan.source.fingerprint) throw stale(plan.source.fingerprint, actual);
       }
       await preloadDesignFonts(source);
-      return { plan, source };
-    },
-    mutate: async ({ plan, source }) => {
-      const operationId = `design-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
       const planDigest = designPlanDigest(plan);
+      return { plan, source, planDigest };
+    },
+    mutate: async ({ plan, source, planDigest }) => {
+      const operationId = `design-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
       const resources = applyDesignResources(
         source.resources,
         source.resolvedFonts,

@@ -3,8 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   assertProposalTargets: vi.fn(),
+  applyDesignResources: vi.fn(),
+  designPlanDigest: vi.fn(),
   executeDesignPlan: vi.fn(),
   fingerprintNodeTree: vi.fn(),
+  preloadDesignFonts: vi.fn(),
   takeValidation: vi.fn(),
   validateDesignPlan: vi.fn(),
 }));
@@ -24,10 +27,15 @@ vi.mock('../src/main/design-plan/validation-cache.js', () => ({
   },
 }));
 vi.mock('../src/main/design-plan/validator.js', () => ({
+  preloadDesignFonts: mocks.preloadDesignFonts,
   validateDesignPlan: mocks.validateDesignPlan,
 }));
 vi.mock('../src/main/design-plan/executor.js', () => ({
   executeDesignPlan: mocks.executeDesignPlan,
+}));
+vi.mock('../src/main/design-plan/resources.js', () => ({
+  applyDesignResources: mocks.applyDesignResources,
+  designPlanDigest: mocks.designPlanDigest,
 }));
 
 import { applyDesignPlan } from '../src/main/handlers/design-plan.js';
@@ -58,6 +66,7 @@ function installFigmaSpy(): {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.designPlanDigest.mockReturnValue('a'.repeat(64));
 });
 
 afterEach(() => {
@@ -135,6 +144,27 @@ describe('mutation preflight boundaries', () => {
 
     expect(figmaSpy.commitUndo).not.toHaveBeenCalled();
     expect(figmaSpy.triggerUndo).not.toHaveBeenCalled();
+    expect(mocks.executeDesignPlan).not.toHaveBeenCalled();
+  });
+
+  it('calculates the DesignPlan digest before opening an undo boundary', async () => {
+    const figmaSpy = installFigmaSpy();
+    const plan = { resources: [], root: { kind: 'FRAME' } };
+    const source = { roots: [] };
+    mocks.takeValidation.mockReturnValue(plan);
+    mocks.validateDesignPlan.mockResolvedValue(source);
+    mocks.designPlanDigest.mockImplementation(() => {
+      throw new Error('digest failed');
+    });
+
+    await expect(applyDesignPlan({ validationId: 'validation-id' })).rejects.toThrow(
+      'digest failed',
+    );
+
+    expect(mocks.preloadDesignFonts).toHaveBeenCalledWith(source);
+    expect(figmaSpy.commitUndo).not.toHaveBeenCalled();
+    expect(figmaSpy.triggerUndo).not.toHaveBeenCalled();
+    expect(mocks.applyDesignResources).not.toHaveBeenCalled();
     expect(mocks.executeDesignPlan).not.toHaveBeenCalled();
   });
 });

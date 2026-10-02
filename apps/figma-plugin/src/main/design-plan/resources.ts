@@ -6,7 +6,8 @@ import {
   type DesignVariableCollectionResource,
 } from '@figma-agent/protocol';
 import { sha256 } from '@noble/hashes/sha2.js';
-import { utf8ToBytes } from '@noble/hashes/utils.js';
+
+import { encodeUtf8 } from '../serialization/utf8.js';
 
 export const GENERATED_RESOURCE_PLUGIN_DATA_KEY = 'figma-agent-mcp:generated-resource';
 
@@ -232,7 +233,7 @@ export function applyDesignResources(
 
 /** operation marker 记录稳定的 SHA-256 计划摘要，便于崩溃后审计关联。 */
 export function designPlanDigest(plan: DesignPlan): string {
-  return [...sha256(utf8ToBytes(JSON.stringify(plan)))]
+  return [...sha256(encodeUtf8(JSON.stringify(plan)))]
     .map((value) => value.toString(16).padStart(2, '0'))
     .join('');
 }

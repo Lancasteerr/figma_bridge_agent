@@ -1,12 +1,27 @@
 import { DesignPlanSchema } from '@figma-agent/protocol';
+import { createHash } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { applyDesignResources, prepareDesignResources } from '../src/main/design-plan/resources.js';
+import {
+  applyDesignResources,
+  designPlanDigest,
+  prepareDesignResources,
+} from '../src/main/design-plan/resources.js';
 import { getDesignResources } from '../src/main/handlers/resources.js';
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe('design resources', () => {
+  it('calculates a Unicode plan digest without TextEncoder', () => {
+    const plan = resourcePlan();
+    plan.proposal.name = '中文 Proposal 😀';
+    const expected = createHash('sha256').update(JSON.stringify(plan), 'utf8').digest('hex');
+    vi.stubGlobal('TextEncoder', undefined);
+
+    expect(designPlanDigest(plan)).toBe(expected);
+    expect(designPlanDigest(plan)).toMatch(/^[0-9a-f]{64}$/);
+  });
+
   it('lists only local resources and reusable nodes from the current page', async () => {
     const component = {
       id: 'component-1',
