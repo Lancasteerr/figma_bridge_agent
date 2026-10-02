@@ -314,8 +314,10 @@ function applyText(
   text: DesignText,
   source: ValidatedDesignSource,
 ): void {
-  node.textAutoResize = 'NONE';
+  // createText() 默认使用 Inter Regular；目标字体已在预检阶段加载，必须先切换字体，
+  // 再写入任何会触发文本重排的属性，避免依赖未加载的默认字体。
   node.fontName = requiredFont(source, `${ref}:base`);
+  node.textAutoResize = 'NONE';
   node.characters = text.characters;
   node.fontSize = text.fontSize;
   node.lineHeight = text.lineHeight;
