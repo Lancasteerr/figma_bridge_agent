@@ -21,7 +21,7 @@ Do not continue acceptance if this gate fails.
 2. Call `figma_status`; confirm authenticated protocol v4, file/page metadata, selection summary, and the `design-plan-v1`, `asset-staging-v1`, `font-catalog-v1`, and `design-resources-v1` capabilities.
 3. Close the plugin and call it again; confirm `PLUGIN_NOT_CONNECTED` returns in about one second rather than hanging.
 4. Reopen the plugin and confirm automatic reconnection.
-5. Open two additional Codex tasks. Confirm all three tasks discover the same 22 tools and can call `figma_status` through the same plugin.
+5. Open two additional Codex tasks. Confirm all three tasks discover the same 23 tools and can call `figma_status` through the same plugin.
 6. Close one task and confirm the other two remain connected. Run `bridge status` and confirm the client count changes without disconnecting the plugin.
 7. Select the rough ArticleCard and call selection, node, tree, and render tools.
 8. Confirm the normalized tree plus image is sufficient to identify row/column relationships and the overlay.
@@ -35,17 +35,18 @@ Do not continue acceptance if this gate fails.
 5. Repeat with an absolute child, a Component Set variant, a leaf inside a Group, and two targets sharing one Auto Layout parent. Confirm the reported roots and resolution reasons match the documented rules and no root is cloned twice.
 6. Use a generated context above 1000 nodes. Confirm inferred context falls back to the requested target with `CLONE_CONTEXT_TRUNCATED`; confirm a target whose own subtree exceeds the limit returns `LIMIT_EXCEEDED` without creating nodes.
 7. Create a Content Frame inside the Proposal, reparent intended children with explicit `FLOW` or `ABSOLUTE`, and apply two or three Auto Layout levels.
-8. Edit the Proposal manually, then attempt discard with its old fingerprint; confirm `PROPOSAL_CHANGED`. Read the new fingerprint and discard the whole Proposal.
+8. Edit the Proposal manually, then attempt discard with its old fingerprint; confirm `PROPOSAL_CHANGED`. Call `figma_get_fingerprint` for the Proposal root, then discard the whole Proposal with the returned complete-tree fingerprint.
 9. Confirm an existing marker-v2 Proposal remains readable and writable. An unsupported marker version must return `PROPOSAL_VERSION_UNSUPPORTED` with no mutation.
 
 ## 4. Declarative DesignPlan path
 
 1. Form a v1 plan whose root is a 1440 px Frame and includes nested Auto Layout, shapes, fixed-width/auto-height text, gradients, strokes, corners, effects, and an absolute overlay. A source declaration is optional.
-2. Validate it. Confirm no Figma node was created and capture the five-minute `validationId`.
-3. Change the source, then apply the plan; confirm `PLAN_STALE` and no temporary Frame remains. Undo the manual source change.
-4. Validate again and apply once; confirm a complete hidden-then-revealed Proposal appears to the right and `refMap` covers every planned node.
-5. Reuse the same ID; confirm `VALIDATION_EXPIRED` because IDs are single-use.
-6. Confirm overlays remain absolute and correctly placed. Repeat with exactly 1000 nodes/depth 32, then confirm one additional node/level is rejected.
+2. For a source-backed plan, call `figma_get_fingerprint` with the ordered roots and copy the same IDs and returned fingerprint into the source declaration. Confirm reversing multiple roots changes the fingerprint.
+3. Validate it. Confirm no Figma node was created and capture the five-minute `validationId`.
+4. Change the source, then apply the plan; confirm `PLAN_STALE` and no temporary Frame remains. Undo the manual source change.
+5. Fetch a fresh aggregate fingerprint, validate again, and apply once; confirm a complete hidden-then-revealed Proposal appears to the right and `refMap` covers every planned node.
+6. Reuse the same ID; confirm `VALIDATION_EXPIRED` because IDs are single-use.
+7. Confirm overlays remain absolute and correctly placed. Repeat with exactly 1000 nodes/depth 32, then confirm one additional node/level is rejected.
 
 ## 5. Semantic and asset path
 
@@ -61,7 +62,7 @@ Do not continue acceptance if this gate fails.
 
 Use this acceptance prompt:
 
-> Inspect the selected rough ArticleCard and a reference web page. Read the bounded tree, render, fonts, and current-page design resources. Provide any required image/SVG as Base64, build a complete DesignPlan without querying Team Library, validate it, apply it as an isolated Proposal, re-read and render the result. Stop on stale dependencies, asset errors, resource conflicts, or unavailable explicit fonts instead of bypassing validation.
+> Inspect the selected rough ArticleCard and a reference web page. Read the bounded tree, render, fonts, and current-page design resources. Fetch the ordered complete-tree fingerprint for all source roots. Provide any required image/SVG as Base64, build a complete DesignPlan without querying Team Library, validate it, apply it as an isolated Proposal, re-read and render the result. Stop on stale dependencies, asset errors, resource conflicts, or unavailable explicit fonts instead of bypassing validation.
 
 Pass criteria: source screenshot/fingerprint/hierarchy remain unchanged; the Proposal has expected Auto Layout; no Instance is detached; cancellation/failure leaves no temporary node; the plugin recognizes the Proposal after restart; exported artifacts are temporary and checksummed.
 

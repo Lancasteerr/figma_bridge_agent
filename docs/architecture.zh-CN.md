@@ -40,16 +40,17 @@ Figma 插件主进程
 
 克隆前，插件会对源根、直接布局父级和兄弟几何生成指纹；副本脱离后再次验证，任何漂移都会返回 `SOURCE_CHANGED_DURING_CLONE` 并回滚。副本会递归解锁，而源节点的可见性、锁定、层级和几何不会改变。修改操作会串行执行，并拆分为只读预检阶段和写入阶段。预检失败绝不会触碰 undo 历史。由于空的 `commitUndo()` 和 Page plugin data 都不能建立 Figma undo 边界，写入阶段会创建一个不可见的临时节点作为 undo 锚点。失败时，桥接器先把锚点和可能存在的部分写入提交为当前单元，再立即撤销该单元。因此即使第一个业务写入前就失败，也只会回滚当前修改，不会撤销前一个成功操作。锚点会在成功提交前删除，在失败时随当前修改一起回滚；若插件崩溃遗留了不可见锚点，下一次成功修改会将其清理。公开的 undo 是有意不提供的，因为它可能撤销之后的手动编辑。
 
-丢弃 Proposal 时必须提供最近一次检查得到的 Proposal 指纹。如果用户在检查后编辑了 Proposal，则返回 `PROPOSAL_CHANGED`，而不会删除它。
+丢弃 Proposal 时必须提供最近一次检查得到的 Proposal 指纹。如果用户在检查后编辑了 Proposal，则返回 `PROPOSAL_CHANGED`，而不会删除它。应通过 `figma_get_fingerprint` 获取新的完整树指纹；有界节点快照中携带的指纹覆盖范围不同，不能替代该值。
 
 ## DesignPlan 生命周期
 
 1. Agent 检查规范化树和渲染结果，调用 `figma_list_fonts`、`figma_get_design_resources`，并按需逐个暂存 Base64 素材。
-2. `figma_validate_design_plan` 检查 1000 节点/32 层上限、全局唯一 ref、当前页源节点和组件、显式字体、素材摘要、样式/变量兼容性、资源命名冲突和可选源指纹。
-3. 有效计划会获得一个五分钟后过期且只能使用一次的验证 ID。
-4. `figma_apply_design_plan` 消费该 ID，并在打开写入边界前重新检查所有可变依赖。
-5. 插件创建带 v3 标记的隐藏根，创建或复用命名隔离的本地资源，构建节点树并绑定资源，提交 operation 标记后才显示 Proposal。
-6. 预检失败不产生写入；写入失败会显式删除本次新资源并触发带锚点的回滚。插件崩溃后，下一次写操作会删除孤立的 `BUILDING` 根/资源；若 Proposal 已提交，则补全对应资源标记。
+2. 对于带来源的计划，Agent 使用有序来源根 ID 调用 `figma_get_fingerprint`，并将相同顺序和返回的聚合指纹分别写入 `source.rootNodeIds` 与 `source.fingerprint`。
+3. `figma_validate_design_plan` 检查 1000 节点/32 层上限、全局唯一 ref、当前页源节点和组件、显式字体、素材摘要、样式/变量兼容性、资源命名冲突和可选源指纹。
+4. 有效计划会获得一个五分钟后过期且只能使用一次的验证 ID。
+5. `figma_apply_design_plan` 消费该 ID，并在打开写入边界前重新检查所有可变依赖。
+6. 插件创建带 v3 标记的隐藏根，创建或复用命名隔离的本地资源，构建节点树并绑定资源，提交 operation 标记后才显示 Proposal。
+7. 预检失败不产生写入；写入失败会显式删除本次新资源并触发带锚点的回滚。插件崩溃后，下一次写操作会删除孤立的 `BUILDING` 根/资源；若 Proposal 已提交，则补全对应资源标记。
 
 DesignPlan v1 支持 Frame、Text、Rectangle、Ellipse、Line、Image、SVG、Clone 和 Instance，支持完整几何/视觉/Auto Layout/文本 range、显式字体回退、样式和变量绑定，以及当前页组件复用。它不会 detach Instance，也不会修改受保护的 Instance 内部结构。
 

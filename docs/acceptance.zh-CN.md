@@ -21,7 +21,7 @@
 2. 调用 `figma_status`；确认协议 v4 已认证，并返回文件/页面元数据、选择摘要，以及 `design-plan-v1`、`asset-staging-v1`、`font-catalog-v1`、`design-resources-v1` 能力。
 3. 关闭插件并再次调用；确认约一秒内返回 `PLUGIN_NOT_CONNECTED`，而不是一直挂起。
 4. 重新打开插件，确认能够自动重连。
-5. 再打开两个 Codex 任务，确认三个任务都发现相同的 22 个工具，并能通过同一插件调用 `figma_status`。
+5. 再打开两个 Codex 任务，确认三个任务都发现相同的 23 个工具，并能通过同一插件调用 `figma_status`。
 6. 关闭其中一个任务，确认另两个任务仍保持连接。运行 `bridge status`，确认客户端数量变化且插件不断线。
 7. 选择粗略的 ArticleCard，并调用 selection、node、tree 和 render 工具。
 8. 确认规范化树和图像足以识别行/列关系以及覆盖层。
@@ -35,17 +35,18 @@
 5. 分别测试绝对定位子节点、Component Set 变体、Group 内叶节点和共享同一 Auto Layout 父级的两个目标；确认返回的复制根和解析原因符合规则，且不会重复复制根。
 6. 构造超过 1000 个节点的上下文；确认推导上下文退回目标并返回 `CLONE_CONTEXT_TRUNCATED`。若目标自身子树超限，确认返回 `LIMIT_EXCEEDED` 且不创建节点。
 7. 在 Proposal 内创建 Content Frame，以 `FLOW` 或 `ABSOLUTE` 重挂目标子节点，并应用两到三层 Auto Layout。
-8. 手动编辑 Proposal，然后使用旧指纹尝试丢弃；确认返回 `PROPOSAL_CHANGED`。读取新指纹并丢弃整个 Proposal。
+8. 手动编辑 Proposal，然后使用旧指纹尝试丢弃；确认返回 `PROPOSAL_CHANGED`。对 Proposal 根调用 `figma_get_fingerprint`，再使用返回的完整树指纹丢弃整个 Proposal。
 9. 确认已有 marker v2 Proposal 仍可读写；不支持的 marker 版本必须返回 `PROPOSAL_VERSION_UNSUPPORTED` 且不发生修改。
 
 ## 4. 声明式 DesignPlan 路径
 
 1. 构建根为 1440 px Frame 的 v1 计划，包含嵌套 Auto Layout、图形、固定宽度/自动高度文本、渐变、描边、圆角、效果和绝对定位覆盖层；源节点声明可省略。
-2. 对其进行验证。确认没有创建 Figma 节点，并记录五分钟有效期的 `validationId`。
-3. 修改源节点，然后应用计划；确认返回 `PLAN_STALE`，且没有临时 Frame 残留。撤销手动源节点修改。
-4. 再次验证并应用一次；确认完整 Proposal 先隐藏创建，再显示在源节点右侧，且 `refMap` 覆盖每个计划节点。
-5. 重复使用相同 ID；确认由于 ID 只能使用一次而返回 `VALIDATION_EXPIRED`。
-6. 确认覆盖层仍是绝对定位且位置正确。再分别验证恰好 1000 节点/深度 32 能通过，增加一个节点/层级后被拒绝。
+2. 对于带来源的计划，使用有序根节点调用 `figma_get_fingerprint`，将相同 ID 顺序和返回的指纹复制到来源声明；确认颠倒多个根的顺序会改变指纹。
+3. 对其进行验证。确认没有创建 Figma 节点，并记录五分钟有效期的 `validationId`。
+4. 修改源节点，然后应用计划；确认返回 `PLAN_STALE`，且没有临时 Frame 残留。撤销手动源节点修改。
+5. 获取新的聚合指纹，再次验证并应用一次；确认完整 Proposal 先隐藏创建，再显示在源节点右侧，且 `refMap` 覆盖每个计划节点。
+6. 重复使用相同 ID；确认由于 ID 只能使用一次而返回 `VALIDATION_EXPIRED`。
+7. 确认覆盖层仍是绝对定位且位置正确。再分别验证恰好 1000 节点/深度 32 能通过，增加一个节点/层级后被拒绝。
 
 ## 5. 语义和资源路径
 
@@ -61,7 +62,7 @@
 
 使用以下验收提示词：
 
-> 检查选中的粗略 ArticleCard 和参考网页。读取有界树、渲染、字体及当前页设计资源；把所需图片/SVG 以 Base64 提供，构建完整 DesignPlan 且不查询 Team Library，验证并应用为隔离 Proposal，然后重新读取并渲染结果。遇到依赖过期、素材错误、资源冲突或显式字体不可用时停止，不要绕过校验。
+> 检查选中的粗略 ArticleCard 和参考网页。读取有界树、渲染、字体及当前页设计资源，并获取全部来源根的有序完整树指纹；把所需图片/SVG 以 Base64 提供，构建完整 DesignPlan 且不查询 Team Library，验证并应用为隔离 Proposal，然后重新读取并渲染结果。遇到依赖过期、素材错误、资源冲突或显式字体不可用时停止，不要绕过校验。
 
 通过标准：源截图、指纹和层级结构保持不变；Proposal 具备预期的 Auto Layout；没有 Instance 被分离；取消或失败后不留下临时节点；插件重启后仍能识别 Proposal；导出的资源是临时文件并带有校验和。
 
