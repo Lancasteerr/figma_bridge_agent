@@ -4,6 +4,8 @@ import {
   GetCssInputSchema,
   GetVariablesInputSchema,
   FontCatalogResultSchema,
+  FingerprintResultSchema,
+  GetFingerprintInputSchema,
   GetNodeInputSchema,
   GetRawNodeInputSchema,
   GetTreeInputSchema,
@@ -231,6 +233,33 @@ export function registerReadTools(server: McpServer, broker: BridgeTransport): v
       try {
         const parsed = GetTreeInputSchema.parse(input);
         return structuredResult(TreeResultSchema.parse(await broker.request('getTree', parsed)));
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    'figma_get_fingerprint',
+    {
+      description:
+        'Return the ordered aggregate fingerprint of complete current-page node subtrees. Use it for DesignPlan source.fingerprint and Proposal expectedFingerprint checks.',
+      inputSchema: GetFingerprintInputSchema,
+      outputSchema: FingerprintResultSchema,
+      annotations: {
+        title: 'Get Figma aggregate fingerprint',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const parsed = GetFingerprintInputSchema.parse(input);
+        return structuredResult(
+          FingerprintResultSchema.parse(await broker.request('getFingerprint', parsed, 30_000)),
+        );
       } catch (error) {
         return toolError(error);
       }

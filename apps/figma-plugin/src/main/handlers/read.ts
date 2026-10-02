@@ -1,6 +1,8 @@
 import {
   GetNodeInputSchema,
+  GetFingerprintInputSchema,
   GetTreeInputSchema,
+  type FingerprintResult,
   type SelectionResultSchema,
   type SnapshotTreeNode,
   type TreeResult,
@@ -8,7 +10,7 @@ import {
 import type { z } from 'zod';
 
 import { serializeNodeSummary } from '../serialization/node-summary.js';
-import { serializeNode } from '../serialization/node-snapshot.js';
+import { fingerprintNodeTree, serializeNode } from '../serialization/node-snapshot.js';
 import { resolveCurrentPageNode } from '../serialization/resolve.js';
 import { isSceneNode } from '../serialization/resolve.js';
 
@@ -26,6 +28,13 @@ export function getSelection(): SelectionResult {
 export async function getNode(params: unknown) {
   const { nodeId } = GetNodeInputSchema.parse(params);
   return await serializeNode(await resolveCurrentPageNode(nodeId));
+}
+
+/** 返回与 DesignPlan 和 Proposal 乐观并发校验完全相同的完整树聚合指纹。 */
+export async function getFingerprint(params: unknown): Promise<FingerprintResult> {
+  const { nodeIds } = GetFingerprintInputSchema.parse(params);
+  const nodes = await Promise.all(nodeIds.map(resolveCurrentPageNode));
+  return { nodeIds, fingerprint: await fingerprintNodeTree(nodes) };
 }
 
 /** 按深度、节点数和文本长度上限递归读取当前页子树。 */

@@ -7,6 +7,24 @@ import { PositioningSchema } from './node.js';
 /** MCP 工具输入和输出 schema 集中定义，服务端与插件共享同一边界。 */
 export const EmptyInputSchema = z.object({});
 export const GetNodeInputSchema = z.object({ nodeId: z.string().min(1) });
+export const GetFingerprintInputSchema = z
+  .object({
+    nodeIds: z
+      .array(z.string().min(1))
+      .min(1)
+      .max(1_000)
+      .refine((nodeIds) => new Set(nodeIds).size === nodeIds.length, {
+        message: 'nodeIds must be unique.',
+      }),
+  })
+  .strict();
+export const FingerprintResultSchema = z
+  .object({
+    nodeIds: z.array(z.string().min(1)).min(1),
+    fingerprint: z.string().min(8),
+  })
+  .strict();
+export type FingerprintResult = z.infer<typeof FingerprintResultSchema>;
 export const GetTreeInputSchema = z.object({
   nodeId: z.string().min(1),
   depth: z.number().int().min(0).max(8).default(2),
