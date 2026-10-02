@@ -39,13 +39,14 @@ export async function executeDesignPlan(
   root.fills = [];
 
   try {
+    applyVisual(root, plan.root.visual);
+    if (plan.root.clipsContent !== undefined) root.clipsContent = plan.root.clipsContent;
+    // 子节点的 FILL/HUG sizing 依赖父容器已经进入 Auto Layout。
+    applyContainerLayout(root, plan.root.layout, plan.root.placement?.sizing);
+    applyPlacement(root, plan.root.placement);
     for (const child of plan.root.children) {
       await appendNode(root, child, source, resources, refMap);
     }
-    applyVisual(root, plan.root.visual);
-    if (plan.root.clipsContent !== undefined) root.clipsContent = plan.root.clipsContent;
-    applyContainerLayout(root, plan.root.layout, plan.root.placement?.sizing);
-    applyPlacement(root, plan.root.placement);
     await applyBindings(root, plan.root, source, resources);
     positionRoot(root, plan, source.roots);
     refMap[plan.root.ref] = root.id;
@@ -88,11 +89,12 @@ async function appendNode(
     parent.appendChild(node);
     applyGeometry(node, spec.geometry);
     node.fills = [];
-    for (const child of spec.children) await appendNode(node, child, source, resources, refMap);
     applyVisual(node, spec.visual);
     if (spec.clipsContent !== undefined) node.clipsContent = spec.clipsContent;
+    // 先完成容器与其相对父级的布局设置，再递归创建依赖该上下文的子节点。
     applyContainerLayout(node, spec.layout, spec.placement?.sizing);
     applyPlacement(node, spec.placement);
+    for (const child of spec.children) await appendNode(node, child, source, resources, refMap);
   } else if (spec.kind === 'TEXT') {
     const text = figma.createText();
     node = text;
