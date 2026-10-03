@@ -9,7 +9,7 @@ This guide covers three supported configurations: the stable npm release, the ro
 - Windows
 - Node.js 20 or newer (verify with `node --version` and `where.exe npx`)
 - Figma Desktop
-- A client that supports local stdio MCP servers
+- A local client that supports stdio MCP servers; remote-only environments such as ChatGPT Web and Codex Cloud cannot reach this computer's loopback bridge
 - Git and pnpm 11.19.0 only when building from source
 
 The examples use `figma-local-agent` as the MCP Server name. For a first installation or after changing builds, import the matching plugin and pair it once before restarting the MCP client.
@@ -42,7 +42,20 @@ npx -y figma-local-agent-mcp@<VERSION> pair
 
 The terminal and plugin each display a six-digit code. Click **Codes match** in the plugin only when both codes are identical.
 
-### 3. Configure the MCP client
+### 3. Install the portable Agent Plugin (recommended)
+
+Agent Plugins 1.0 clients can import the version-pinned repository instead of maintaining an MCP configuration manually. For Codex CLI and ChatGPT desktop, add the repository marketplace and install its single plugin:
+
+```powershell
+codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v0.9.0
+codex plugin add figma-local-agent@figma-local-agent
+```
+
+Restart ChatGPT desktop or start a new Codex session after installation. The plugin's `mcp.json` starts `figma-local-agent-mcp@0.9.0` through stdio and its Skill teaches the agent the safe Proposal workflow. Other compatible clients can import `plugins/figma-local-agent` from tag `v0.9.0` according to their Agent Plugins installation UI.
+
+### 4. Manual MCP fallback
+
+Use the following only when the client cannot install Agent Plugins 1.0.
 
 Project-level `.codex/config.toml` for Codex:
 
@@ -180,6 +193,7 @@ It also generates these release-format files under `artifacts/`:
 ```text
 figma-agent-bridge-plugin-v<VERSION>.zip
 figma-local-agent-mcp-<VERSION>.tgz
+figma-local-agent-plugin-v<VERSION>.zip
 SHA256SUMS
 ```
 

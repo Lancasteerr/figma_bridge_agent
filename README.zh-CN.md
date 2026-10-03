@@ -8,26 +8,27 @@
 
 ## Windows 快速开始
 
-环境要求：Windows、Node.js 20 或更高版本、Figma Desktop，以及支持 stdio MCP 的 Coding Agent。普通用户不需要 Git、pnpm 或源码仓库。
+环境要求：Windows、Node.js 20 或更高版本、Figma Desktop，以及支持本地 stdio MCP 的 Coding Agent。ChatGPT Web、Codex Cloud 等纯远程环境无法访问本机 loopback Bridge。普通用户不需要 Git、pnpm 或源码仓库。
 
-1. 从 [GitHub Releases](https://github.com/Lancasteerr/figma_bridge_agent/releases) 下载 `figma-agent-bridge-plugin-v0.2.0.zip`，解压到一个稳定目录。在 **Figma Desktop → Plugins → Development → Import plugin from manifest** 中选择 `figma-agent-bridge-plugin/manifest.json`。
-2. 在 Figma 中启动 **Local Figma Agent Bridge**，然后在 PowerShell 运行：
+1. 把本仓库作为固定版本的插件 marketplace 添加到 Agent，然后安装可移植 Agent Plugin。Codex CLI 示例：
 
    ```powershell
-   npx -y figma-local-agent-mcp@0.2.0 pair
+   codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v0.9.0
+   codex plugin add figma-local-agent@figma-local-agent
    ```
 
-3. 核对 PowerShell 与插件显示的六位短码，只有完全一致时才点击 **Codes match**。
-4. 让 Coding Agent 通过 stdio 启动服务器：
+   ChatGPT 桌面版添加 marketplace 后重启应用，再从 Plugins Directory 安装 **Local Figma Agent**。其他 Agent Plugins 1.0 客户端可从同一 tag 导入 `plugins/figma-local-agent`。Agent Plugin 会自动配置 stdio MCP Server。
 
-   ```json
-   {
-     "command": "npx.cmd",
-     "args": ["-y", "figma-local-agent-mcp@0.2.0", "serve"]
-   }
+2. 从匹配的 [GitHub Release](https://github.com/Lancasteerr/figma_bridge_agent/releases/tag/v0.9.0) 下载 `figma-agent-bridge-plugin-v0.9.0.zip`，解压到稳定目录。在 **Figma Desktop → Plugins → Development → Import plugin from manifest** 中选择 `figma-agent-bridge-plugin/manifest.json`。
+3. 在 Figma 中启动 **Local Figma Agent Bridge**，然后在 PowerShell 运行：
+
+   ```powershell
+   npx -y figma-local-agent-mcp@0.9.0 pair
    ```
 
-首次配对后插件会自动重连。使用桥接期间需要保持插件窗口打开。Codex、ChatGPT Desktop、Claude Code/Desktop 和通用 MCP 客户端示例见[主机配置](docs/hosts.zh-CN.md)。
+4. 核对 PowerShell 与插件显示的六位短码，只有完全一致时才点击 **Codes match**；随后新建 Agent 会话并调用 `figma_status`。
+
+首次配对后插件会自动重连。使用桥接期间需要保持插件窗口打开。不支持 Agent Plugins 的客户端可使用[手动主机配置](docs/hosts.zh-CN.md)。
 
 ## Development builds
 
@@ -39,18 +40,18 @@
 2. 在 tarball 所在目录运行：
 
    ```powershell
-   npx -y ./figma-local-agent-mcp-development.tgz pair
+   npm exec --yes --package="file:./figma-local-agent-mcp-development.tgz" -- figma-local-agent-mcp pair
    ```
 
-3. MCP 主机使用 `npx.cmd`，参数依次为 `-y`、`./figma-local-agent-mcp-development.tgz` 和 `serve`。
+3. MCP 主机使用 `npm.cmd exec --yes --package=file:<tarball绝对路径> -- figma-local-agent-mcp serve`。
 
 不要将 Development build 的插件与正式版 MCP 包混用，反之亦然。生产使用请查看[最新稳定版本](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest)。
 
 ## 更新与恢复
 
 - 插件 ZIP 与 npm 包必须使用相同版本。更新时覆盖原插件目录，并同步修改 MCP 配置中的版本号。
-- `npx -y figma-local-agent-mcp@0.2.0 doctor` 检查本地服务，但不会输出凭据。
-- `npx -y figma-local-agent-mcp@0.2.0 devices list` 查看已配对设备。
+- `npx -y figma-local-agent-mcp@0.9.0 doctor` 检查本地服务，但不会输出凭据。
+- `npx -y figma-local-agent-mcp@0.9.0 devices list` 查看已配对设备。
 - `devices revoke <deviceId>` 或 `devices revoke --all` 撤销凭据；被撤销的插件需要重新配对。
 - 从 v0.1 升级时会删除旧共享密钥，并要求重新配对一次。升级前先关闭所有 v0.1 MCP 任务，让旧 Daemon 释放 3900 端口。
 
@@ -70,8 +71,8 @@ pnpm check
 pnpm build:release
 ```
 
-`pnpm build:release` 会在 `artifacts/` 下生成可直接导入的插件 ZIP、npm tarball 和 `SHA256SUMS`。贡献者构建仍可通过 `.figma-plugin-id` 覆盖本地 ID，但发行构建始终强制使用 `1685966253180273328`。
+`pnpm build:release` 会在 `artifacts/` 下生成可直接导入的 Figma 插件 ZIP、npm tarball、可移植 Agent Plugin ZIP 和 `SHA256SUMS`。贡献者构建仍可通过 `.figma-plugin-id` 覆盖本地 ID，但发行构建始终强制使用 `1685966253180273328`。
 
 Owner 应遵循[手动发布手册](docs/releasing.zh-CN.md)；仅推送提交或 tag 不会自动发布任何版本。
 
-0.2 版本支持多个本地 MCP Adapter、一个活动 Figma 插件和当前 Design 文件的当前页面。Windows 安装器、自动更新、远程传输、云同步、任意 JavaScript、源节点写入、通用删除、分离 Instance 和特定框架代码生成不在本版本范围内。
+0.9 版本支持多个本地 MCP Adapter、一个活动 Figma 插件和当前 Design 文件的当前页面。Windows 安装器、自动更新、远程传输、云同步、任意 JavaScript、源节点写入、通用删除、分离 Instance 和特定框架代码生成不在本版本范围内。

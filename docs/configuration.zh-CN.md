@@ -9,7 +9,7 @@
 - Windows
 - Node.js 20 或更高版本（安装后可通过 `node --version` 和 `where.exe npx` 检查）
 - Figma Desktop
-- 支持本地 stdio MCP Server 的客户端
+- 支持本地 stdio MCP Server 的客户端；ChatGPT Web、Codex Cloud 等纯远程环境无法访问本机 loopback Bridge
 - 只有自行编译时才需要 Git 和 pnpm 11.19.0
 
 下文使用 `figma-local-agent` 作为 MCP Server 名称。首次安装或更换构建后，应先导入对应插件并完成一次配对，再重启 MCP 客户端。
@@ -42,7 +42,20 @@ npx -y figma-local-agent-mcp@<VERSION> pair
 
 终端和插件会分别显示六位短码。只有两个短码完全一致时，才在插件中点击 **Codes match**。
 
-### 3. 配置 MCP 客户端
+### 3. 安装可移植 Agent Plugin（推荐）
+
+支持 Agent Plugins 1.0 的客户端可以导入固定版本的仓库，不再手工维护 MCP 配置。Codex CLI 与 ChatGPT 桌面版可添加仓库 marketplace 并安装其中唯一的插件：
+
+```powershell
+codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v0.9.0
+codex plugin add figma-local-agent@figma-local-agent
+```
+
+安装后重启 ChatGPT 桌面版或新建 Codex 会话。插件的 `mcp.json` 会通过 stdio 启动 `figma-local-agent-mcp@0.9.0`，其 Skill 会指导 Agent 遵循安全的 Proposal 工作流。其他兼容客户端可按自身 Agent Plugins 安装界面，从 `v0.9.0` tag 导入 `plugins/figma-local-agent`。
+
+### 4. 手动 MCP fallback
+
+仅在客户端无法安装 Agent Plugins 1.0 时使用以下方式。
 
 Codex 项目级 `.codex/config.toml`：
 
@@ -180,6 +193,7 @@ apps/figma-plugin/dist/manifest.json
 ```text
 figma-agent-bridge-plugin-v<VERSION>.zip
 figma-local-agent-mcp-<VERSION>.tgz
+figma-local-agent-plugin-v<VERSION>.zip
 SHA256SUMS
 ```
 

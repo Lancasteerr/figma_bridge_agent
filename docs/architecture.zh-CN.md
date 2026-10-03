@@ -2,6 +2,8 @@
 
 [English](architecture.md)
 
+可移植 Agent Plugin 是 MCP 主机上方的分发层，只安装工作流说明和现有 stdio 启动配置；它不是新的运行时节点，也不会接收 Figma 数据或凭据。删除 Agent Plugin 并手动配置同一命令后，下述进程与信任边界完全相同。由于 Bridge 只绑定本机 loopback，ChatGPT Web、Codex Cloud 等纯远程环境不属于此架构的支持范围。
+
 ## 进程边界
 
 ```text

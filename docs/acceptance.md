@@ -2,22 +2,24 @@
 
 [中文版](acceptance.zh-CN.md)
 
-Run `pnpm build:release` before manual acceptance. Perform the user path from the generated ZIP and npm tarball, not from workspace entry points. Use a disposable Figma page for mutation scenarios.
+Run `pnpm build:release` before manual acceptance. Perform the user path from the generated Figma ZIP, npm tarball, and Agent Plugin ZIP, not from workspace entry points. Use a disposable Figma page for mutation scenarios.
 
 ## 1. Distribution and pairing gate
 
-1. On a clean Windows account with Node.js 20+, extract `artifacts/figma-agent-bridge-plugin-v0.2.0.zip` and import its `manifest.json` in Figma Desktop without editing the ID.
-2. Start the plugin and confirm there is no secret or Plugin ID input.
-3. Run `npx -y ./artifacts/figma-local-agent-mcp-0.2.0.tgz pair`.
-4. Confirm both surfaces show the same six-digit code, click **Codes match**, and verify the CLI reports success.
-5. Restart Figma and the MCP host; confirm the plugin reconnects without another pairing.
-6. Run `devices list`, revoke the connected device, and confirm the plugin immediately returns to the pairing screen.
+1. On a clean Windows account with Node.js 20+, inspect `artifacts/figma-agent-bridge-plugin-v0.9.0.zip`, `figma-local-agent-mcp-0.9.0.tgz`, `figma-local-agent-plugin-v0.9.0.zip`, and the three matching entries in `SHA256SUMS`.
+2. Extract the Figma plugin ZIP and import its `manifest.json` in Figma Desktop without editing the ID.
+3. Start the plugin and confirm there is no secret or Plugin ID input.
+4. Run `npm exec --yes --package="file:./artifacts/figma-local-agent-mcp-0.9.0.tgz" -- figma-local-agent-mcp pair`.
+5. Confirm both surfaces show the same six-digit code, click **Codes match**, and verify the CLI reports success.
+6. Restart Figma and the MCP host; confirm the plugin reconnects without another pairing.
+7. Run `devices list`, revoke the connected device, and confirm the plugin immediately returns to the pairing screen.
+8. After npm `0.9.0` and GitHub tag `v0.9.0` are public, add `Lancasteerr/figma_bridge_agent` as a marketplace pinned to `v0.9.0`, install `figma-local-agent@figma-local-agent`, start a new session, and confirm the host discovers exactly 23 tools without manual MCP configuration.
 
 Do not continue acceptance if this gate fails.
 
 ## 2. Connection and read path
 
-1. Start Codex with the configuration in `docs/hosts.md`.
+1. Start Codex with the installed Agent Plugin. Repeat the essential connection check once with the manual fallback in `docs/hosts.md`.
 2. Call `figma_status`; confirm authenticated protocol v4, file/page metadata, selection summary, and the `design-plan-v1`, `asset-staging-v1`, `font-catalog-v1`, and `design-resources-v1` capabilities.
 3. Close the plugin and call it again; confirm `PLUGIN_NOT_CONNECTED` returns in about one second rather than hanging.
 4. Reopen the plugin and confirm automatic reconnection.

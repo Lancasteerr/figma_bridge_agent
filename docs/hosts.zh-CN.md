@@ -2,12 +2,12 @@
 
 [English](hosts.md)
 
-所有主机都运行同一个 stdio 命令。npm 包版本必须与下载的插件 ZIP 版本一致：
+支持 Agent Plugins 1.0 的客户端应优先使用主 README 中的仓库 marketplace 流程。本页是无法安装可移植 Agent Plugin 时的手动 fallback。所有主机都运行同一个 stdio 命令，npm 包版本必须与下载的 Figma 插件 ZIP 版本一致：
 
 ```json
 {
   "command": "npx.cmd",
-  "args": ["-y", "figma-local-agent-mcp@0.2.0", "serve"]
+  "args": ["-y", "figma-local-agent-mcp@0.9.0", "serve"]
 }
 ```
 
@@ -18,7 +18,7 @@ Windows GUI 应用优先使用 `npx.cmd`。如果找不到命令，请在安装 
 CLI 注册：
 
 ```powershell
-codex mcp add figma-local-agent -- npx.cmd -y figma-local-agent-mcp@0.2.0 serve
+codex mcp add figma-local-agent -- npx.cmd -y figma-local-agent-mcp@0.9.0 serve
 codex mcp list
 ```
 
@@ -27,7 +27,7 @@ codex mcp list
 ```toml
 [mcp_servers.figma_local_agent]
 command = "npx.cmd"
-args = ["-y", "figma-local-agent-mcp@0.2.0", "serve"]
+args = ["-y", "figma-local-agent-mcp@0.9.0", "serve"]
 startup_timeout_sec = 15
 tool_timeout_sec = 130
 enabled = true
@@ -45,7 +45,7 @@ Claude Code 项目级 `.mcp.json` 和 Claude Desktop 自定义 stdio 条目均�
     "figma-local-agent": {
       "type": "stdio",
       "command": "npx.cmd",
-      "args": ["-y", "figma-local-agent-mcp@0.2.0", "serve"]
+      "args": ["-y", "figma-local-agent-mcp@0.9.0", "serve"]
     }
   }
 }
@@ -57,9 +57,9 @@ Claude Code 项目级 `.mcp.json` 和 Claude Desktop 自定义 stdio 条目均�
 
 - 名称：`figma-local-agent`
 - 命令：`npx.cmd`
-- 参数：`-y`、`figma-local-agent-mcp@0.2.0`、`serve`
+- 参数：`-y`、`figma-local-agent-mcp@0.9.0`、`serve`
 
-DeepSeek Harness、Cursor 和其他标准 stdio MCP 主机可使用同一 JSON。具体配置文件位置和界面名称由对应主机决定，可能随版本变化。
+DeepSeek Harness、Cursor 和其他标准 stdio MCP 主机可使用同一 JSON。具体配置文件位置和界面名称由对应主机决定，可能随版本变化。ChatGPT Web、Codex Cloud 等纯远程主机无法访问本机 Bridge。
 
 ## 预期行为
 

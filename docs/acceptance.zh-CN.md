@@ -2,22 +2,24 @@
 
 [English](acceptance.md)
 
-手动验收前先运行 `pnpm build:release`。必须从生成的 ZIP 和 npm tarball 执行普通用户路径，不能直接使用 workspace 入口。修改场景请使用一次性 Figma 页面。
+手动验收前先运行 `pnpm build:release`。必须从生成的 Figma ZIP、npm tarball 和 Agent Plugin ZIP 执行普通用户路径，不能直接使用 workspace 入口。修改场景请使用一次性 Figma 页面。
 
 ## 1. 分发与配对门禁
 
-1. 在只安装 Node.js 20+ 的干净 Windows 账户中解压 `artifacts/figma-agent-bridge-plugin-v0.2.0.zip`，直接导入其中的 `manifest.json`，不得编辑 ID。
-2. 启动插件，确认界面中不存在密钥或 Plugin ID 输入框。
-3. 运行 `npx -y ./artifacts/figma-local-agent-mcp-0.2.0.tgz pair`。
-4. 确认两端显示相同六位短码，点击 **Codes match**，并确认 CLI 报告成功。
-5. 重启 Figma 和 MCP 主机，确认无需再次配对即可自动连接。
-6. 运行 `devices list`，撤销当前设备，并确认插件立即返回配对界面。
+1. 在只安装 Node.js 20+ 的干净 Windows 账户中检查 `artifacts/figma-agent-bridge-plugin-v0.9.0.zip`、`figma-local-agent-mcp-0.9.0.tgz`、`figma-local-agent-plugin-v0.9.0.zip`，并确认 `SHA256SUMS` 中存在三条对应记录。
+2. 解压 Figma 插件 ZIP，直接导入其中的 `manifest.json`，不得编辑 ID。
+3. 启动插件，确认界面中不存在密钥或 Plugin ID 输入框。
+4. 运行 `npm exec --yes --package="file:./artifacts/figma-local-agent-mcp-0.9.0.tgz" -- figma-local-agent-mcp pair`。
+5. 确认两端显示相同六位短码，点击 **Codes match**，并确认 CLI 报告成功。
+6. 重启 Figma 和 MCP 主机，确认无需再次配对即可自动连接。
+7. 运行 `devices list`，撤销当前设备，并确认插件立即返回配对界面。
+8. npm `0.9.0` 和 GitHub `v0.9.0` tag 公开后，将 `Lancasteerr/figma_bridge_agent` 作为固定到 `v0.9.0` 的 marketplace 添加，安装 `figma-local-agent@figma-local-agent`，新建会话，并确认无需手动配置 MCP 即可发现恰好 23 个工具。
 
 如果此门禁失败，不要继续验收。
 
 ## 2. 连接和读取路径
 
-1. 使用 `docs/hosts.zh-CN.md` 中的配置启动 Codex。
+1. 使用已安装的 Agent Plugin 启动 Codex，并用 `docs/hosts.zh-CN.md` 的手动 fallback 额外重复一次关键连接检查。
 2. 调用 `figma_status`；确认协议 v4 已认证，并返回文件/页面元数据、选择摘要，以及 `design-plan-v1`、`asset-staging-v1`、`font-catalog-v1`、`design-resources-v1` 能力。
 3. 关闭插件并再次调用；确认约一秒内返回 `PLUGIN_NOT_CONNECTED`，而不是一直挂起。
 4. 重新打开插件，确认能够自动重连。

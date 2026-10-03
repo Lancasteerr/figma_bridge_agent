@@ -8,26 +8,27 @@ This is an unofficial GitHub-distributed development tool. It is not affiliated 
 
 ## Windows quick start
 
-Requirements: Windows, Node.js 20 or newer, Figma Desktop, and a coding agent with stdio MCP support. Git, pnpm, and a source checkout are not required.
+Requirements: Windows, Node.js 20 or newer, Figma Desktop, and a local coding agent with stdio MCP support. ChatGPT Web, Codex Cloud, and other remote-only environments cannot reach this computer's loopback bridge. Git, pnpm, and a source checkout are not required.
 
-1. Download `figma-agent-bridge-plugin-v0.2.0.zip` from [GitHub Releases](https://github.com/Lancasteerr/figma_bridge_agent/releases), extract it to a stable folder, then choose **Figma Desktop → Plugins → Development → Import plugin from manifest** and select `figma-agent-bridge-plugin/manifest.json`.
-2. Start **Local Figma Agent Bridge** in Figma. In PowerShell run:
+1. Add this repository as a version-pinned plugin marketplace, then install the portable Agent Plugin. In Codex CLI:
 
    ```powershell
-   npx -y figma-local-agent-mcp@0.2.0 pair
+   codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v0.9.0
+   codex plugin add figma-local-agent@figma-local-agent
    ```
 
-3. Compare the six-digit code in PowerShell and the plugin. Click **Codes match** only when they are identical.
-4. Configure the coding agent to run the stdio server:
+   ChatGPT desktop users can restart the app after adding the marketplace and install **Local Figma Agent** from the Plugins Directory. Other Agent Plugins 1.0 clients can import `plugins/figma-local-agent` from the same tag. The Agent Plugin configures the stdio MCP server automatically.
 
-   ```json
-   {
-     "command": "npx.cmd",
-     "args": ["-y", "figma-local-agent-mcp@0.2.0", "serve"]
-   }
+2. Download `figma-agent-bridge-plugin-v0.9.0.zip` from the matching [GitHub Release](https://github.com/Lancasteerr/figma_bridge_agent/releases/tag/v0.9.0), extract it to a stable folder, then choose **Figma Desktop → Plugins → Development → Import plugin from manifest** and select `figma-agent-bridge-plugin/manifest.json`.
+3. Start **Local Figma Agent Bridge** in Figma. In PowerShell run:
+
+   ```powershell
+   npx -y figma-local-agent-mcp@0.9.0 pair
    ```
 
-The plugin reconnects automatically after the first pairing. Keep its window open while using the bridge. See [host-specific examples](docs/hosts.md) for Codex, ChatGPT Desktop, Claude Code/Desktop, and generic MCP clients.
+4. Compare the six-digit code in PowerShell and the plugin. Click **Codes match** only when they are identical, then start a new agent session and call `figma_status`.
+
+The plugin reconnects automatically after the first pairing. Keep its window open while using the bridge. Clients without Agent Plugins support can use the [manual host configuration](docs/hosts.md).
 
 ## Development builds
 
@@ -39,18 +40,18 @@ These builds are untested development snapshots, not official stable releases. D
 2. From the directory containing the tarball, run:
 
    ```powershell
-   npx -y ./figma-local-agent-mcp-development.tgz pair
+   npm exec --yes --package="file:./figma-local-agent-mcp-development.tgz" -- figma-local-agent-mcp pair
    ```
 
-3. Configure the MCP host with `npx.cmd`, `-y`, `./figma-local-agent-mcp-development.tgz`, and `serve`.
+3. Configure the MCP host with `npm.cmd exec --yes --package=file:<absolute-tarball-path> -- figma-local-agent-mcp serve`.
 
 Do not mix a development plugin with a stable MCP package, or vice versa. See the [latest stable release](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest) for production use.
 
 ## Update and recovery
 
 - Install matching plugin and npm versions. To update, overwrite the extracted plugin folder with the new ZIP and update the version in the MCP configuration.
-- `npx -y figma-local-agent-mcp@0.2.0 doctor` checks the local service without revealing credentials.
-- `npx -y figma-local-agent-mcp@0.2.0 devices list` lists paired devices.
+- `npx -y figma-local-agent-mcp@0.9.0 doctor` checks the local service without revealing credentials.
+- `npx -y figma-local-agent-mcp@0.9.0 devices list` lists paired devices.
 - `devices revoke <deviceId>` or `devices revoke --all` removes credentials. A revoked plugin must pair again.
 - Upgrading from v0.1 removes the old shared secret and requires one new pairing. Close all v0.1 MCP tasks first so their old Daemon releases port 3900.
 
@@ -70,8 +71,8 @@ pnpm check
 pnpm build:release
 ```
 
-`pnpm build:release` produces the directly importable plugin ZIP, npm tarball, and `SHA256SUMS` under `artifacts/`. A local `.figma-plugin-id` may override the ID for contributor builds, but release builds always enforce `1685966253180273328`.
+`pnpm build:release` produces the directly importable Figma plugin ZIP, npm tarball, portable Agent Plugin ZIP, and `SHA256SUMS` under `artifacts/`. A local `.figma-plugin-id` may override the ID for contributor builds, but release builds always enforce `1685966253180273328`.
 
 Owners should follow the [manual release runbook](docs/releasing.md); no version is published merely by pushing a commit or tag.
 
-Version 0.2 supports multiple local MCP adapters, one active Figma plugin, and the current page of the current Design file. Windows installers, automatic updates, remote transport, cloud sync, arbitrary JavaScript, source-node writes, general deletion, instance detach, and framework-specific code generation are outside this release.
+Version 0.9 supports multiple local MCP adapters, one active Figma plugin, and the current page of the current Design file. Windows installers, automatic updates, remote transport, cloud sync, arbitrary JavaScript, source-node writes, general deletion, instance detach, and framework-specific code generation are outside this release.
