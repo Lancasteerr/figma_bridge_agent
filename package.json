@@ -10,12 +10,13 @@
   "scripts": {
     "build": "pnpm -r --if-present build",
     "build:release": "pnpm check && pnpm --filter @figma-agent/figma-plugin build -- --release && node scripts/release-artifacts.mjs",
+    "check:agent-plugin": "node scripts/check-agent-plugin.mjs",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build"
+    "check": "pnpm check:agent-plugin && pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",

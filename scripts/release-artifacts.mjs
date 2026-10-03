@@ -5,6 +5,8 @@ import { basename, dirname, resolve } from 'node:path';
 
 import JSZip from 'jszip';
 
+import { AGENT_PLUGIN_FILES, checkAgentPlugin } from './check-agent-plugin.mjs';
+
 const workspace = resolve(import.meta.dirname, '..');
 const artifacts = resolve(workspace, 'artifacts');
 if (dirname(artifacts) !== workspace || basename(artifacts) !== 'artifacts') {
@@ -12,6 +14,7 @@ if (dirname(artifacts) !== workspace || basename(artifacts) !== 'artifacts') {
 }
 const pluginRoot = resolve(workspace, 'apps/figma-plugin');
 const serverRoot = resolve(workspace, 'apps/mcp-server');
+const agentPluginRoot = resolve(workspace, 'plugins/figma-local-agent');
 const pluginPackage = JSON.parse(await readFile(resolve(pluginRoot, 'package.json'), 'utf8'));
 const serverPackage = JSON.parse(await readFile(resolve(serverRoot, 'package.json'), 'utf8'));
 
@@ -19,6 +22,10 @@ if (pluginPackage.version !== serverPackage.version) {
   throw new Error('Plugin and npm package versions must match.');
 }
 const version = serverPackage.version;
+const checkedAgentPlugin = await checkAgentPlugin();
+if (checkedAgentPlugin.version !== version) {
+  throw new Error('Agent Plugin and npm package versions must match.');
+}
 const manifest = JSON.parse(await readFile(resolve(pluginRoot, 'dist/manifest.json'), 'utf8'));
 if (manifest.id !== '1685966253180273328') throw new Error('Release plugin ID is invalid.');
 if (
@@ -36,13 +43,27 @@ for (const file of ['manifest.json', 'code.js', 'ui.html']) {
 }
 const pluginArchive = `figma-agent-bridge-plugin-v${version}.zip`;
 const packageArchive = `figma-local-agent-mcp-${version}.tgz`;
-for (const generatedFile of [pluginArchive, packageArchive, 'SHA256SUMS']) {
+const agentPluginArchive = `figma-local-agent-plugin-v${version}.zip`;
+for (const generatedFile of [pluginArchive, packageArchive, agentPluginArchive, 'SHA256SUMS']) {
   // 只清理本次发行会覆盖的文件，保留用户可能解压在 artifacts 下的插件目录。
   await unlink(resolve(artifacts, generatedFile)).catch(() => undefined);
 }
 await writeFile(
   resolve(artifacts, pluginArchive),
   await zip.generateAsync({
+    type: 'nodebuffer',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 9 },
+  }),
+);
+
+const agentPluginZip = new JSZip();
+for (const file of AGENT_PLUGIN_FILES) {
+  agentPluginZip.file(`figma-local-agent/${file}`, await readFile(resolve(agentPluginRoot, file)));
+}
+await writeFile(
+  resolve(artifacts, agentPluginArchive),
+  await agentPluginZip.generateAsync({
     type: 'nodebuffer',
     compression: 'DEFLATE',
     compressionOptions: { level: 9 },
@@ -71,7 +92,7 @@ if (packedArchive !== packageArchive) {
 }
 
 const checksumLines = [];
-for (const file of [pluginArchive, packageArchive]) {
+for (const file of [pluginArchive, packageArchive, agentPluginArchive]) {
   const digest = createHash('sha256')
     .update(await readFile(resolve(artifacts, file)))
     .digest('hex');

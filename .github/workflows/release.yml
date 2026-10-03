@@ -59,10 +59,19 @@ jobs:
         run: |
           $serverPackage = Get-Content apps/mcp-server/package.json | ConvertFrom-Json
           $version = $serverPackage.version
-          $pluginVersion = (Get-Content apps/figma-plugin/package.json | ConvertFrom-Json).version
+          $versionFiles = @(
+            "package.json",
+            "apps/figma-plugin/package.json",
+            "packages/protocol/package.json",
+            "packages/test-support/package.json",
+            "plugins/figma-local-agent/plugin.json"
+          )
           $expectedRepositoryUrl = "https://github.com/${{ github.repository }}"
           if ("v$version" -ne "${{ inputs.tag }}") { throw "Tag must equal v$version" }
-          if ($pluginVersion -ne $version) { throw "Plugin and npm versions differ" }
+          foreach ($versionFile in $versionFiles) {
+            $candidate = (Get-Content $versionFile | ConvertFrom-Json).version
+            if ($candidate -ne $version) { throw "$versionFile version $candidate differs from $version" }
+          }
           # npm provenance 要求 package.json 中的仓库地址与 Actions 来源仓库完全一致。
           if ($serverPackage.repository.url -cne $expectedRepositoryUrl) { throw "npm repository URL must equal $expectedRepositoryUrl" }
           if ((git describe --tags --exact-match) -ne "${{ inputs.tag }}") { throw "Checkout is not the requested tag" }
