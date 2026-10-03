@@ -1,20 +1,27 @@
 import { createServer } from 'node:net';
 
+import { BRIDGE_PROTOCOL_VERSION } from '@figma-agent/protocol';
 import { FakePluginClient } from '@figma-agent/test-support';
 import { afterEach, describe, expect, it } from 'vitest';
+import { WebSocketServer } from 'ws';
 
 import type { ServerConfig } from '../config/store.js';
+import { createDaemonServerProof } from '../security/proof.js';
 import { BridgeDaemon } from './daemon.js';
 import { DaemonBridgeClient } from './daemon-client.js';
 
 const daemons: BridgeDaemon[] = [];
 const clients: DaemonBridgeClient[] = [];
 const plugins: FakePluginClient[] = [];
+const webSocketServers: WebSocketServer[] = [];
 
 afterEach(async () => {
   for (const client of clients.splice(0)) await client.close();
   for (const plugin of plugins.splice(0)) plugin.close();
   for (const daemon of daemons.splice(0)) await daemon.close();
+  for (const server of webSocketServers.splice(0)) {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
 });
 
 describe('DaemonBridgeClient', () => {
@@ -35,6 +42,47 @@ describe('DaemonBridgeClient', () => {
       pluginConnected: true,
       clientCount: 1,
     });
+  });
+
+  it('advertises the injected CLI version during daemon authentication', async () => {
+    const port = await freePort();
+    const config = testConfig(port, 29, false);
+    const daemonNonce = Buffer.alloc(24, 7).toString('base64url');
+    let advertisedVersion = '';
+    const server = new WebSocketServer({ host: config.host, port });
+    webSocketServers.push(server);
+    await new Promise<void>((resolve) => server.once('listening', resolve));
+    server.on('connection', (socket) => {
+      socket.send(
+        JSON.stringify({
+          type: 'daemon.auth.challenge',
+          protocolVersion: BRIDGE_PROTOCOL_VERSION,
+          daemonNonce,
+        }),
+      );
+      socket.once('message', (raw) => {
+        const proof = JSON.parse(String(raw)) as {
+          clientNonce: string;
+          clientVersion: string;
+        };
+        advertisedVersion = proof.clientVersion;
+        socket.send(
+          JSON.stringify({
+            type: 'daemon.auth.server-proof',
+            protocolVersion: BRIDGE_PROTOCOL_VERSION,
+            daemonNonce,
+            clientNonce: proof.clientNonce,
+            proof: createDaemonServerProof(config.daemonSecret, daemonNonce, proof.clientNonce),
+          }),
+        );
+      });
+    });
+
+    const client = createClient(config);
+    client.start();
+    await client.waitUntilReady();
+
+    expect(advertisedVersion).toBe(__CLI_VERSION__);
   });
 
   it('returns BRIDGE_UNAVAILABLE while no daemon is listening', async () => {

@@ -256,7 +256,7 @@ export class DaemonBridgeClient implements BridgeTransport {
                 daemonNonce,
                 clientNonce,
                 proof: createDaemonClientProof(this.#config.daemonSecret, daemonNonce, clientNonce),
-                clientVersion: '0.2.0',
+                clientVersion: __CLI_VERSION__,
               }),
             );
             return;
