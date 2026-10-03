@@ -1,0 +1,20 @@
+{
+  "name": "figma-local-agent",
+  "interface": {
+    "displayName": "Local Figma Agent"
+  },
+  "plugins": [
+    {
+      "name": "figma-local-agent",
+      "source": {
+        "source": "local",
+        "path": "./plugins/figma-local-agent"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
