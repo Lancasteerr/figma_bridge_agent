@@ -22,8 +22,9 @@ development plugin is open.
 
 ## Read workflow
 
-- Inspect the current page and selection before requesting broader trees.
-- Use bounded node reads for structure and text, rendering only when visual evidence is necessary.
+- Start from the current page and selection reported by `figma_status`. Read a shallow local tree,
+  normally depth 2–4, then use only the targeted node reads the task still needs.
+- Keep reads bounded and render only when visual evidence is necessary.
 - Use `figma_get_fingerprint` for DesignPlan source fingerprints and Proposal concurrency checks.
   Snapshot fingerprints returned by bounded reads have a different scope and are not substitutes.
 - Request fonts and local design resources only when the task needs them. The bridge does not query
@@ -33,20 +34,28 @@ development plugin is open.
 
 - Never modify source artwork directly. Public writes must create a Proposal or target a node inside
   an existing bridge-created Proposal.
-- For edits based on existing artwork, use `figma_duplicate_as_proposal` and continue with the IDs
-  returned for the isolated copy.
-- For declarative creation, collect the required source fingerprints, fonts, resources, and staged
-  assets, then call `figma_validate_design_plan` exactly once for the final plan. Apply the returned
-  validation ID with `figma_apply_design_plan` before it expires; validation IDs are single-use.
-- Re-read or render the Proposal after applying changes so the user can review the result.
+- For edits based on existing artwork, including non-Frame Page children, use
+  `figma_duplicate_as_proposal`. Continue only with its `proposalRootId`, `targetMap`, and `idMap`;
+  never reuse source IDs for Proposal writes.
+- Pass each mutation's returned fingerprint as the next mutation's `expectedFingerprint`, and adopt
+  replacement IDs returned by operations such as component conversion.
+- Change an Instance through exposed properties. Do not reparent or structurally edit its internals.
+- For complex declarative generation, first read [DesignPlan v1](references/design-plan-v1.md). Its
+  Frame root is an isolated Proposal container and may represent a local design rather than a page.
+- Validate each complete DesignPlan candidate once. If validation fails, correct the reported issue
+  and treat the revision as a new candidate; never probe the schema through repeated calls. Apply a
+  successful validation ID before it expires because IDs are single-use.
+- Re-read or render the affected scope after writing; add an overall preview for layout-wide changes.
 - Before discarding a Proposal, obtain its latest complete-tree fingerprint with
   `figma_get_fingerprint`. If the bridge returns `PROPOSAL_CHANGED`, stop and ask the user whether to
   inspect the newer state; never retry deletion with a stale fingerprint.
 
 ## Failure handling
 
-- Treat source, fingerprint, validation, asset, font, or resource conflicts as a request to refresh
-  state and rebuild the pending operation. Do not bypass validation.
+- Correct input or schema errors without refreshing unrelated state. For stale or missing nodes,
+  refresh the current page, mappings, and relevant fingerprint before rebuilding the operation.
+- For protected Instance errors, use exposed properties or rebuild ordinary structure. On an apply
+  internal error, stop instead of blindly retrying the single-use operation and report the failure.
 - When a tool reports that the plugin disconnected, preserve the user's intent, ask them to reopen
   the Figma plugin, call `figma_status`, and only then retry safe read-only discovery.
 - Do not expose, request, or print bridge credentials. Pairing and device management remain in the
