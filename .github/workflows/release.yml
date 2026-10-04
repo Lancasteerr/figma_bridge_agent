@@ -74,7 +74,12 @@ jobs:
           }
           # npm provenance 要求 package.json 中的仓库地址与 Actions 来源仓库完全一致。
           if ($serverPackage.repository.url -cne $expectedRepositoryUrl) { throw "npm repository URL must equal $expectedRepositoryUrl" }
-          if ((git describe --tags --exact-match) -ne "${{ inputs.tag }}") { throw "Checkout is not the requested tag" }
+          # 同一提交可能关联多个标签，因此直接比较提交 SHA，避免 git describe 选择其他标签。
+          $requestedTag = "${{ inputs.tag }}"
+          $tagCommit = git rev-parse --verify "refs/tags/${requestedTag}^{commit}"
+          if ($LASTEXITCODE -ne 0) { throw "Requested tag $requestedTag does not exist" }
+          $headCommit = git rev-parse --verify 'HEAD^{commit}'
+          if ($LASTEXITCODE -ne 0 -or $headCommit.Trim() -cne $tagCommit.Trim()) { throw "Checkout is not the requested tag" }
       - run: pnpm check
       - name: Build immutable release artifacts
         run: |
