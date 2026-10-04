@@ -108,28 +108,35 @@ describe('MCP tool contract', () => {
       $defs?: Record<
         string,
         {
-          oneOf?: Array<{
-            properties?: {
-              kind?: { const?: string; enum?: string[] };
-              children?: { items?: { $ref?: string } };
+          properties?: {
+            kind?: { const?: string };
+            children?: {
+              items?: {
+                oneOf?: Array<{
+                  $ref?: string;
+                  properties?: { kind?: { const?: string; enum?: string[] } };
+                }>;
+              };
             };
-          }>;
+          };
         }
       >;
     };
     const rootRef = validateInput.properties?.plan?.properties?.root?.$ref;
     expect(rootRef).toMatch(/^#\/\$defs\//);
     const rootDefinition = rootRef?.split('/').at(-1);
-    const variants = rootDefinition ? validateInput.$defs?.[rootDefinition]?.oneOf : undefined;
+    const root = rootDefinition ? validateInput.$defs?.[rootDefinition] : undefined;
+    expect(root?.properties?.kind?.const).toBe('FRAME');
+    const variants = root?.properties?.children?.items?.oneOf;
     const kinds = variants?.flatMap((variant) => {
+      if (variant.$ref === rootRef) return ['FRAME'];
       const kind = variant.properties?.kind;
       return kind?.const ? [kind.const] : (kind?.enum ?? []);
     });
     expect(kinds?.sort()).toEqual(
       ['CLONE', 'ELLIPSE', 'FRAME', 'IMAGE', 'INSTANCE', 'LINE', 'RECTANGLE', 'SVG', 'TEXT'].sort(),
     );
-    const frame = variants?.find((variant) => variant.properties?.kind?.const === 'FRAME');
-    expect(frame?.properties?.children?.items).toEqual({ $ref: rootRef });
+    expect(variants).toContainEqual({ $ref: rootRef });
   });
 
   it('advertises all tools for three independent MCP sessions before the daemon is ready', async () => {

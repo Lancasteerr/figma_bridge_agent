@@ -452,17 +452,23 @@ const CommonNodeFields = {
   variableBindings: z.array(DesignVariableBindingSchema).optional(),
 };
 
+/**
+ * DesignPlan 的根始终是隔离 Proposal 的技术容器，不代表 Figma Page 或完整业务页面。
+ * 显式导出 Frame schema，避免 JSON Schema 只能把根表达为“任意节点再运行时 refine”。
+ */
+export const DesignFrameNodeSchema = z
+  .object({
+    kind: z.literal('FRAME'),
+    ...CommonNodeFields,
+    layout: LayoutSpecSchema.optional(),
+    clipsContent: z.boolean().optional(),
+    children: z.array(z.lazy((): z.ZodType<DesignNode> => DesignNodeSchema)),
+  })
+  .strict();
+
 export const DesignNodeSchema: z.ZodType<DesignNode> = z.lazy(() =>
   z.discriminatedUnion('kind', [
-    z
-      .object({
-        kind: z.literal('FRAME'),
-        ...CommonNodeFields,
-        layout: LayoutSpecSchema.optional(),
-        clipsContent: z.boolean().optional(),
-        children: z.array(DesignNodeSchema),
-      })
-      .strict(),
+    DesignFrameNodeSchema,
     z
       .object({
         kind: z.enum(['RECTANGLE', 'ELLIPSE', 'LINE']),
@@ -515,11 +521,6 @@ export const DesignNodeSchema: z.ZodType<DesignNode> = z.lazy(() =>
       })
       .strict(),
   ]),
-);
-
-export const DesignFrameNodeSchema = DesignNodeSchema.refine(
-  (node): node is ContainerDesignNode => node.kind === 'FRAME',
-  'DesignPlan root must be a FRAME.',
 );
 
 export const DesignPlanSchema = z
