@@ -2,7 +2,12 @@ import { readFile, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 
-export const AGENT_PLUGIN_FILES = ['plugin.json', 'mcp.json', 'skills/figma-local-agent/SKILL.md'];
+export const AGENT_PLUGIN_FILES = [
+  'plugin.json',
+  'mcp.json',
+  'skills/figma-local-agent/SKILL.md',
+  'skills/figma-local-agent/references/design-plan-v1.md',
+];
 
 const workspace = resolve(import.meta.dirname, '..');
 const pluginRoot = resolve(workspace, 'plugins/figma-local-agent');
