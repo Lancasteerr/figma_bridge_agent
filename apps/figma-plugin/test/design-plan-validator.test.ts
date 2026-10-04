@@ -98,6 +98,34 @@ describe('DesignPlan font and text validation', () => {
     expect(result.instanceSources.get('button')).toBe(component);
   });
 
+  it('creates an Instance directly from a current-page Component', async () => {
+    const page = { id: 'page-1', type: 'PAGE', parent: null };
+    const component = {
+      id: 'component-source',
+      type: 'COMPONENT',
+      name: 'Button',
+      x: 0,
+      width: 100,
+      parent: page,
+    };
+    stubDesignFigma(page, new Map([[component.id, component]]));
+
+    const result = await validateDesignPlan(
+      sourcePlan([
+        {
+          kind: 'INSTANCE',
+          ref: 'button',
+          name: 'Button',
+          geometry: { width: 100, height: 40 },
+          source: { mode: 'CREATE_INSTANCE', nodeId: component.id },
+          properties: {},
+        },
+      ]),
+    );
+
+    expect(result.instanceSources.get('button')).toBe(component);
+  });
+
   it('accepts a non-Frame current-page node as a Clone source', async () => {
     const page = { id: 'page-1', type: 'PAGE', parent: null };
     const rectangle = {
