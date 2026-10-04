@@ -99,6 +99,37 @@ describe('MCP tool contract', () => {
       destructiveHint: false,
       idempotentHint: true,
     });
+
+    const validatePlan = tools.find((tool) => tool.name === 'figma_validate_design_plan');
+    const validateInput = validatePlan?.inputSchema as {
+      properties?: {
+        plan?: { properties?: { root?: { $ref?: string } } };
+      };
+      $defs?: Record<
+        string,
+        {
+          oneOf?: Array<{
+            properties?: {
+              kind?: { const?: string; enum?: string[] };
+              children?: { items?: { $ref?: string } };
+            };
+          }>;
+        }
+      >;
+    };
+    const rootRef = validateInput.properties?.plan?.properties?.root?.$ref;
+    expect(rootRef).toMatch(/^#\/\$defs\//);
+    const rootDefinition = rootRef?.split('/').at(-1);
+    const variants = rootDefinition ? validateInput.$defs?.[rootDefinition]?.oneOf : undefined;
+    const kinds = variants?.flatMap((variant) => {
+      const kind = variant.properties?.kind;
+      return kind?.const ? [kind.const] : (kind?.enum ?? []);
+    });
+    expect(kinds?.sort()).toEqual(
+      ['CLONE', 'ELLIPSE', 'FRAME', 'IMAGE', 'INSTANCE', 'LINE', 'RECTANGLE', 'SVG', 'TEXT'].sort(),
+    );
+    const frame = variants?.find((variant) => variant.properties?.kind?.const === 'FRAME');
+    expect(frame?.properties?.children?.items).toEqual({ $ref: rootRef });
   });
 
   it('advertises all tools for three independent MCP sessions before the daemon is ready', async () => {
