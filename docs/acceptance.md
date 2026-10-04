@@ -14,6 +14,7 @@ Run `pnpm build:release` before manual acceptance. Perform the user path from th
 6. Restart Figma and the MCP host; confirm the plugin reconnects without another pairing.
 7. Run `devices list`, revoke the connected device, and confirm the plugin immediately returns to the pairing screen.
 8. After npm `0.9.0` and GitHub tag `v0.9.0` are public, add `Lancasteerr/figma_bridge_agent` as a marketplace pinned to `v0.9.0`, install `figma-local-agent@figma-local-agent`, start a new session, and confirm the host discovers exactly 23 tools without manual MCP configuration.
+9. Inspect the Agent Plugin ZIP and confirm it contains `skills/figma-local-agent/references/design-plan-v1.md`.
 
 Do not continue acceptance if this gate fails.
 
@@ -34,7 +35,7 @@ Do not continue acceptance if this gate fails.
 2. Call `figma_duplicate_as_proposal` with the middle card in `editTargetNodeIds`. Confirm the response resolves the list as an `AUTO_LAYOUT_PARENT`, maps the requested card, and places the Proposal as a Page child rather than inside the source list.
 3. Confirm the source list and all cards retain their original fingerprints, order, geometry, visibility, and locks. Confirm the Proposal copy is recursively unlocked.
 4. Modify both the requested card and a cloned sibling/context node. Confirm both succeed because the whole Proposal is writable, while a write using the original card ID returns `NODE_NOT_IN_PROPOSAL`.
-5. Repeat with an absolute child, a Component Set variant, a leaf inside a Group, and two targets sharing one Auto Layout parent. Confirm the reported roots and resolution reasons match the documented rules and no root is cloned twice.
+5. Repeat with a direct Page Rectangle, an absolute child, a Component Set variant, a leaf inside a Group, and two targets sharing one Auto Layout parent. Confirm non-Frame targets remain supported, the reported roots and resolution reasons match the documented rules, and no root is cloned twice.
 6. Use a generated context above 1000 nodes. Confirm inferred context falls back to the requested target with `CLONE_CONTEXT_TRUNCATED`; confirm a target whose own subtree exceeds the limit returns `LIMIT_EXCEEDED` without creating nodes.
 7. Create a Content Frame inside the Proposal, reparent intended children with explicit `FLOW` or `ABSOLUTE`, and apply two or three Auto Layout levels.
 8. Edit the Proposal manually, then attempt discard with its old fingerprint; confirm `PROPOSAL_CHANGED`. Call `figma_get_fingerprint` for the Proposal root, then discard the whole Proposal with the returned complete-tree fingerprint.
@@ -42,13 +43,15 @@ Do not continue acceptance if this gate fails.
 
 ## 4. Declarative DesignPlan path
 
-1. Form a v1 plan whose root is a 1440 px Frame and includes nested Auto Layout, shapes, fixed-width/auto-height text, gradients, strokes, corners, effects, and an absolute overlay. A source declaration is optional.
-2. For a source-backed plan, call `figma_get_fingerprint` with the ordered roots and copy the same IDs and returned fingerprint into the source declaration. Confirm reversing multiple roots changes the fingerprint.
-3. Validate it. Confirm no Figma node was created and capture the five-minute `validationId`.
-4. Change the source, then apply the plan; confirm `PLAN_STALE` and no temporary Frame remains. Undo the manual source change.
-5. Fetch a fresh aggregate fingerprint, validate again, and apply once; confirm a complete hidden-then-revealed Proposal appears to the right and `refMap` covers every planned node.
-6. Reuse the same ID; confirm `VALIDATION_EXPIRED` because IDs are single-use.
-7. Confirm overlays remain absolute and correctly placed. Repeat with exactly 1000 nodes/depth 32, then confirm one additional node/level is rejected.
+1. Inspect `figma_validate_design_plan` in `tools/list`. Confirm `plan.root` resolves to a Proposal `FRAME` definition and its `children` reference all supported node kinds.
+2. Inspect the MCP host's model-visible declaration. If recursive fields are simplified to `unknown`, confirm the Agent reads the bundled DesignPlan reference instead of probing the validator.
+3. Form a v1 plan whose root is a 360 × 180 card Proposal with Auto Layout and text. Confirm the root is treated as an isolated technical container, not a Figma Page or complete screen.
+4. Validate and apply the card once, render it, obtain its latest complete-tree fingerprint, and discard it. Confirm no source artwork changed.
+5. For a source-backed plan, call `figma_get_fingerprint` with ordered roots that include a non-Frame Clone source and a reusable component/instance. Copy the same IDs and returned fingerprint into the source declaration; confirm reversing multiple roots changes the fingerprint.
+6. Change one source, then apply the validated plan; confirm `PLAN_STALE` and no temporary Frame remains. Undo the manual source change.
+7. Fetch a fresh aggregate fingerprint, validate the revised candidate once, and apply it; confirm a complete hidden-then-revealed Proposal appears to the right and `refMap` covers every planned node.
+8. Reuse the same ID; confirm `VALIDATION_EXPIRED` because IDs are single-use.
+9. Repeat with a larger design containing nested Auto Layout, shapes, fixed-width/auto-height text, gradients, strokes, corners, effects, and an absolute overlay. Confirm overlays remain correctly placed. Verify exactly 1000 nodes/depth 32, then confirm one additional node/level is rejected.
 
 ## 5. Semantic and asset path
 
@@ -64,7 +67,7 @@ Do not continue acceptance if this gate fails.
 
 Use this acceptance prompt:
 
-> Inspect the selected rough ArticleCard and a reference web page. Read the bounded tree, render, fonts, and current-page design resources. Fetch the ordered complete-tree fingerprint for all source roots. Provide any required image/SVG as Base64, build a complete DesignPlan without querying Team Library, validate it, apply it as an isolated Proposal, re-read and render the result. Stop on stale dependencies, asset errors, resource conflicts, or unavailable explicit fonts instead of bypassing validation.
+> Inspect the selected rough ArticleCard and a reference web page. Read the bounded tree, render, fonts, and current-page design resources. Before constructing a DesignPlan, read the bundled DesignPlan v1 reference. Fetch the ordered complete-tree fingerprint for all source roots. Provide any required image/SVG as Base64, build one complete candidate without querying Team Library, validate it once, apply it as an isolated Proposal, re-read and render the result. Stop on stale dependencies, asset errors, resource conflicts, or unavailable explicit fonts instead of bypassing validation.
 
 Pass criteria: source screenshot/fingerprint/hierarchy remain unchanged; the Proposal has expected Auto Layout; no Instance is detached; cancellation/failure leaves no temporary node; the plugin recognizes the Proposal after restart; exported artifacts are temporary and checksummed.
 
