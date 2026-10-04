@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
 import { DesignPlanSchema } from './design-plan.js';
@@ -30,6 +32,23 @@ describe('DesignPlan v1 schema', () => {
     });
   });
 
+  it('accepts every complete plan documented in the bundled skill reference', () => {
+    const reference = readFileSync(
+      new URL(
+        '../../../plugins/figma-local-agent/skills/figma-local-agent/references/design-plan-v1.md',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    const examples = [...reference.matchAll(/```json\s*([\s\S]*?)```/g)].map((match) =>
+      JSON.parse(match[1]!),
+    );
+
+    expect(examples).toHaveLength(2);
+    for (const example of examples) expect(() => DesignPlanSchema.parse(example)).not.toThrow();
+    expect(examples[0]).toMatchObject({ root: { geometry: { width: 360, height: 180 } } });
+  });
+
   it('requires a Frame root', () => {
     expect(() =>
       DesignPlanSchema.parse({
@@ -42,6 +61,66 @@ describe('DesignPlan v1 schema', () => {
   it('requires source metadata when a source is supplied', () => {
     expect(() =>
       DesignPlanSchema.parse({ ...plan, source: { rootNodeIds: [], fingerprint: '12345678' } }),
+    ).toThrow();
+  });
+
+  it.each([
+    [
+      'node-level sizing',
+      {
+        kind: 'RECTANGLE',
+        ref: 'child',
+        name: 'Child',
+        geometry: { width: 100, height: 40 },
+        sizing: { horizontal: 'FILL' },
+      },
+    ],
+    [
+      'fontName in text',
+      {
+        kind: 'TEXT',
+        ref: 'child',
+        name: 'Child',
+        geometry: { width: 100, height: 40 },
+        text: { characters: 'Hello', fontName: { family: 'Inter', style: 'Regular' } },
+      },
+    ],
+    [
+      'Instance source on Clone',
+      {
+        kind: 'CLONE',
+        ref: 'child',
+        source: { mode: 'CLONE_INSTANCE', nodeId: '1:2' },
+      },
+    ],
+    [
+      'Clone source on Instance',
+      {
+        kind: 'INSTANCE',
+        ref: 'child',
+        name: 'Child',
+        geometry: { width: 100, height: 40 },
+        sourceNodeId: '1:2',
+        properties: {},
+      },
+    ],
+    [
+      'clipsContent inside visual',
+      {
+        kind: 'FRAME',
+        ref: 'child',
+        name: 'Child',
+        geometry: { width: 100, height: 40 },
+        visual: { clipsContent: true },
+        children: [],
+      },
+    ],
+  ])('rejects the historical invalid shape: %s', (_label, child) => {
+    expect(() =>
+      DesignPlanSchema.parse({
+        ...plan,
+        root: { ...plan.root, children: [child] },
+      }),
     ).toThrow();
   });
 

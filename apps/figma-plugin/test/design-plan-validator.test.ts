@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { DesignPlanSchema } from '@figma-agent/protocol';
+
 import { validateDesignPlan } from '../src/main/design-plan/validator.js';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -95,7 +97,147 @@ describe('DesignPlan font and text validation', () => {
 
     expect(result.instanceSources.get('button')).toBe(component);
   });
+
+  it('accepts a non-Frame current-page node as a Clone source', async () => {
+    const page = { id: 'page-1', type: 'PAGE', parent: null };
+    const rectangle = {
+      id: 'rectangle-source',
+      type: 'RECTANGLE',
+      name: 'Badge',
+      x: 0,
+      width: 120,
+      parent: page,
+    };
+    stubDesignFigma(page, new Map([[rectangle.id, rectangle]]));
+
+    const result = await validateDesignPlan(
+      sourcePlan(
+        [
+          {
+            kind: 'CLONE',
+            ref: 'badge',
+            sourceNodeId: rectangle.id,
+          },
+        ],
+        [rectangle.id],
+      ),
+    );
+
+    expect(result.cloneSources.get('badge')).toBe(rectangle);
+  });
+
+  it('accepts CLONE_INSTANCE only for a current-page Instance', async () => {
+    const page = { id: 'page-1', type: 'PAGE', parent: null };
+    const instance = {
+      id: 'instance-source',
+      type: 'INSTANCE',
+      name: 'Button',
+      x: 0,
+      width: 100,
+      parent: page,
+    };
+    stubDesignFigma(page, new Map([[instance.id, instance]]));
+
+    const result = await validateDesignPlan(
+      sourcePlan([
+        {
+          kind: 'INSTANCE',
+          ref: 'button',
+          name: 'Button',
+          geometry: { width: 100, height: 40 },
+          source: { mode: 'CLONE_INSTANCE', nodeId: instance.id },
+          properties: {},
+        },
+      ]),
+    );
+
+    expect(result.instanceSources.get('button')).toBe(instance);
+  });
+
+  it('rejects a Clone source inside an Instance', async () => {
+    const page = { id: 'page-1', type: 'PAGE', parent: null };
+    const sourceRoot = {
+      id: 'source-root',
+      type: 'FRAME',
+      name: 'Source root',
+      x: 0,
+      width: 300,
+      parent: page,
+    };
+    const instance = {
+      id: 'instance-source',
+      type: 'INSTANCE',
+      name: 'Button',
+      x: 0,
+      width: 100,
+      parent: sourceRoot,
+    };
+    const nested = {
+      id: 'nested-rectangle',
+      type: 'RECTANGLE',
+      name: 'Nested decoration',
+      x: 0,
+      width: 24,
+      parent: instance,
+    };
+    stubDesignFigma(
+      page,
+      new Map([
+        [sourceRoot.id, sourceRoot],
+        [nested.id, nested],
+      ]),
+    );
+
+    await expect(
+      validateDesignPlan(
+        sourcePlan(
+          [
+            {
+              kind: 'CLONE',
+              ref: 'nested-decoration',
+              sourceNodeId: nested.id,
+            },
+          ],
+          [sourceRoot.id],
+        ),
+      ),
+    ).rejects.toMatchObject({ bridgeError: { code: 'PLAN_INVALID' } });
+  });
 });
+
+function sourcePlan(children: unknown[], sourceRootIds?: string[]) {
+  return DesignPlanSchema.parse({
+    version: 1,
+    ...(sourceRootIds
+      ? { source: { rootNodeIds: sourceRootIds, fingerprint: '0123456789abcdef' } }
+      : {}),
+    proposal: { name: 'Local proposal' },
+    resources: [],
+    root: {
+      kind: 'FRAME',
+      ref: 'proposal-root',
+      name: 'Local proposal',
+      geometry: { width: 360, height: 180 },
+      children,
+    },
+  });
+}
+
+function stubDesignFigma(page: object, nodes: Map<string, object>): void {
+  vi.stubGlobal('figma', {
+    currentPage: page,
+    getNodeByIdAsync: vi.fn(async (nodeId: string) => nodes.get(nodeId) ?? null),
+    listAvailableFontsAsync: vi.fn().mockResolvedValue([]),
+    getLocalPaintStylesAsync: vi.fn().mockResolvedValue([]),
+    getLocalTextStylesAsync: vi.fn().mockResolvedValue([]),
+    getLocalEffectStylesAsync: vi.fn().mockResolvedValue([]),
+    getLocalGridStylesAsync: vi.fn().mockResolvedValue([]),
+    variables: {
+      getLocalVariableCollectionsAsync: vi.fn().mockResolvedValue([]),
+      getLocalVariablesAsync: vi.fn().mockResolvedValue([]),
+    },
+  });
+}
 
 function textPlan() {
   return {
