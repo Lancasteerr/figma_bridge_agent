@@ -5,7 +5,12 @@ import { basename, dirname, resolve } from 'node:path';
 
 import JSZip from 'jszip';
 
-import { AGENT_PLUGIN_FILES, checkAgentPlugin } from './check-agent-plugin.mjs';
+import {
+  AGENT_PLUGIN_ARCHIVE_ROOT,
+  AGENT_PLUGIN_FILES,
+  checkAgentPlugin,
+  getAgentPluginArchiveName,
+} from './check-agent-plugin.mjs';
 
 const workspace = resolve(import.meta.dirname, '..');
 const artifacts = resolve(workspace, 'artifacts');
@@ -43,7 +48,7 @@ for (const file of ['manifest.json', 'code.js', 'ui.html']) {
 }
 const pluginArchive = `figma-agent-bridge-plugin-v${version}.zip`;
 const packageArchive = `figma-local-agent-mcp-${version}.tgz`;
-const agentPluginArchive = `figma-local-agent-plugin-v${version}.zip`;
+const agentPluginArchive = getAgentPluginArchiveName(version);
 for (const generatedFile of [pluginArchive, packageArchive, agentPluginArchive, 'SHA256SUMS']) {
   // 只清理本次发行会覆盖的文件，保留用户可能解压在 artifacts 下的插件目录。
   await unlink(resolve(artifacts, generatedFile)).catch(() => undefined);
@@ -59,7 +64,10 @@ await writeFile(
 
 const agentPluginZip = new JSZip();
 for (const file of AGENT_PLUGIN_FILES) {
-  agentPluginZip.file(`figma-local-agent/${file}`, await readFile(resolve(agentPluginRoot, file)));
+  agentPluginZip.file(
+    `${AGENT_PLUGIN_ARCHIVE_ROOT}/${file}`,
+    await readFile(resolve(agentPluginRoot, file)),
+  );
 }
 await writeFile(
   resolve(artifacts, agentPluginArchive),

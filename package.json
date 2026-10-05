@@ -9,13 +9,15 @@
   "packageManager": "pnpm@11.19.0",
   "scripts": {
     "build": "pnpm -r --if-present build",
-    "build:release": "pnpm check && pnpm --filter @figma-agent/figma-plugin build -- --release && node scripts/release-artifacts.mjs",
+    "build:release": "pnpm check && pnpm --filter @figma-agent/figma-plugin build -- --release && node scripts/release-artifacts.mjs && pnpm check:agent-plugin-archive",
     "check:agent-plugin": "node scripts/check-agent-plugin.mjs",
+    "check:agent-plugin-archive": "node scripts/check-agent-plugin-archive.mjs",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run",
+    "test:scripts": "node --test scripts/check-agent-plugin-archive.test.mjs",
+    "test": "pnpm test:scripts && vitest run",
     "check": "pnpm check:agent-plugin && pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build"
   },
   "devDependencies": {

@@ -8,6 +8,12 @@ export const AGENT_PLUGIN_FILES = [
   'skills/figma-local-agent/SKILL.md',
   'skills/figma-local-agent/references/design-plan-v1.md',
 ];
+export const AGENT_PLUGIN_ARCHIVE_ROOT = 'figma-local-agent';
+
+/** 统一生成 Agent Plugin 归档名称，避免构建与校验流程各自拼接。 */
+export function getAgentPluginArchiveName(version) {
+  return `figma-local-agent-plugin-v${version}.zip`;
+}
 
 const workspace = resolve(import.meta.dirname, '..');
 const pluginRoot = resolve(workspace, 'plugins/figma-local-agent');

@@ -85,6 +85,8 @@ jobs:
         run: |
           pnpm --filter @figma-agent/figma-plugin build -- --release
           node scripts/release-artifacts.mjs
+      - name: Verify portable Agent Plugin archive
+        run: pnpm check:agent-plugin-archive
       - name: Refuse an existing npm version
         if: inputs.publish_npm
         shell: pwsh

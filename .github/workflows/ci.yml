@@ -40,22 +40,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Packed CLI smoke test failed" }
           Pop-Location
       - name: Verify portable Agent Plugin archive
-        shell: pwsh
-        run: |
-          $version = (Get-Content "$env:GITHUB_WORKSPACE/apps/mcp-server/package.json" | ConvertFrom-Json).version
-          $archive = Join-Path $env:GITHUB_WORKSPACE "artifacts/figma-local-agent-plugin-v$version.zip"
-          $destination = Join-Path $env:RUNNER_TEMP "figma-agent-plugin-test"
-          Expand-Archive -LiteralPath $archive -DestinationPath $destination
-          $expected = @(
-            "figma-local-agent/mcp.json",
-            "figma-local-agent/plugin.json",
-            "figma-local-agent/skills/figma-local-agent/SKILL.md"
-          )
-          $actual = Get-ChildItem -File -Recurse $destination | ForEach-Object {
-            [IO.Path]::GetRelativePath($destination, $_.FullName).Replace('\', '/')
-          }
-          $difference = Compare-Object $expected $actual
-          if ($difference) { throw "Unexpected Agent Plugin archive contents: $difference" }
+        run: pnpm check:agent-plugin-archive
       - uses: actions/upload-artifact@v4
         with:
           name: windows-release-artifacts
