@@ -1,6 +1,6 @@
 # Security notes
 
-[中文版](security.zh-CN.md)
+[中文版](../zh-CN/security.md)
 
 This project is a local development tool, not a remote service.
 

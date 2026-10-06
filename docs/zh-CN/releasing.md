@@ -1,6 +1,6 @@
 # Owner 发布手册
 
-[English](releasing.md)
+[English](../en-US/releasing.md)
 
 1. 同时更新全部一方 package 与可移植 Agent Plugin 的版本，运行 `pnpm build:release`，检查 `artifacts/` 下的四个文件：Figma 插件 ZIP、npm tarball、Agent Plugin ZIP 和 `SHA256SUMS`。
 2. 提交版本变更，在该提交上创建带注释的 `v<version>` tag，并推送提交和 tag。

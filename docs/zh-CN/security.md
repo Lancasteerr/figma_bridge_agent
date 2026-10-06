@@ -1,6 +1,6 @@
 # 安全说明
 
-[English](security.md)
+[English](../en-US/security.md)
 
 本项目是本地开发工具，不是远程服务。
 

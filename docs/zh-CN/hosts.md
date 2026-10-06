@@ -1,6 +1,6 @@
 # Windows MCP 主机配置
 
-[English](hosts.md)
+[English](../en-US/hosts.md)
 
 支持 Agent Plugins 1.0 的客户端应优先使用主 README 中的仓库 marketplace 流程。本页是无法安装可移植 Agent Plugin 时的手动 fallback。所有主机都运行同一个 stdio 命令，npm 包版本必须与下载的 Figma 插件 ZIP 版本一致：
 

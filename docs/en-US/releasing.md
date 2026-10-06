@@ -1,6 +1,6 @@
 # Owner release runbook
 
-[中文版](releasing.zh-CN.md)
+[中文版](../zh-CN/releasing.md)
 
 1. Update every first-party package and the portable Agent Plugin to the same version, run `pnpm build:release`, and inspect these four files under `artifacts/`: the Figma plugin ZIP, npm tarball, Agent Plugin ZIP, and `SHA256SUMS`.
 2. Commit the version, create an annotated `v<version>` tag on that commit, and push the commit and tag.

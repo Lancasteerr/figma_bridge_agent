@@ -1,6 +1,6 @@
 # 端到端验收运行手册
 
-[English](acceptance.md)
+[English](../en-US/acceptance.md)
 
 手动验收前先运行 `pnpm build:release`。必须从生成的 Figma ZIP、npm tarball 和 Agent Plugin ZIP 执行普通用户路径，不能直接使用 workspace 入口。修改场景请使用一次性 Figma 页面。
 
@@ -20,7 +20,7 @@
 
 ## 2. 连接和读取路径
 
-1. 使用已安装的 Agent Plugin 启动 Codex，并用 `docs/hosts.zh-CN.md` 的手动 fallback 额外重复一次关键连接检查。
+1. 使用已安装的 Agent Plugin 启动 Codex，并用 `docs/zh-CN/hosts.md` 的手动 fallback 额外重复一次关键连接检查。
 2. 调用 `figma_status`；确认协议 v4 已认证，并返回文件/页面元数据、选择摘要，以及 `design-plan-v1`、`asset-staging-v1`、`font-catalog-v1`、`design-resources-v1` 能力。
 3. 关闭插件并再次调用；确认约一秒内返回 `PLUGIN_NOT_CONNECTED`，而不是一直挂起。
 4. 重新打开插件，确认能够自动重连。

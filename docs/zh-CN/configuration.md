@@ -1,6 +1,6 @@
 # 安装与配置
 
-[English](configuration.md)
+[English](../en-US/configuration.md)
 
 本文分别说明三种受支持的配置方式：npm 稳定版、滚动更新的 Development build，以及从源码自行编译。无论选择哪一种，Figma 插件和 MCP Server 都必须来自同一版本或同一次构建，不能混用。
 
@@ -271,4 +271,4 @@ node .\apps\mcp-server\dist\cli.js doctor
 - 3900 端口被旧进程占用：先关闭旧版本的 MCP 客户端任务，再运行 `doctor` 检查。
 - 更新后无法自动连接：确认插件和 MCP Server 已同时更新；必要时重新执行 `pair`。
 
-更多客户端示例见[主机配置](hosts.zh-CN.md)，安全边界见[安全说明](security.zh-CN.md)。
+更多客户端示例见[主机配置](hosts.md)，安全边界见[安全说明](security.md)。

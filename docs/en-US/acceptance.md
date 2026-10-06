@@ -1,6 +1,6 @@
 # End-to-end acceptance runbook
 
-[中文版](acceptance.zh-CN.md)
+[中文版](../zh-CN/acceptance.md)
 
 Run `pnpm build:release` before manual acceptance. Perform the user path from the generated Figma ZIP, npm tarball, and Agent Plugin ZIP, not from workspace entry points. Use a disposable Figma page for mutation scenarios.
 
@@ -20,7 +20,7 @@ Do not continue acceptance if this gate fails.
 
 ## 2. Connection and read path
 
-1. Start Codex with the installed Agent Plugin. Repeat the essential connection check once with the manual fallback in `docs/hosts.md`.
+1. Start Codex with the installed Agent Plugin. Repeat the essential connection check once with the manual fallback in `docs/en-US/hosts.md`.
 2. Call `figma_status`; confirm authenticated protocol v4, file/page metadata, selection summary, and the `design-plan-v1`, `asset-staging-v1`, `font-catalog-v1`, and `design-resources-v1` capabilities.
 3. Close the plugin and call it again; confirm `PLUGIN_NOT_CONNECTED` returns in about one second rather than hanging.
 4. Reopen the plugin and confirm automatic reconnection.
