@@ -28,9 +28,9 @@ claude mcp add --scope user --transport stdio figma-local-agent -- npx.cmd -y fi
 claude mcp add --scope user --transport stdio figma-local-agent -- npx.cmd -y figma-local-agent-mcp@0.9.0 serve
 ```
 
-Direct MCP configuration exposes the same 23 tools as the Agent Plugin, but does not install its workflow Skill automatically. See the [complete direct MCP guide](https://github.com/Lancasteerr/figma_bridge_agent/blob/v0.9.0/docs/en-US/install-mcp-server.md).
+Direct MCP configuration exposes the same 23 tools as the Agent Plugin, but does not install its workflow Skill automatically. See the [complete direct MCP guide](https://github.com/Lancasteerr/figma_bridge_agent/blob/master/docs/en-US/install-mcp-server.md).
 
-直接配置 MCP 会公开与 Agent Plugin 相同的 23 个工具，但不会自动安装其中的工作流 Skill。完整步骤见[直接 MCP 指南](https://github.com/Lancasteerr/figma_bridge_agent/blob/v0.9.0/docs/zh-CN/install-mcp-server.md)。
+直接配置 MCP 会公开与 Agent Plugin 相同的 23 个工具，但不会自动安装其中的工作流 Skill。完整步骤见[直接 MCP 指南](https://github.com/Lancasteerr/figma_bridge_agent/blob/master/docs/zh-CN/install-mcp-server.md)。
 
 The matching Figma plugin ZIP, Agent Plugin, and complete bilingual documentation are available from the [GitHub repository](https://github.com/Lancasteerr/figma_bridge_agent).
 

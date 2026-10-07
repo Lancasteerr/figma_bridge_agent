@@ -111,22 +111,29 @@ jobs:
 
           1. Download \`figma-agent-bridge-plugin-development.zip\` and \`figma-local-agent-mcp-development.tgz\` from this release.
           2. Extract the plugin ZIP and import \`figma-agent-bridge-plugin/manifest.json\` through **Figma Desktop → Plugins → Development → Import plugin from manifest**.
-          3. From the directory containing the tarball, run:
+          3. Move the tarball to a stable absolute path, then pair through the package CLI:
 
              \`\`\`powershell
-             npx -y ./figma-local-agent-mcp-development.tgz pair
+             npm exec --yes --package="file:C:/Tools/figma-agent/figma-local-agent-mcp-development.tgz" -- figma-local-agent-mcp pair
              \`\`\`
 
           Configure the MCP host with the same local tarball:
 
           \`\`\`json
           {
-            "command": "npx.cmd",
-            "args": ["-y", "./figma-local-agent-mcp-development.tgz", "serve"]
+            "command": "npm.cmd",
+            "args": [
+              "exec",
+              "--yes",
+              "--package=file:C:/Tools/figma-agent/figma-local-agent-mcp-development.tgz",
+              "--",
+              "figma-local-agent-mcp",
+              "serve"
+            ]
           }
           \`\`\`
 
-          Always use the plugin ZIP and tarball from this same release. Verify the files with \`SHA256SUMS\` when needed. This rolling release is also available at [${release_url}](${release_url}).
+          Always use the plugin ZIP and tarball from this same release, and keep the absolute tarball path in the MCP configuration. Verify the files with \`SHA256SUMS\` when needed. This rolling release is also available at [${release_url}](${release_url}).
           EOF
       - name: Publish rolling development release
         shell: bash
