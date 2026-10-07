@@ -331,7 +331,7 @@ figma_bridge_agent/
 ├── plugins/
 │   └── figma-local-agent/     # 可移植 Agent Plugin、MCP 配置和工作流 Skill
 ├── docs/
-│   ├── zh-CN/                 # 中文架构、配置、安全、验收与发布文档
+│   ├── zh-CN/                 # 中文架构、配置、安全与验收文档
 │   └── en-US/                 # 对应英文文档
 └── scripts/                   # 发布产物生成与校验脚本
 ```
@@ -352,9 +352,6 @@ pnpm build:release
 - [架构与安全模型](docs/zh-CN/architecture.md)
 - [安全说明](docs/zh-CN/security.md)
 - [验收运行手册](docs/zh-CN/acceptance.md)
-- [手动发布手册](docs/zh-CN/releasing.md)
-
-Owner 应遵循手动发布手册；仅推送提交或 tag 不会自动发布正式版本。
 
 ## 版本范围
 

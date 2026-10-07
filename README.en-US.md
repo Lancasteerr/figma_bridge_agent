@@ -331,7 +331,7 @@ figma_bridge_agent/
 ├── plugins/
 │   └── figma-local-agent/     # Portable Agent Plugin, MCP configuration, and workflow Skill
 ├── docs/
-│   ├── zh-CN/                 # Chinese architecture, configuration, security, acceptance, and release docs
+│   ├── zh-CN/                 # Chinese architecture, configuration, security, and acceptance docs
 │   └── en-US/                 # Matching English documentation
 └── scripts/                   # Release artifact generation and validation
 ```
@@ -352,9 +352,6 @@ Further reading:
 - [Architecture and security model](docs/en-US/architecture.md)
 - [Security notes](docs/en-US/security.md)
 - [Acceptance runbook](docs/en-US/acceptance.md)
-- [Manual release runbook](docs/en-US/releasing.md)
-
-Owners should follow the manual release runbook. Pushing a commit or tag alone does not publish an official release.
 
 ## Version scope
 
