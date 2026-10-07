@@ -1,6 +1,6 @@
 # 开发指南
 
-[文档首页](README.md)
+[English](../en-US/development.md) · [文档首页](README.md)
 
 本项目采用 pnpm Monorepo，包含本地 MCP Server、Figma 开发插件、共享协议、测试支持包和可移植 Agent Plugin。本页面向希望阅读、修改或验证源码的贡献者。
 

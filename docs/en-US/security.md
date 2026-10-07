@@ -1,6 +1,6 @@
 # Security notes
 
-[中文版](../zh-CN/security.md)
+[中文版](../zh-CN/security.md) · [Documentation home](README.md)
 
 This project is a local development tool, not a remote service.
 
@@ -30,4 +30,4 @@ This project is a local development tool, not a remote service.
 
 ## Explicit non-goals
 
-There is no arbitrary script tool, source mutation switch, general delete, instance detach, Team Library crawler, OAuth flow, remote access, multi-host arbitration, or collaboration synchronization in v0.2.
+The current release has no arbitrary script tool, source mutation switch, general delete, Instance detach, Team Library crawler, OAuth flow, remote access, multi-host arbitration, or collaboration synchronization.

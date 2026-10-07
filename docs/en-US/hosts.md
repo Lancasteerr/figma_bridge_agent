@@ -1,6 +1,6 @@
 # MCP host configuration on Windows
 
-[中文版](../zh-CN/hosts.md)
+[中文版](../zh-CN/hosts.md) · [Documentation home](README.md)
 
 Agent Plugins 1.0 clients should prefer the repository marketplace flow in the main README. This page is the manual fallback for hosts that cannot install the portable Agent Plugin. All hosts run the same stdio command, and the package version must equal the downloaded Figma plugin ZIP version:
 

@@ -1,6 +1,6 @@
 # Architecture and safety model
 
-[中文版](../zh-CN/architecture.md)
+[中文版](../zh-CN/architecture.md) · [Documentation home](README.md)
 
 The portable Agent Plugin is a distribution layer above the MCP host. It installs workflow guidance and the existing stdio launch configuration, but it is not a new runtime hop and does not receive Figma data or credentials. Removing it and configuring the same command manually produces the identical process and trust boundaries below. Because the bridge binds to local loopback, remote-only environments such as ChatGPT Web and Codex Cloud are outside this architecture.
 

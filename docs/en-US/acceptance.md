@@ -1,8 +1,8 @@
 # End-to-end acceptance runbook
 
-[中文版](../zh-CN/acceptance.md)
+[中文版](../zh-CN/acceptance.md) · [Documentation home](README.md)
 
-Run `pnpm build:release` before manual acceptance. Perform the user path from the generated Figma ZIP, npm tarball, and Agent Plugin ZIP, not from workspace entry points. Use a disposable Figma page for mutation scenarios.
+This runbook is for contributors validating candidate distribution artifacts. Run `pnpm build:release` before manual acceptance. Perform the user path from the generated Figma ZIP, npm tarball, and Agent Plugin ZIP, not from workspace entry points. Use a disposable Figma page for mutation scenarios.
 
 ## 1. Distribution and pairing gate
 

@@ -1,6 +1,6 @@
 # Local Figma Agent 文档
 
-[项目首页](../../README.md)
+[English](../en-US/README.md) · [项目首页](../../README.md)
 
 这里的文档面向 Local Figma Agent 的使用者、集成者和贡献者。若只想完成首次安装，请从[安装与配置](configuration.md)开始。
 

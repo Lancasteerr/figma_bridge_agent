@@ -1,8 +1,8 @@
 # Installation and configuration
 
-[中文版](../zh-CN/configuration.md)
+[中文版](../zh-CN/configuration.md) · [Documentation home](README.md)
 
-This guide covers three supported configurations: the stable npm release, the rolling Development build, and a build compiled from source. Whichever option you choose, the Figma plugin and MCP Server must come from the same version or the same build. Do not mix them.
+This guide covers three supported configurations: the stable npm release, the rolling Development build, and a build compiled from source. Whichever option you choose, the Figma plugin and MCP Server must come from the same version or the same build. Do not mix them. If you plan to change the source, also read the [development guide](development.md).
 
 ## Prerequisites
 

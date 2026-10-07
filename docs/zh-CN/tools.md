@@ -1,6 +1,6 @@
 # MCP 工具参考
 
-[文档首页](README.md)
+[English](../en-US/tools.md) · [文档首页](README.md)
 
 MCP Server 公开固定集合的 23 个工具。“Figma 写入”表示是否会改变当前 Figma 文档；读取、导出和内存素材暂存不会修改文档。
 
