@@ -87,7 +87,7 @@ artifacts/
 node .\apps\mcp-server\dist\cli.js pair
 ```
 
-MCP 客户端应使用同一次构建产生的 `apps/mcp-server/dist/cli.js` 绝对路径并传入 `serve`。完整配置示例见[安装与配置](configuration.md)。不要把本地插件与不同提交或不同版本的 MCP Server 混用。
+MCP 客户端应使用同一次构建产生的 `apps/mcp-server/dist/cli.js` 绝对路径并传入 `serve`。完整配置示例见[直接配置 MCP Server](install-mcp-server.md#从源码运行)。不要把本地插件与不同提交或不同版本的 MCP Server 混用。
 
 ## 修改跨进程契约
 

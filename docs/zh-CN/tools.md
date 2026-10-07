@@ -52,7 +52,7 @@ MCP Server 公开固定集合的 23 个工具。“Figma 写入”表示是否�
 | `figma_validate_design_plan` | 只读验证完整 DesignPlan，返回五分钟内单次有效的 ID | 否                  |
 | `figma_apply_design_plan`    | 使用有效验证 ID 原子创建完整 Proposal              | 是，仅新建 Proposal |
 
-DesignPlan v1 的节点结构和约束见随 Agent Plugin 分发的 [DesignPlan v1 reference](../../plugins/figma-local-agent/skills/figma-local-agent/references/design-plan-v1.md)。
+DesignPlan v1 的节点结构和约束见 [DesignPlan v1 reference](../../plugins/figma-local-agent/skills/figma-local-agent/references/design-plan-v1.md)。Agent Plugin 会自动包含该 reference；直接配置 MCP Server 的用户应在构建计划前从仓库阅读它。
 
 ## 推荐调用流程
 

@@ -14,16 +14,17 @@ This runbook is for contributors validating candidate distribution artifacts. Ru
 6. Restart Figma and the MCP host; confirm the plugin reconnects without another pairing.
 7. Run `devices list`, revoke the connected device, and confirm the plugin immediately returns to the pairing screen.
 8. Run `pnpm check:agent-marketplaces`. Confirm the three canonical indexes and the generated Codex, Cursor, and Copilot entry points are synchronized.
-9. After npm `0.9.0` and GitHub tag `v0.9.0` are public, run `codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v0.9.0`, install **Local Figma Agent** through `/plugins`, start a new session, and confirm exactly 23 tools are discovered without manual MCP configuration.
+9. After npm `0.9.0` and GitHub tag `v0.9.0` are public, run `codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v0.9.0`, install **Local Figma Agent** through `/plugins`, start a new session, and confirm exactly 23 tools and the bundled Skill are discovered without manual MCP configuration.
 10. In Copilot CLI, run `copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v0.9.0` and `copilot plugin install figma-local-agent@figma-local-agent`; start a new session and confirm the same 23 tools and Skill are available.
 11. In a Cursor team, import `https://github.com/Lancasteerr/figma_bridge_agent` through **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo**. Install **Local Figma Agent** from **Customize** and confirm the same 23 tools and Skill are available.
-12. Inspect the Agent Plugin ZIP and confirm it contains `skills/figma-local-agent/references/design-plan-v1.md` but none of the repository-level marketplace files.
+12. In a clean Claude Code configuration without the Agent Plugin, register the stable npm release using the [direct MCP guide](install-mcp-server.md#claude-code). Confirm the same 23 tools are available but the **Local Figma Agent** Skill is not installed automatically.
+13. Inspect the Agent Plugin ZIP and confirm it contains `skills/figma-local-agent/references/design-plan-v1.md` but none of the repository-level marketplace files.
 
 Do not continue acceptance if this gate fails.
 
 ## 2. Connection and read path
 
-1. Start Codex with the installed Agent Plugin. Repeat the essential connection check once with the manual fallback in `docs/en-US/hosts.md`.
+1. Start Codex with the installed Agent Plugin. Then repeat the essential connection check in a separate Claude Code configuration without that plugin, following the [direct MCP guide](install-mcp-server.md). Each client must load exactly one `figma-local-agent` Server.
 2. Call `figma_status`; confirm authenticated protocol v4, file/page metadata, selection summary, and the `design-plan-v1`, `asset-staging-v1`, `font-catalog-v1`, and `design-resources-v1` capabilities.
 3. Close the plugin and call it again; confirm `PLUGIN_NOT_CONNECTED` returns in about one second rather than hanging.
 4. Reopen the plugin and confirm automatic reconnection.

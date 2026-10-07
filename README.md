@@ -50,26 +50,16 @@ Agent 的修改会出现在 Figma 画布上的隔离 Proposal 中，便于与源
 - Figma Desktop
 - 支持本地 stdio MCP 或 Agent Plugins 1.0 的 Coding Agent
 
-普通用户不需要 Git、pnpm 或源码仓库。Figma 插件 ZIP、MCP npm 包和 Agent Plugin 必须来自同一版本；以下示例使用当前稳定版 `0.9.0`。
+普通用户不需要 Git、pnpm 或源码仓库。Figma 插件 ZIP、MCP npm 包和 Agent Plugin 必须来自同一版本；当前稳定版为 `0.9.0`。
 
-### 1. 安装 Agent Plugin
+### 1. 选择一种安装方式
 
-支持 Agent Plugins 1.0 的客户端应优先使用可移植 Agent Plugin。三个平台使用同一个插件目录，但通过各自的 marketplace 入口安装。
+两种方式公开相同的 23 个 MCP 工具，只需选择其中一种：
 
-Codex 先导入固定版本的 marketplace：
+- **安装 Agent Plugin**：适用于本项目当前已适配的 Codex、Cursor 和 GitHub Copilot；自动提供 MCP 配置及安全 Proposal 工作流 Skill。请按[插件安装指南](docs/zh-CN/install-plugin.md)操作。
+- **直接配置 MCP Server**：适用于 Claude Code、Claude Desktop及其他本地 stdio 主机；需要手工添加 MCP 配置，且不会自动安装 Skill。请按[直接 MCP 安装指南](docs/zh-CN/install-mcp-server.md)操作。
 
-```powershell
-codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v0.9.0
-```
-
-然后运行 `/plugins`，从 `figma-local-agent` marketplace 安装 **Local Figma Agent**。GitHub Copilot CLI 使用：
-
-```powershell
-copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v0.9.0
-copilot plugin install figma-local-agent@figma-local-agent
-```
-
-Cursor 团队管理员可在 **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo** 中导入 `https://github.com/Lancasteerr/figma_bridge_agent`，开发者随后从 **Customize** 安装。完整平台步骤、Copilot 直接安装回退和 Cursor 本地开发方式见[安装与配置](docs/zh-CN/configuration.md)；不支持 Agent Plugins 的客户端见 [Windows MCP 主机配置](docs/zh-CN/hosts.md)。
+不要同时安装 Agent Plugin 和手工注册同名 MCP Server，否则客户端可能加载重复工具。完整对比见[选择安装方式](docs/zh-CN/configuration.md)。
 
 ### 2. 导入 Figma 插件
 
@@ -95,7 +85,7 @@ npx -y figma-local-agent-mcp@0.9.0 pair
 
 重启 MCP 客户端或新建 Agent 会话，然后让 Agent 调用 `figma_status`。正常结果会包含协议 v4、当前 Figma 文件、页面、选区和 Bridge 能力。
 
-Development build、源码构建和完整故障排查见 [安装与配置](docs/zh-CN/configuration.md)。
+Development build、源码构建和直接 MCP 故障排查见[直接 MCP 安装指南](docs/zh-CN/install-mcp-server.md)。
 
 ## 基本使用
 
@@ -142,14 +132,16 @@ Figma 插件 UI 与主进程
 
 ## 文档
 
-| 文档                                         | 适用对象             | 内容                                        |
-| -------------------------------------------- | -------------------- | ------------------------------------------- |
-| [文档首页](docs/zh-CN/README.md)             | 所有人               | 按任务选择文档                              |
-| [安装与配置](docs/zh-CN/configuration.md)    | 使用者               | 稳定版、Development build、源码构建与排障   |
-| [MCP 工具参考](docs/zh-CN/tools.md)          | 使用者、Agent 开发者 | 23 个工具、写入边界和调用流程               |
-| [架构与安全模型](docs/zh-CN/architecture.md) | 开发者               | 进程、协议、Proposal 和 DesignPlan 生命周期 |
-| [开发指南](docs/zh-CN/development.md)        | 贡献者               | Monorepo、常用命令、测试和构建              |
-| [端到端验收](docs/zh-CN/acceptance.md)       | 贡献者               | 发行产物和 Figma 场景验收                   |
+| 文档                                              | 适用对象             | 内容                                        |
+| ------------------------------------------------- | -------------------- | ------------------------------------------- |
+| [文档首页](docs/zh-CN/README.md)                  | 所有人               | 按任务选择文档                              |
+| [选择安装方式](docs/zh-CN/configuration.md)       | 使用者               | 对比插件与直接 MCP 两条路线                 |
+| [安装 Agent Plugin](docs/zh-CN/install-plugin.md) | 插件客户端用户       | Codex、Cursor、Copilot 稳定版安装           |
+| [直接配置 MCP](docs/zh-CN/install-mcp-server.md)  | stdio 主机用户       | Claude、通用主机、Development 与源码构建    |
+| [MCP 工具参考](docs/zh-CN/tools.md)               | 使用者、Agent 开发者 | 23 个工具、写入边界和调用流程               |
+| [架构与安全模型](docs/zh-CN/architecture.md)      | 开发者               | 进程、协议、Proposal 和 DesignPlan 生命周期 |
+| [开发指南](docs/zh-CN/development.md)             | 贡献者               | Monorepo、常用命令、测试和构建              |
+| [端到端验收](docs/zh-CN/acceptance.md)            | 贡献者               | 发行产物和 Figma 场景验收                   |
 
 ## 本地开发
 

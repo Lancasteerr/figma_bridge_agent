@@ -2,12 +2,13 @@
 
 [中文版](../zh-CN/README.md) · [Project home](../../README.en-US.md)
 
-These documents are for Local Figma Agent users, integrators, and contributors. If you only need to install it for the first time, start with [installation and configuration](configuration.md).
+These documents are for Local Figma Agent users, integrators, and contributors. If you only need to install it for the first time, start by [choosing an installation method](configuration.md).
 
 ## Users
 
-- [Installation and configuration](configuration.md): choose a stable release, Development build, or source build; pair the plugin; and troubleshoot common problems.
-- [Windows MCP host configuration](hosts.md): manually configure the stdio Server in Codex, Claude, ChatGPT Desktop, Cursor, and other hosts.
+- [Choose an installation method](configuration.md): compare the Agent Plugin and direct MCP routes.
+- [Install the Agent Plugin](install-plugin.md): install the stable plugin and Skill in Codex, Cursor, or GitHub Copilot.
+- [Configure the MCP Server directly](install-mcp-server.md): configure a stable, Development, or source build in Claude Code, Claude Desktop, and other stdio hosts.
 - [MCP tool reference](tools.md): understand the 23 public tools, their write boundaries, and recommended call sequences.
 - [Security notes](security.md): understand credential, network, asset, Proposal, and temporary-file boundaries.
 
@@ -19,6 +20,6 @@ These documents are for Local Figma Agent users, integrators, and contributors. 
 
 ## Suggested paths
 
-- First-time user: installation and configuration → MCP tool reference → security notes.
-- New MCP host integration: host configuration → architecture and safety model.
+- First-time user: choose an installation method → matching installation guide → MCP tool reference → security notes.
+- New MCP host integration: configure the MCP Server directly → architecture and safety model.
 - Code changes: development guide → architecture and safety model → end-to-end acceptance.

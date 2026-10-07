@@ -50,26 +50,16 @@ Agent changes appear as an isolated Proposal on the Figma canvas, ready to revie
 - Figma Desktop
 - A coding agent with local stdio MCP or Agent Plugins 1.0 support
 
-Regular users do not need Git, pnpm, or a source checkout. The Figma plugin ZIP, MCP npm package, and Agent Plugin must come from the same version. The examples below use the current stable version, `0.9.0`.
+Regular users do not need Git, pnpm, or a source checkout. The Figma plugin ZIP, MCP npm package, and Agent Plugin must come from the same version. The current stable version is `0.9.0`.
 
-### 1. Install the Agent Plugin
+### 1. Choose one installation method
 
-Clients with Agent Plugins 1.0 support should prefer the portable Agent Plugin. All three platforms use the same plugin directory through platform-specific marketplace entry points.
+Both methods expose the same 23 MCP tools. Choose exactly one:
 
-First add the version-pinned marketplace to Codex:
+- **Install the Agent Plugin**: for Codex, Cursor, and GitHub Copilot, which currently have entry points maintained by this project. It automatically supplies the MCP configuration and safe Proposal workflow Skill. Follow the [Agent Plugin installation guide](docs/en-US/install-plugin.md).
+- **Configure the MCP Server directly**: for Claude Code, Claude Desktop, and other local stdio hosts. You add the MCP configuration manually, and the Skill is not installed automatically. Follow the [direct MCP installation guide](docs/en-US/install-mcp-server.md).
 
-```powershell
-codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v0.9.0
-```
-
-Then run `/plugins` and install **Local Figma Agent** from the `figma-local-agent` marketplace. For GitHub Copilot CLI:
-
-```powershell
-copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v0.9.0
-copilot plugin install figma-local-agent@figma-local-agent
-```
-
-Cursor team administrators can import `https://github.com/Lancasteerr/figma_bridge_agent` from **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo**. Developers then install it from **Customize**. See [installation and configuration](docs/en-US/configuration.md) for complete platform steps, the direct Copilot fallback, and Cursor local development. If the client does not support Agent Plugins, see [Windows MCP host configuration](docs/en-US/hosts.md).
+Do not install the Agent Plugin and manually register the same MCP Server at the same time, or the client may load duplicate tools. See [choose an installation method](docs/en-US/configuration.md) for the complete comparison.
 
 ### 2. Import the Figma plugin
 
@@ -95,7 +85,7 @@ Click **Codes match** only when the six-digit codes in the terminal and plugin a
 
 Restart the MCP client or open a new agent session, then ask the agent to call `figma_status`. A healthy result includes protocol v4, the current Figma file, page, selection, and Bridge capabilities.
 
-For Development builds, source builds, and complete troubleshooting, see [installation and configuration](docs/en-US/configuration.md).
+For Development builds, source builds, and direct MCP troubleshooting, see the [direct MCP installation guide](docs/en-US/install-mcp-server.md).
 
 ## Basic usage
 
@@ -142,14 +132,16 @@ See [security notes](docs/en-US/security.md) for complete boundaries and operati
 
 ## Documentation
 
-| Document                                                      | Audience                   | Contents                                                    |
-| ------------------------------------------------------------- | -------------------------- | ----------------------------------------------------------- |
-| [Documentation home](docs/en-US/README.md)                    | Everyone                   | Choose documentation by task                                |
-| [Installation and configuration](docs/en-US/configuration.md) | Users                      | Stable, Development, and source builds plus troubleshooting |
-| [MCP tool reference](docs/en-US/tools.md)                     | Users and agent developers | 23 tools, write boundaries, and call sequences              |
-| [Architecture and safety model](docs/en-US/architecture.md)   | Developers                 | Processes, protocol, Proposal, and DesignPlan lifecycles    |
-| [Development guide](docs/en-US/development.md)                | Contributors               | Monorepo, commands, tests, and builds                       |
-| [End-to-end acceptance](docs/en-US/acceptance.md)             | Contributors               | Distribution and Figma scenario validation                  |
+| Document                                                     | Audience                   | Contents                                                 |
+| ------------------------------------------------------------ | -------------------------- | -------------------------------------------------------- |
+| [Documentation home](docs/en-US/README.md)                   | Everyone                   | Choose documentation by task                             |
+| [Choose an installation method](docs/en-US/configuration.md) | Users                      | Compare the Agent Plugin and direct MCP routes           |
+| [Install the Agent Plugin](docs/en-US/install-plugin.md)     | Plugin client users        | Stable Codex, Cursor, and Copilot installation           |
+| [Configure MCP directly](docs/en-US/install-mcp-server.md)   | stdio host users           | Claude, generic hosts, Development, and source builds    |
+| [MCP tool reference](docs/en-US/tools.md)                    | Users and agent developers | 23 tools, write boundaries, and call sequences           |
+| [Architecture and safety model](docs/en-US/architecture.md)  | Developers                 | Processes, protocol, Proposal, and DesignPlan lifecycles |
+| [Development guide](docs/en-US/development.md)               | Contributors               | Monorepo, commands, tests, and builds                    |
+| [End-to-end acceptance](docs/en-US/acceptance.md)            | Contributors               | Distribution and Figma scenario validation               |
 
 ## Local development
 

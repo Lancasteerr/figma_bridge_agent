@@ -87,7 +87,7 @@ Run `pnpm build:release` first. You can import `apps/figma-plugin/dist/manifest.
 node .\apps\mcp-server\dist\cli.js pair
 ```
 
-Configure the MCP client with the absolute path to `apps/mcp-server/dist/cli.js` from the same build and pass `serve`. See [installation and configuration](configuration.md) for complete examples. Never mix a local plugin with an MCP Server from another commit or version.
+Configure the MCP client with the absolute path to `apps/mcp-server/dist/cli.js` from the same build and pass `serve`. See [configure the MCP Server directly](install-mcp-server.md#run-from-source) for complete examples. Never mix a local plugin with an MCP Server from another commit or version.
 
 ## Changing cross-process contracts
 

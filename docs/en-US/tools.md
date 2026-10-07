@@ -52,7 +52,7 @@ The MCP Server exposes a fixed set of 23 tools. “Writes to Figma” indicates 
 | `figma_validate_design_plan` | Read-only validation of a complete DesignPlan with a five-minute, single-use ID | No                     |
 | `figma_apply_design_plan`    | Atomically create a complete Proposal with a valid validation ID                | Yes, new Proposal only |
 
-For the DesignPlan v1 node structure and constraints, see the [DesignPlan v1 reference](../../plugins/figma-local-agent/skills/figma-local-agent/references/design-plan-v1.md) distributed with the Agent Plugin.
+For the DesignPlan v1 node structure and constraints, see the [DesignPlan v1 reference](../../plugins/figma-local-agent/skills/figma-local-agent/references/design-plan-v1.md). The Agent Plugin includes it automatically; direct MCP users should read the repository copy before constructing a plan.
 
 ## Recommended call sequences
 
