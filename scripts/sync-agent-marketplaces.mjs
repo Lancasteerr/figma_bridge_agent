@@ -50,6 +50,10 @@ async function formatJson(data, prettierConfig) {
   return format(JSON.stringify(data), { ...prettierConfig, parser: 'json' });
 }
 
+function normalizeLineEndings(value) {
+  return value.replace(/\r\n?/g, '\n');
+}
+
 function validatePortableMetadata(packageMetadata, plugin) {
   assert(
     /^\d+\.\d+\.\d+$/.test(packageMetadata.version),
@@ -201,7 +205,7 @@ export async function syncAgentMarketplaces({ workspace = defaultWorkspace, mode
         throw error;
       }
       assert(
-        output === marketplace.formatted,
+        normalizeLineEndings(output) === normalizeLineEndings(marketplace.formatted),
         `Generated ${marketplace.platform} marketplace is stale: ${marketplace.output}. Run pnpm sync:agent-marketplaces.`,
       );
     }

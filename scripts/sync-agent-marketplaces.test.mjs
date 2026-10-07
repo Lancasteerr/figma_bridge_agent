@@ -97,6 +97,17 @@ test('writes and validates every platform entry point', async () => {
   });
 });
 
+test('accepts CRLF in a generated entry point', async () => {
+  await withFixture(async ({ workspace }) => {
+    await syncAgentMarketplaces({ workspace, mode: 'write' });
+    const outputPath = resolve(workspace, MARKETPLACE_TARGETS[0].output);
+    const output = await readFile(outputPath, 'utf8');
+    await writeFile(outputPath, output.replace(/\r?\n/g, '\r\n'));
+
+    await syncAgentMarketplaces({ workspace, mode: 'check' });
+  });
+});
+
 test('reports a missing generated entry point', async () => {
   await withFixture(async ({ workspace }) => {
     await syncAgentMarketplaces({ workspace, mode: 'write' });
