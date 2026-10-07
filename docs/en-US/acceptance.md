@@ -13,8 +13,11 @@ This runbook is for contributors validating candidate distribution artifacts. Ru
 5. Confirm both surfaces show the same six-digit code, click **Codes match**, and verify the CLI reports success.
 6. Restart Figma and the MCP host; confirm the plugin reconnects without another pairing.
 7. Run `devices list`, revoke the connected device, and confirm the plugin immediately returns to the pairing screen.
-8. After npm `0.9.0` and GitHub tag `v0.9.0` are public, add `Lancasteerr/figma_bridge_agent` as a marketplace pinned to `v0.9.0`, install `figma-local-agent@figma-local-agent`, start a new session, and confirm the host discovers exactly 23 tools without manual MCP configuration.
-9. Inspect the Agent Plugin ZIP and confirm it contains `skills/figma-local-agent/references/design-plan-v1.md`.
+8. Run `pnpm check:agent-marketplaces`. Confirm the three canonical indexes and the generated Codex, Cursor, and Copilot entry points are synchronized.
+9. After npm `0.9.0` and GitHub tag `v0.9.0` are public, run `codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v0.9.0`, install **Local Figma Agent** through `/plugins`, start a new session, and confirm exactly 23 tools are discovered without manual MCP configuration.
+10. In Copilot CLI, run `copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v0.9.0` and `copilot plugin install figma-local-agent@figma-local-agent`; start a new session and confirm the same 23 tools and Skill are available.
+11. In a Cursor team, import `https://github.com/Lancasteerr/figma_bridge_agent` through **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo**. Install **Local Figma Agent** from **Customize** and confirm the same 23 tools and Skill are available.
+12. Inspect the Agent Plugin ZIP and confirm it contains `skills/figma-local-agent/references/design-plan-v1.md` but none of the repository-level marketplace files.
 
 Do not continue acceptance if this gate fails.
 

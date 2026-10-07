@@ -13,8 +13,11 @@
 5. 确认两端显示相同六位短码，点击 **Codes match**，并确认 CLI 报告成功。
 6. 重启 Figma 和 MCP 主机，确认无需再次配对即可自动连接。
 7. 运行 `devices list`，撤销当前设备，并确认插件立即返回配对界面。
-8. npm `0.9.0` 和 GitHub `v0.9.0` tag 公开后，将 `Lancasteerr/figma_bridge_agent` 作为固定到 `v0.9.0` 的 marketplace 添加，安装 `figma-local-agent@figma-local-agent`，新建会话，并确认无需手动配置 MCP 即可发现恰好 23 个工具。
-9. 检查 Agent Plugin ZIP，确认其中包含 `skills/figma-local-agent/references/design-plan-v1.md`。
+8. 运行 `pnpm check:agent-marketplaces`，确认三份源索引与生成的 Codex、Cursor、Copilot 固定入口同步。
+9. npm `0.9.0` 和 GitHub `v0.9.0` tag 公开后，运行 `codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v0.9.0`，通过 `/plugins` 安装 **Local Figma Agent**，新建会话，并确认无需手工配置 MCP 即可发现恰好 23 个工具。
+10. 在 Copilot CLI 中运行 `copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v0.9.0` 和 `copilot plugin install figma-local-agent@figma-local-agent`；新建会话并确认相同的 23 个工具和 Skill 可用。
+11. 在 Cursor 团队中通过 **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo** 导入 `https://github.com/Lancasteerr/figma_bridge_agent`；从 **Customize** 安装 **Local Figma Agent**，并确认相同的 23 个工具和 Skill 可用。
+12. 检查 Agent Plugin ZIP，确认其中包含 `skills/figma-local-agent/references/design-plan-v1.md`，但不包含任何仓库级 marketplace 文件。
 
 如果此门禁失败，不要继续验收。
 

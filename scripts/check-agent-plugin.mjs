@@ -17,7 +17,6 @@ export function getAgentPluginArchiveName(version) {
 
 const workspace = resolve(import.meta.dirname, '..');
 const pluginRoot = resolve(workspace, 'plugins/figma-local-agent');
-const marketplacePath = resolve(workspace, '.agents/plugins/marketplace.json');
 const packagePaths = [
   'package.json',
   'apps/figma-plugin/package.json',
@@ -85,22 +84,6 @@ export async function checkAgentPlugin() {
     'Agent Plugin MCP arguments must pin the matching npm release.',
   );
   assert(!('env' in server), 'Agent Plugin MCP server must not inject environment variables.');
-
-  const marketplace = await readJson(marketplacePath);
-  assert(marketplace.name === 'figma-local-agent', 'Marketplace name is invalid.');
-  assert(marketplace.plugins?.length === 1, 'Marketplace must expose exactly one plugin.');
-  const entry = marketplace.plugins[0];
-  assert(entry.name === plugin.name, 'Marketplace plugin name must match the manifest.');
-  assert(entry.source?.source === 'local', 'Marketplace plugin source must be local.');
-  assert(
-    entry.source?.path === './plugins/figma-local-agent',
-    'Marketplace source path must target the portable plugin directory.',
-  );
-  assert(entry.policy?.installation === 'AVAILABLE', 'Marketplace installation policy is invalid.');
-  assert(
-    entry.policy?.authentication === 'ON_INSTALL',
-    'Marketplace authentication policy is invalid.',
-  );
 
   for (const file of AGENT_PLUGIN_FILES) {
     assert(

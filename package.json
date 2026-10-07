@@ -11,14 +11,16 @@
     "build": "pnpm -r --if-present build",
     "build:release": "pnpm check && pnpm --filter @figma-agent/figma-plugin build -- --release && node scripts/release-artifacts.mjs && pnpm check:agent-plugin-archive",
     "check:agent-plugin": "node scripts/check-agent-plugin.mjs",
+    "sync:agent-marketplaces": "node scripts/sync-agent-marketplaces.mjs --write",
+    "check:agent-marketplaces": "node scripts/sync-agent-marketplaces.mjs --check",
     "check:agent-plugin-archive": "node scripts/check-agent-plugin-archive.mjs",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:scripts": "node --test scripts/check-agent-plugin-archive.test.mjs",
+    "test:scripts": "node --test scripts/check-agent-plugin-archive.test.mjs scripts/sync-agent-marketplaces.test.mjs",
     "test": "pnpm test:scripts && vitest run",
-    "check": "pnpm check:agent-plugin && pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build"
+    "check": "pnpm check:agent-plugin && pnpm check:agent-marketplaces && pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",

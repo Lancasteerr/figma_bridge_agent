@@ -54,14 +54,22 @@ Regular users do not need Git, pnpm, or a source checkout. The Figma plugin ZIP,
 
 ### 1. Install the Agent Plugin
 
-Clients with Agent Plugins 1.0 support should prefer the portable Agent Plugin. For Codex CLI:
+Clients with Agent Plugins 1.0 support should prefer the portable Agent Plugin. All three platforms use the same plugin directory through platform-specific marketplace entry points.
+
+First add the version-pinned marketplace to Codex:
 
 ```powershell
 codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v0.9.0
-codex plugin add figma-local-agent@figma-local-agent
 ```
 
-After adding the marketplace, restart ChatGPT Desktop and install **Local Figma Agent** from the Plugins Directory. Other compatible clients can import `plugins/figma-local-agent` from the same tag. If the client does not support Agent Plugins, see [Windows MCP host configuration](docs/en-US/hosts.md).
+Then run `/plugins` and install **Local Figma Agent** from the `figma-local-agent` marketplace. For GitHub Copilot CLI:
+
+```powershell
+copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v0.9.0
+copilot plugin install figma-local-agent@figma-local-agent
+```
+
+Cursor team administrators can import `https://github.com/Lancasteerr/figma_bridge_agent` from **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo**. Developers then install it from **Customize**. See [installation and configuration](docs/en-US/configuration.md) for complete platform steps, the direct Copilot fallback, and Cursor local development. If the client does not support Agent Plugins, see [Windows MCP host configuration](docs/en-US/hosts.md).
 
 ### 2. Import the Figma plugin
 

@@ -11,6 +11,7 @@ import {
   checkAgentPlugin,
   getAgentPluginArchiveName,
 } from './check-agent-plugin.mjs';
+import { syncAgentMarketplaces } from './sync-agent-marketplaces.mjs';
 
 const workspace = resolve(import.meta.dirname, '..');
 const artifacts = resolve(workspace, 'artifacts');
@@ -28,6 +29,7 @@ if (pluginPackage.version !== serverPackage.version) {
 }
 const version = serverPackage.version;
 const checkedAgentPlugin = await checkAgentPlugin();
+await syncAgentMarketplaces({ mode: 'check' });
 if (checkedAgentPlugin.version !== version) {
   throw new Error('Agent Plugin and npm package versions must match.');
 }

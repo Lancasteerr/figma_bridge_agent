@@ -24,6 +24,10 @@ pnpm install --frozen-lockfile
 
 ```text
 figma_bridge_agent/
+├── .agents/marketplaces/     # Codex、Cursor、Copilot marketplace 源索引
+├── .agents/plugins/          # 生成的 Codex marketplace 入口
+├── .cursor-plugin/           # 生成的 Cursor marketplace 入口
+├── .github/plugin/           # 生成的 Copilot marketplace 入口
 ├── apps/
 │   ├── figma-plugin/          # Figma UI、主进程、读取与 Proposal 执行
 │   └── mcp-server/            # CLI、stdio Adapter、Daemon 与安全边界
@@ -53,7 +57,15 @@ pnpm --filter @figma-agent/figma-plugin dev
 
 # 完整检查并生成本地发行包
 pnpm build:release
+
+# 重新生成需要提交的平台 marketplace 入口
+pnpm sync:agent-marketplaces
+
+# 校验 marketplace schema、元数据和生成入口
+pnpm check:agent-marketplaces
 ```
+
+只编辑 `.agents/marketplaces/` 下的平台源索引，然后运行 `pnpm sync:agent-marketplaces`。不要直接编辑 `.agents/plugins/`、`.cursor-plugin/` 或 `.github/plugin/` 中的生成文件。marketplace 检查会确保插件名称、版本、source 路径、作者、描述和仓库元数据与可移植 `plugin.json` 保持一致。
 
 `pnpm build:release` 会生成：
 
@@ -93,7 +105,7 @@ Server 与 Figma 插件通过 `packages/protocol` 中的 Zod schema 共享 RPC�
 - 协议测试覆盖 schema、版本和边界值。
 - MCP 工具契约测试锁定公开工具名称、注解和递归输入结构。
 - 插件单元测试覆盖读取、复制范围、指纹、回滚、资源和 DesignPlan。
-- 脚本测试覆盖发行归档和可移植 Agent Plugin 的内容。
+- 脚本测试覆盖发行归档、可移植 Agent Plugin 内容，以及 marketplace 适配器的生成和漂移检测。
 - [端到端验收](acceptance.md)使用真实 ZIP、tgz 和 Figma Desktop 验证普通用户路径。
 
-提交前至少运行 `pnpm check`。涉及发行格式、插件清单、Agent Plugin 或版本字段时，还需要运行 `pnpm build:release` 并检查生成的归档。
+提交前至少运行 `pnpm check`。修改 marketplace 源索引后应先运行 `pnpm sync:agent-marketplaces`。涉及发行格式、插件清单、Agent Plugin 或版本字段时，还需要运行 `pnpm build:release` 并检查生成的归档。

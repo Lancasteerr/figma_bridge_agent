@@ -54,14 +54,22 @@ Agent 的修改会出现在 Figma 画布上的隔离 Proposal 中，便于与源
 
 ### 1. 安装 Agent Plugin
 
-支持 Agent Plugins 1.0 的客户端应优先使用可移植 Agent Plugin。Codex CLI 示例：
+支持 Agent Plugins 1.0 的客户端应优先使用可移植 Agent Plugin。三个平台使用同一个插件目录，但通过各自的 marketplace 入口安装。
+
+Codex 先导入固定版本的 marketplace：
 
 ```powershell
 codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v0.9.0
-codex plugin add figma-local-agent@figma-local-agent
 ```
 
-ChatGPT Desktop 添加 marketplace 后需要重启应用，再从 Plugins Directory 安装 **Local Figma Agent**。其他兼容客户端可以从同一 tag 导入 `plugins/figma-local-agent`。不支持 Agent Plugins 的客户端见 [Windows MCP 主机配置](docs/zh-CN/hosts.md)。
+然后运行 `/plugins`，从 `figma-local-agent` marketplace 安装 **Local Figma Agent**。GitHub Copilot CLI 使用：
+
+```powershell
+copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v0.9.0
+copilot plugin install figma-local-agent@figma-local-agent
+```
+
+Cursor 团队管理员可在 **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo** 中导入 `https://github.com/Lancasteerr/figma_bridge_agent`，开发者随后从 **Customize** 安装。完整平台步骤、Copilot 直接安装回退和 Cursor 本地开发方式见[安装与配置](docs/zh-CN/configuration.md)；不支持 Agent Plugins 的客户端见 [Windows MCP 主机配置](docs/zh-CN/hosts.md)。
 
 ### 2. 导入 Figma 插件
 

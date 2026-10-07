@@ -1,0 +1,22 @@
+{
+  "name": "figma-local-agent",
+  "owner": { "name": "Lancasteerr" },
+  "metadata": {
+    "description": "Local Figma Agent plugins for safe, local-first Figma design workflows.",
+    "version": "0.9.0"
+  },
+  "plugins": [
+    {
+      "name": "figma-local-agent",
+      "source": "plugins/figma-local-agent",
+      "description": "Read local Figma designs and create reviewable Proposal changes through the Local Figma Agent Bridge.",
+      "version": "0.9.0",
+      "author": { "name": "Lancasteerr", "url": "https://github.com/Lancasteerr" },
+      "homepage": "https://github.com/Lancasteerr/figma_bridge_agent",
+      "repository": "https://github.com/Lancasteerr/figma_bridge_agent",
+      "license": "MIT",
+      "keywords": ["figma", "design", "mcp", "local-first"],
+      "category": "Productivity"
+    }
+  ]
+}

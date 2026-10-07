@@ -44,14 +44,44 @@ The terminal and plugin each display a six-digit code. Click **Codes match** in 
 
 ### 3. Install the portable Agent Plugin (recommended)
 
-Agent Plugins 1.0 clients can import the version-pinned repository instead of maintaining an MCP configuration manually. For Codex CLI and ChatGPT desktop, add the repository marketplace and install its single plugin:
+Agent Plugins 1.0 clients can import the repository instead of maintaining an MCP configuration manually. Codex, Cursor, and GitHub Copilot share the portable plugin under `plugins/figma-local-agent`; the repository only provides a different marketplace index entry point for each platform.
+
+#### Codex CLI and ChatGPT desktop
+
+First add the version-pinned repository marketplace:
 
 ```powershell
 codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v0.9.0
-codex plugin add figma-local-agent@figma-local-agent
 ```
 
-Restart ChatGPT desktop or start a new Codex session after installation. The plugin's `mcp.json` starts `figma-local-agent-mcp@0.9.0` through stdio and its Skill teaches the agent the safe Proposal workflow. Other compatible clients can import `plugins/figma-local-agent` from tag `v0.9.0` according to their Agent Plugins installation UI.
+Then run `/plugins` in Codex, choose the `figma-local-agent` marketplace, and install **Local Figma Agent**. Restart ChatGPT desktop or start a new Codex session after installation.
+
+#### GitHub Copilot CLI
+
+Copilot uses `#` to pin the Git ref, then installs from the registered marketplace:
+
+```powershell
+copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v0.9.0
+copilot plugin install figma-local-agent@figma-local-agent
+```
+
+To install only the plugin without registering its marketplace, use the direct fallback:
+
+```powershell
+copilot plugin install Lancasteerr/figma_bridge_agent:plugins/figma-local-agent
+```
+
+#### Cursor
+
+A Cursor team administrator opens **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo** and imports:
+
+```text
+https://github.com/Lancasteerr/figma_bridge_agent
+```
+
+After the marketplace is saved, developers find **Local Figma Agent** under **Customize**, select **Install**, and choose user or project scope. Cursor currently has no stable public marketplace CLI equivalent to the Codex and Copilot commands. For local development, copy `plugins/figma-local-agent` to `~/.cursor/plugins/local/figma-local-agent` and reload Cursor. When using that local path on a Team edition, an administrator must also allow Local Plugin Imports.
+
+All three platforms install the same root `plugin.json`, `mcp.json`, and `skills/`. The plugin's `mcp.json` starts `figma-local-agent-mcp@0.9.0` through stdio, and its Skill teaches the safe Proposal workflow. If the plugin does not appear, refresh or re-import the marketplace, confirm that the selected repository version contains the platform's fixed entry point, and start a new agent session.
 
 ### 4. Manual MCP fallback
 

@@ -44,14 +44,44 @@ npx -y figma-local-agent-mcp@<VERSION> pair
 
 ### 3. 安装可移植 Agent Plugin（推荐）
 
-支持 Agent Plugins 1.0 的客户端可以导入固定版本的仓库，不再手工维护 MCP 配置。Codex CLI 与 ChatGPT 桌面版可添加仓库 marketplace 并安装其中唯一的插件：
+支持 Agent Plugins 1.0 的客户端可以导入仓库，不再手工维护 MCP 配置。Codex、Cursor 和 GitHub Copilot 共用 `plugins/figma-local-agent` 中的可移植插件；仓库只为各平台提供不同的 marketplace 索引入口。
+
+#### Codex CLI 与 ChatGPT 桌面版
+
+先导入固定版本的仓库 marketplace：
 
 ```powershell
 codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v0.9.0
-codex plugin add figma-local-agent@figma-local-agent
 ```
 
-安装后重启 ChatGPT 桌面版或新建 Codex 会话。插件的 `mcp.json` 会通过 stdio 启动 `figma-local-agent-mcp@0.9.0`，其 Skill 会指导 Agent 遵循安全的 Proposal 工作流。其他兼容客户端可按自身 Agent Plugins 安装界面，从 `v0.9.0` tag 导入 `plugins/figma-local-agent`。
+然后在 Codex 中运行 `/plugins`，选择 `figma-local-agent` marketplace，并安装 **Local Figma Agent**。安装后重启 ChatGPT 桌面版或新建 Codex 会话。
+
+#### GitHub Copilot CLI
+
+Copilot 使用 `#` 固定 Git ref，然后从已注册的 marketplace 安装：
+
+```powershell
+copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v0.9.0
+copilot plugin install figma-local-agent@figma-local-agent
+```
+
+如果只需要直接安装插件而不注册 marketplace，可使用：
+
+```powershell
+copilot plugin install Lancasteerr/figma_bridge_agent:plugins/figma-local-agent
+```
+
+#### Cursor
+
+Cursor 团队管理员进入 **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo**，导入：
+
+```text
+https://github.com/Lancasteerr/figma_bridge_agent
+```
+
+保存 marketplace 后，开发者在 **Customize** 中找到 **Local Figma Agent**，选择 **Install** 并指定 user 或 project scope。Cursor 当前没有与 Codex、Copilot 等价的稳定公开 marketplace CLI；本地开发可把 `plugins/figma-local-agent` 复制到 `~/.cursor/plugins/local/figma-local-agent` 后重新加载 Cursor。在团队版中使用这个本地目录时，管理员还需允许 Local Plugin Imports。
+
+三个平台安装的都是同一个根 `plugin.json`、`mcp.json` 和 `skills/`。插件的 `mcp.json` 会通过 stdio 启动 `figma-local-agent-mcp@0.9.0`，Skill 会指导 Agent 遵循安全的 Proposal 工作流。如果插件未出现，请先刷新或重新导入 marketplace，确认仓库版本包含对应平台的固定入口，并新建 Agent 会话。
 
 ### 4. 手动 MCP fallback
 

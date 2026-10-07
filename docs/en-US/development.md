@@ -24,6 +24,10 @@ pnpm install --frozen-lockfile
 
 ```text
 figma_bridge_agent/
+├── .agents/marketplaces/     # Canonical Codex, Cursor, and Copilot marketplace indexes
+├── .agents/plugins/          # Generated Codex marketplace entry point
+├── .cursor-plugin/           # Generated Cursor marketplace entry point
+├── .github/plugin/           # Generated Copilot marketplace entry point
 ├── apps/
 │   ├── figma-plugin/          # Figma UI, main process, reads, and Proposal execution
 │   └── mcp-server/            # CLI, stdio Adapter, Daemon, and security boundary
@@ -53,7 +57,15 @@ pnpm --filter @figma-agent/figma-plugin dev
 
 # Run the complete checks and create local distribution packages
 pnpm build:release
+
+# Regenerate committed platform marketplace entry points
+pnpm sync:agent-marketplaces
+
+# Verify marketplace schemas, metadata, and generated entry points
+pnpm check:agent-marketplaces
 ```
+
+Edit only the platform sources under `.agents/marketplaces/`, then run `pnpm sync:agent-marketplaces`. Do not edit the generated files under `.agents/plugins/`, `.cursor-plugin/`, or `.github/plugin/` directly. The marketplace check keeps their plugin name, version, source path, author, description, and repository metadata aligned with the portable `plugin.json`.
 
 `pnpm build:release` creates:
 
@@ -93,7 +105,7 @@ See the [architecture and safety model](architecture.md) for the security bounda
 - Protocol tests cover schemas, versions, and boundary values.
 - MCP tool-contract tests lock down public tool names, annotations, and recursive input structures.
 - Plugin unit tests cover reads, clone scope, fingerprints, rollback, resources, and DesignPlan behavior.
-- Script tests cover distribution archives and portable Agent Plugin contents.
+- Script tests cover distribution archives, portable Agent Plugin contents, and marketplace adapter generation and drift detection.
 - [End-to-end acceptance](acceptance.md) validates the normal user path with real ZIP and tgz packages in Figma Desktop.
 
-Run at least `pnpm check` before submitting changes. Changes to distribution formats, plugin manifests, the Agent Plugin, or version fields also require `pnpm build:release` and inspection of the generated archives.
+Run at least `pnpm check` before submitting changes. Changes to marketplace sources require `pnpm sync:agent-marketplaces` first. Changes to distribution formats, plugin manifests, the Agent Plugin, or version fields also require `pnpm build:release` and inspection of the generated archives.
