@@ -1,6 +1,6 @@
 # 安全说明
 
-[English](../en-US/security.md)
+[English](../en-US/security.md) · [文档首页](README.md)
 
 本项目是本地开发工具，不是远程服务。
 
@@ -30,4 +30,4 @@
 
 ## 明确不支持的目标
 
-v0.2 不包含任意脚本工具、源稿修改开关、通用删除、分离 Instance、Team Library 抓取、OAuth 流程、远程访问、多主机仲裁或协作同步。
+当前版本不包含任意脚本工具、源稿修改开关、通用删除、分离 Instance、Team Library 抓取、OAuth 流程、远程访问、多主机仲裁或协作同步。

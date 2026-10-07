@@ -1,8 +1,8 @@
 # 安装与配置
 
-[English](../en-US/configuration.md)
+[English](../en-US/configuration.md) · [文档首页](README.md)
 
-本文分别说明三种受支持的配置方式：npm 稳定版、滚动更新的 Development build，以及从源码自行编译。无论选择哪一种，Figma 插件和 MCP Server 都必须来自同一版本或同一次构建，不能混用。
+本文分别说明三种受支持的配置方式：npm 稳定版、滚动更新的 Development build，以及从源码自行编译。无论选择哪一种，Figma 插件和 MCP Server 都必须来自同一版本或同一次构建，不能混用。准备修改源码时另请参阅[开发指南](development.md)。
 
 ## 前置条件
 

@@ -1,8 +1,8 @@
 # 端到端验收运行手册
 
-[English](../en-US/acceptance.md)
+[English](../en-US/acceptance.md) · [文档首页](README.md)
 
-手动验收前先运行 `pnpm build:release`。必须从生成的 Figma ZIP、npm tarball 和 Agent Plugin ZIP 执行普通用户路径，不能直接使用 workspace 入口。修改场景请使用一次性 Figma 页面。
+本手册供贡献者验证候选发行产物。手动验收前先运行 `pnpm build:release`。必须从生成的 Figma ZIP、npm tarball 和 Agent Plugin ZIP 执行普通用户路径，不能直接使用 workspace 入口。修改场景请使用一次性 Figma 页面。
 
 ## 1. 分发与配对门禁
 
