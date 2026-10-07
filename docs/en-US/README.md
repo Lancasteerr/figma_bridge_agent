@@ -22,5 +22,3 @@ These documents are for Local Figma Agent users, integrators, and contributors. 
 - First-time user: installation and configuration → MCP tool reference → security notes.
 - New MCP host integration: host configuration → architecture and safety model.
 - Code changes: development guide → architecture and safety model → end-to-end acceptance.
-
-The repository contains only public user and developer documentation. Owner-only procedures, conversation history, and local collaboration notes do not belong in this directory.
