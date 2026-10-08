@@ -15,10 +15,10 @@ development plugin is open.
 2. If it returns `PLUGIN_NOT_CONNECTED`, ask the user to open **Local Figma Agent Bridge** in Figma
    Desktop and keep its window open.
 3. If this is the first connection, ask the user to run
-   `npx -y figma-local-agent-mcp@0.9.0 pair`, compare the six-digit code with the Figma plugin, and
+   `npx -y figma-local-agent-mcp@1.0.0 pair`, compare the six-digit code with the Figma plugin, and
    confirm only when the codes match.
 4. If the plugin and server versions differ, ask the user to install both artifacts from the same
-   `v0.9.0` release before retrying.
+   `v1.0.0` release before retrying.
 
 ## Read workflow
 

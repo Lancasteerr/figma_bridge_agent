@@ -9,7 +9,7 @@ import { MARKETPLACE_TARGETS, syncAgentMarketplaces } from './sync-agent-marketp
 const plugin = {
   $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
   name: 'figma-local-agent',
-  version: '0.9.0',
+  version: '1.0.0',
   description:
     'Read local Figma designs and create reviewable Proposal changes through the Local Figma Agent Bridge.',
   author: { name: 'Lancasteerr', url: 'https://github.com/Lancasteerr' },
