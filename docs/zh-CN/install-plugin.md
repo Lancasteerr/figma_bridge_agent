@@ -4,7 +4,7 @@
 
 本指南面向当前已适配本项目 Agent Plugin 的 Codex、GitHub Copilot 和 Cursor。插件会同时安装：
 
-- 固定到 `0.9.0` 的本地 stdio MCP Server 启动配置；
+- 固定到匹配发行版本的本地 stdio MCP Server 启动配置；
 - 指导 Agent 安全读取 Figma、创建隔离 Proposal 和使用 DesignPlan 的 Skill。
 
 安装 Agent Plugin 后不要再手工注册名为 `figma-local-agent` 的 MCP Server，否则同一客户端可能加载重复工具。本路线只支持稳定版；Development Release 当前不提供 Agent Plugin。
@@ -16,7 +16,7 @@
 - Figma Desktop
 - Codex、GitHub Copilot 或 Cursor 的受支持本地版本
 
-以下步骤使用稳定版 `0.9.0`。Agent Plugin、MCP npm 包和 Figma 插件 ZIP 必须保持同一版本。
+打开 [GitHub 最新版本页面](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest)，记下不含 `v` 前缀的版本号，并用它替换本页所有 `<VERSION>`。Agent Plugin、MCP npm 包和 Figma 插件 ZIP 必须保持同一版本。
 
 ## 1. 安装 Agent Plugin
 
@@ -27,7 +27,7 @@
 在 PowerShell 中导入固定版本的仓库 marketplace：
 
 ```powershell
-codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v0.9.0
+codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v<VERSION>
 ```
 
 然后在 Codex 中运行 `/plugins`，选择 `figma-local-agent` marketplace，并安装 **Local Figma Agent**。
@@ -35,7 +35,7 @@ codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v0.9.0
 ### GitHub Copilot CLI
 
 ```powershell
-copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v0.9.0
+copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v<VERSION>
 copilot plugin install figma-local-agent@figma-local-agent
 ```
 
@@ -55,7 +55,7 @@ copilot plugin install Lancasteerr/figma_bridge_agent:plugins/figma-local-agent
 
 ## 2. 导入匹配的 Figma 插件
 
-从 [v0.9.0 GitHub Release](https://github.com/Lancasteerr/figma_bridge_agent/releases/tag/v0.9.0) 下载 `figma-agent-bridge-plugin-v0.9.0.zip`，解压到不会被移动或删除的目录。
+从 [GitHub 最新版本页面](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest) 下载 `figma-agent-bridge-plugin-v<VERSION>.zip`，解压到不会被移动或删除的目录。
 
 在 **Figma Desktop → Plugins → Development → Import plugin from manifest** 中选择：
 
@@ -73,7 +73,7 @@ figma-agent-bridge-plugin/manifest.json
 2. 在 PowerShell 运行：
 
    ```powershell
-   npx -y figma-local-agent-mcp@0.9.0 pair
+   npx -y figma-local-agent-mcp@<VERSION> pair
    ```
 
 3. 终端和 Figma 插件会分别显示六位短码。只有两个短码完全一致时，才在插件中点击 **Codes match**。
@@ -92,9 +92,9 @@ figma-agent-bridge-plugin/manifest.json
 ## 更新与排查
 
 - 更新时同时升级 Agent Plugin 和 Figma 插件，不要让 `mcp.json` 中的 npm 版本与 Figma 插件版本不同。
-- 插件未出现在客户端时，刷新或重新导入 marketplace，并确认使用的是包含对应平台入口的 `v0.9.0` tag。
+- 插件未出现在客户端时，刷新或重新导入 marketplace，并确认使用的是包含对应平台入口的 `v<VERSION>` tag。
 - 工具重复出现时，删除此前手工添加的同名 MCP Server，再新建会话。
 - `PLUGIN_NOT_CONNECTED` 表示 Figma 插件没有打开、尚未配对，或组件版本不匹配。
-- 可运行 `npx -y figma-local-agent-mcp@0.9.0 doctor` 检查本机 Bridge 状态。
+- 可运行 `npx -y figma-local-agent-mcp@<VERSION> doctor` 检查本机 Bridge 状态。
 
 若客户端没有本项目适配的 Agent Plugin 入口，请改用[直接配置 MCP Server](install-mcp-server.md)。

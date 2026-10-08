@@ -50,7 +50,7 @@ Agent changes appear as an isolated Proposal on the Figma canvas, ready to revie
 - Figma Desktop
 - A coding agent with local stdio MCP or Agent Plugins 1.0 support
 
-Regular users do not need Git, pnpm, or a source checkout. The Figma plugin ZIP, MCP npm package, and Agent Plugin must come from the same version. The current stable version is `0.9.0`.
+Regular users do not need Git, pnpm, or a source checkout. Open the [latest GitHub Release](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest), note the version without the `v` prefix, and replace `<VERSION>` below with it. The Figma plugin ZIP, MCP npm package, and Agent Plugin must come from the same version.
 
 ### 1. Choose one installation method
 
@@ -63,7 +63,7 @@ Do not install the Agent Plugin and manually register the same MCP Server at the
 
 ### 2. Import the Figma plugin
 
-Download `figma-agent-bridge-plugin-v0.9.0.zip` from the matching [v0.9.0 GitHub Release](https://github.com/Lancasteerr/figma_bridge_agent/releases/tag/v0.9.0) and extract it to a stable directory.
+Download `figma-agent-bridge-plugin-v<VERSION>.zip` from the [latest GitHub Release](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest) and extract it to a stable directory.
 
 In **Figma Desktop → Plugins → Development → Import plugin from manifest**, select:
 
@@ -76,7 +76,7 @@ figma-agent-bridge-plugin/manifest.json
 Start **Local Figma Agent Bridge** in Figma and keep its window open. Then run this command in PowerShell:
 
 ```powershell
-npx -y figma-local-agent-mcp@0.9.0 pair
+npx -y figma-local-agent-mcp@<VERSION> pair
 ```
 
 Click **Codes match** only when the six-digit codes in the terminal and plugin are identical. After a successful pairing, the plugin authenticates and reconnects automatically on later starts.
@@ -159,7 +159,7 @@ See the [development guide](docs/en-US/development.md) for the environment and r
 
 ## Current scope
 
-v0.9.0 supports Windows, local stdio, multiple MCP Adapters, one active Figma plugin, and the current page of the current Design file. It supports reads, renders, exports, controlled Proposal edits, and validated DesignPlans.
+The current stable release supports Windows, local stdio, multiple MCP Adapters, one active Figma plugin, and the current page of the current Design file. It supports reads, renders, exports, controlled Proposal edits, and validated DesignPlans.
 
 The current release does not provide a Windows installer, automatic updates, remote transport, cloud sync, arbitrary JavaScript, direct source-artwork writes, general deletion, Instance detaching, Team Library queries, or framework code generation.
 

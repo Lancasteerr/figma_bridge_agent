@@ -13,13 +13,13 @@ Claude Code 自身支持插件，但本项目当前没有发布与其插件 mark
 - Figma Desktop
 - 支持本地 stdio MCP Server 的客户端
 
-Windows GUI 应用应使用 `npx.cmd`，而不是 `npx`。以下稳定版示例全部固定到 `0.9.0`，MCP npm 包与 Figma 插件必须保持同一版本。
+Windows GUI 应用应使用 `npx.cmd`，而不是 `npx`。打开 [GitHub 最新版本页面](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest)，记下不含 `v` 前缀的版本号，并用它替换本页所有 `<VERSION>`。MCP npm 包与 Figma 插件必须保持同一版本。
 
 ## 稳定版安装
 
 ### 1. 导入匹配的 Figma 插件
 
-从 [v0.9.0 GitHub Release](https://github.com/Lancasteerr/figma_bridge_agent/releases/tag/v0.9.0) 下载 `figma-agent-bridge-plugin-v0.9.0.zip`，解压到不会被移动或删除的目录。
+从 [GitHub 最新版本页面](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest) 下载 `figma-agent-bridge-plugin-v<VERSION>.zip`，解压到不会被移动或删除的目录。
 
 在 **Figma Desktop → Plugins → Development → Import plugin from manifest** 中选择：
 
@@ -32,7 +32,7 @@ figma-agent-bridge-plugin/manifest.json
 在 Figma 中启动 **Local Figma Agent Bridge** 并保持窗口打开，然后在 PowerShell 运行：
 
 ```powershell
-npx -y figma-local-agent-mcp@0.9.0 pair
+npx -y figma-local-agent-mcp@<VERSION> pair
 ```
 
 只有终端和插件显示的六位短码完全一致时，才点击 **Codes match**。配对是 Figma 插件与本机 Bridge 的初始化步骤，不会向 MCP 客户端写入配置。
@@ -46,7 +46,7 @@ npx -y figma-local-agent-mcp@0.9.0 pair
 添加用户级 Server：
 
 ```powershell
-claude mcp add --scope user --transport stdio figma-local-agent -- npx.cmd -y figma-local-agent-mcp@0.9.0 serve
+claude mcp add --scope user --transport stdio figma-local-agent -- npx.cmd -y figma-local-agent-mcp@<VERSION> serve
 claude mcp get figma-local-agent
 ```
 
@@ -58,7 +58,7 @@ claude mcp get figma-local-agent
     "figma-local-agent": {
       "type": "stdio",
       "command": "npx.cmd",
-      "args": ["-y", "figma-local-agent-mcp@0.9.0", "serve"]
+      "args": ["-y", "figma-local-agent-mcp@<VERSION>", "serve"]
     }
   }
 }
@@ -76,7 +76,7 @@ Claude Code 首次读取项目级 `.mcp.json` 时会要求用户信任该 Server
     "figma-local-agent": {
       "type": "stdio",
       "command": "npx.cmd",
-      "args": ["-y", "figma-local-agent-mcp@0.9.0", "serve"]
+      "args": ["-y", "figma-local-agent-mcp@<VERSION>", "serve"]
     }
   }
 }
@@ -87,7 +87,7 @@ Claude Code 首次读取项目级 `.mcp.json` 时会要求用户信任该 Server
 CLI 注册：
 
 ```powershell
-codex mcp add figma-local-agent -- npx.cmd -y figma-local-agent-mcp@0.9.0 serve
+codex mcp add figma-local-agent -- npx.cmd -y figma-local-agent-mcp@<VERSION> serve
 codex mcp list
 ```
 
@@ -96,7 +96,7 @@ codex mcp list
 ```toml
 [mcp_servers.figma_local_agent]
 command = "npx.cmd"
-args = ["-y", "figma-local-agent-mcp@0.9.0", "serve"]
+args = ["-y", "figma-local-agent-mcp@<VERSION>", "serve"]
 startup_timeout_sec = 15
 tool_timeout_sec = 130
 enabled = true
@@ -114,7 +114,7 @@ enabled = true
     "figma-local-agent": {
       "type": "stdio",
       "command": "npx.cmd",
-      "args": ["-y", "figma-local-agent-mcp@0.9.0", "serve"]
+      "args": ["-y", "figma-local-agent-mcp@<VERSION>", "serve"]
     }
   }
 }
@@ -208,7 +208,7 @@ node .\apps\mcp-server\dist\cli.js pair
 
 ## 故障排查
 
-- 稳定版：运行 `npx -y figma-local-agent-mcp@0.9.0 doctor`。
+- 稳定版：运行 `npx -y figma-local-agent-mcp@<VERSION> doctor`。
 - Development tarball：运行 `npm exec --yes --package="file:C:/Tools/figma-agent/figma-local-agent-mcp-development.tgz" -- figma-local-agent-mcp doctor`。
 - 源码构建：运行 `node .\apps\mcp-server\dist\cli.js doctor`。
 - `PLUGIN_NOT_CONNECTED`：Figma 插件未打开、尚未配对，或插件与 Server 不是同一构建。

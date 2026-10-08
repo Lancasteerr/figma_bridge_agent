@@ -50,7 +50,7 @@ Agent 的修改会出现在 Figma 画布上的隔离 Proposal 中，便于与源
 - Figma Desktop
 - 支持本地 stdio MCP 或 Agent Plugins 1.0 的 Coding Agent
 
-普通用户不需要 Git、pnpm 或源码仓库。Figma 插件 ZIP、MCP npm 包和 Agent Plugin 必须来自同一版本；当前稳定版为 `0.9.0`。
+普通用户不需要 Git、pnpm 或源码仓库。请打开 [GitHub 最新版本页面](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest)，记下不含 `v` 前缀的版本号，并用它替换下文中的 `<VERSION>`。Figma 插件 ZIP、MCP npm 包和 Agent Plugin 必须来自同一版本。
 
 ### 1. 选择一种安装方式
 
@@ -63,7 +63,7 @@ Agent 的修改会出现在 Figma 画布上的隔离 Proposal 中，便于与源
 
 ### 2. 导入 Figma 插件
 
-从匹配的 [v0.9.0 GitHub Release](https://github.com/Lancasteerr/figma_bridge_agent/releases/tag/v0.9.0) 下载 `figma-agent-bridge-plugin-v0.9.0.zip`，解压到稳定目录。
+从 [GitHub 最新版本页面](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest) 下载 `figma-agent-bridge-plugin-v<VERSION>.zip`，解压到稳定目录。
 
 在 **Figma Desktop → Plugins → Development → Import plugin from manifest** 中选择：
 
@@ -76,7 +76,7 @@ figma-agent-bridge-plugin/manifest.json
 在 Figma 中启动 **Local Figma Agent Bridge** 并保持插件窗口打开，然后在 PowerShell 运行：
 
 ```powershell
-npx -y figma-local-agent-mcp@0.9.0 pair
+npx -y figma-local-agent-mcp@<VERSION> pair
 ```
 
 只有终端与插件显示的六位短码完全一致时，才点击 **Codes match**。配对成功后，插件会在后续启动时自动认证并重连。
@@ -159,7 +159,7 @@ pnpm build:release
 
 ## 当前范围
 
-v0.9.0 支持 Windows、本地 stdio、多个 MCP Adapter、一个活动 Figma 插件，以及当前 Design 文件的当前页面。它支持读取、渲染、导出、受控 Proposal 编辑和已验证的 DesignPlan。
+当前稳定版支持 Windows、本地 stdio、多个 MCP Adapter、一个活动 Figma 插件，以及当前 Design 文件的当前页面。它支持读取、渲染、导出、受控 Proposal 编辑和已验证的 DesignPlan。
 
 当前不提供 Windows 安装器、自动更新、远程传输、云同步、任意 JavaScript、源稿直接写入、通用删除、Instance 分离、Team Library 查询或框架代码生成。
 

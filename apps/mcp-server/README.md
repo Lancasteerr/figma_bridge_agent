@@ -10,22 +10,26 @@ Node.js 20 or newer is required. The MCP package and Figma plugin must use the s
 
 需要 Node.js 20 或更高版本。MCP 包与 Figma 插件必须使用相同版本。
 
+Open the [latest GitHub Release](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest), note the version without the `v` prefix, and replace every `<VERSION>` below with it.
+
+打开 [GitHub 最新版本页面](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest)，记下不含 `v` 前缀的版本号，并用它替换下文所有 `<VERSION>`。
+
 Pair once / 首次配对：
 
 ```powershell
-npx -y figma-local-agent-mcp@0.9.0 pair
+npx -y figma-local-agent-mcp@<VERSION> pair
 ```
 
-Then configure a Windows stdio MCP client with command `npx.cmd` and arguments `-y`, `figma-local-agent-mcp@0.9.0`, `serve`. Claude Code can register it with:
+Then configure a Windows stdio MCP client with command `npx.cmd` and arguments `-y`, `figma-local-agent-mcp@<VERSION>`, `serve`. Claude Code can register it with:
 
 ```powershell
-claude mcp add --scope user --transport stdio figma-local-agent -- npx.cmd -y figma-local-agent-mcp@0.9.0 serve
+claude mcp add --scope user --transport stdio figma-local-agent -- npx.cmd -y figma-local-agent-mcp@<VERSION> serve
 ```
 
-随后在 Windows stdio MCP 客户端中使用命令 `npx.cmd`，参数依次为 `-y`、`figma-local-agent-mcp@0.9.0`、`serve`。Claude Code 可以使用：
+随后在 Windows stdio MCP 客户端中使用命令 `npx.cmd`，参数依次为 `-y`、`figma-local-agent-mcp@<VERSION>`、`serve`。Claude Code 可以使用：
 
 ```powershell
-claude mcp add --scope user --transport stdio figma-local-agent -- npx.cmd -y figma-local-agent-mcp@0.9.0 serve
+claude mcp add --scope user --transport stdio figma-local-agent -- npx.cmd -y figma-local-agent-mcp@<VERSION> serve
 ```
 
 Direct MCP configuration exposes the same 23 tools as the Agent Plugin, but does not install its workflow Skill automatically. See the [complete direct MCP guide](https://github.com/Lancasteerr/figma_bridge_agent/blob/master/docs/en-US/install-mcp-server.md).

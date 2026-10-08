@@ -2,20 +2,20 @@
 
 [中文版](../zh-CN/acceptance.md) · [Documentation home](README.md)
 
-This runbook is for contributors validating candidate distribution artifacts. Run `pnpm build:release` before manual acceptance. Perform the user path from the generated Figma ZIP, npm tarball, and Agent Plugin ZIP, not from workspace entry points. Use a disposable Figma page for mutation scenarios.
+This runbook is for contributors validating candidate distribution artifacts. Run `pnpm build:release` before manual acceptance and replace every `<VERSION>` on this page with the candidate version. Perform the user path from the generated Figma ZIP, npm tarball, and Agent Plugin ZIP, not from workspace entry points. Use a disposable Figma page for mutation scenarios.
 
 ## 1. Distribution and pairing gate
 
-1. On a clean Windows account with Node.js 20+, inspect `artifacts/figma-agent-bridge-plugin-v0.9.0.zip`, `figma-local-agent-mcp-0.9.0.tgz`, `figma-local-agent-plugin-v0.9.0.zip`, and the three matching entries in `SHA256SUMS`.
+1. On a clean Windows account with Node.js 20+, inspect `artifacts/figma-agent-bridge-plugin-v<VERSION>.zip`, `figma-local-agent-mcp-<VERSION>.tgz`, `figma-local-agent-plugin-v<VERSION>.zip`, and the three matching entries in `SHA256SUMS`.
 2. Extract the Figma plugin ZIP and import its `manifest.json` in Figma Desktop without editing the ID.
 3. Start the plugin and confirm there is no secret or Plugin ID input.
-4. Run `npm exec --yes --package="file:./artifacts/figma-local-agent-mcp-0.9.0.tgz" -- figma-local-agent-mcp pair`.
+4. Run `npm exec --yes --package="file:./artifacts/figma-local-agent-mcp-<VERSION>.tgz" -- figma-local-agent-mcp pair`.
 5. Confirm both surfaces show the same six-digit code, click **Codes match**, and verify the CLI reports success.
 6. Restart Figma and the MCP host; confirm the plugin reconnects without another pairing.
 7. Run `devices list`, revoke the connected device, and confirm the plugin immediately returns to the pairing screen.
 8. Run `pnpm check:agent-marketplaces`. Confirm the three canonical indexes and the generated Codex, Cursor, and Copilot entry points are synchronized.
-9. After npm `0.9.0` and GitHub tag `v0.9.0` are public, run `codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v0.9.0`, install **Local Figma Agent** through `/plugins`, start a new session, and confirm exactly 23 tools and the bundled Skill are discovered without manual MCP configuration.
-10. In Copilot CLI, run `copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v0.9.0` and `copilot plugin install figma-local-agent@figma-local-agent`; start a new session and confirm the same 23 tools and Skill are available.
+9. After npm `<VERSION>` and GitHub tag `v<VERSION>` are public, run `codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v<VERSION>`, install **Local Figma Agent** through `/plugins`, start a new session, and confirm exactly 23 tools and the bundled Skill are discovered without manual MCP configuration.
+10. In Copilot CLI, run `copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v<VERSION>` and `copilot plugin install figma-local-agent@figma-local-agent`; start a new session and confirm the same 23 tools and Skill are available.
 11. In a Cursor team, import `https://github.com/Lancasteerr/figma_bridge_agent` through **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo**. Install **Local Figma Agent** from **Customize** and confirm the same 23 tools and Skill are available.
 12. In a clean Claude Code configuration without the Agent Plugin, register the stable npm release using the [direct MCP guide](install-mcp-server.md#claude-code). Confirm the same 23 tools are available but the **Local Figma Agent** Skill is not installed automatically.
 13. Inspect the Agent Plugin ZIP and confirm it contains `skills/figma-local-agent/references/design-plan-v1.md` but none of the repository-level marketplace files.

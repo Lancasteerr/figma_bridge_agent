@@ -13,13 +13,13 @@ Claude Code has its own plugin system, but this project does not currently publi
 - Figma Desktop
 - A client that supports local stdio MCP servers
 
-Windows GUI applications should use `npx.cmd`, not `npx`. Every stable example below is pinned to `0.9.0`, and the MCP npm package must remain on the same version as the Figma plugin.
+Windows GUI applications should use `npx.cmd`, not `npx`. Open the [latest GitHub Release](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest), note the version without the `v` prefix, and replace every `<VERSION>` on this page with it. The MCP npm package must remain on the same version as the Figma plugin.
 
 ## Stable installation
 
 ### 1. Import the matching Figma plugin
 
-Download `figma-agent-bridge-plugin-v0.9.0.zip` from the [v0.9.0 GitHub Release](https://github.com/Lancasteerr/figma_bridge_agent/releases/tag/v0.9.0) and extract it to a directory that will not be moved or deleted.
+Download `figma-agent-bridge-plugin-v<VERSION>.zip` from the [latest GitHub Release](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest) and extract it to a directory that will not be moved or deleted.
 
 In **Figma Desktop → Plugins → Development → Import plugin from manifest**, select:
 
@@ -32,7 +32,7 @@ figma-agent-bridge-plugin/manifest.json
 Start **Local Figma Agent Bridge** in Figma, keep its window open, and run in PowerShell:
 
 ```powershell
-npx -y figma-local-agent-mcp@0.9.0 pair
+npx -y figma-local-agent-mcp@<VERSION> pair
 ```
 
 Click **Codes match** only when the six-digit codes shown by the terminal and plugin are identical. Pairing initializes the Figma plugin and local Bridge; it does not write configuration into the MCP client.
@@ -46,7 +46,7 @@ Choose only the method for your current client.
 Add a user-scoped Server:
 
 ```powershell
-claude mcp add --scope user --transport stdio figma-local-agent -- npx.cmd -y figma-local-agent-mcp@0.9.0 serve
+claude mcp add --scope user --transport stdio figma-local-agent -- npx.cmd -y figma-local-agent-mcp@<VERSION> serve
 claude mcp get figma-local-agent
 ```
 
@@ -58,7 +58,7 @@ To share the configuration with a project team, commit `.mcp.json` at the projec
     "figma-local-agent": {
       "type": "stdio",
       "command": "npx.cmd",
-      "args": ["-y", "figma-local-agent-mcp@0.9.0", "serve"]
+      "args": ["-y", "figma-local-agent-mcp@<VERSION>", "serve"]
     }
   }
 }
@@ -76,7 +76,7 @@ Add this entry to the Claude Desktop custom MCP configuration:
     "figma-local-agent": {
       "type": "stdio",
       "command": "npx.cmd",
-      "args": ["-y", "figma-local-agent-mcp@0.9.0", "serve"]
+      "args": ["-y", "figma-local-agent-mcp@<VERSION>", "serve"]
     }
   }
 }
@@ -87,7 +87,7 @@ Add this entry to the Claude Desktop custom MCP configuration:
 Register through the CLI:
 
 ```powershell
-codex mcp add figma-local-agent -- npx.cmd -y figma-local-agent-mcp@0.9.0 serve
+codex mcp add figma-local-agent -- npx.cmd -y figma-local-agent-mcp@<VERSION> serve
 codex mcp list
 ```
 
@@ -96,7 +96,7 @@ Equivalent project-level `.codex/config.toml`:
 ```toml
 [mcp_servers.figma_local_agent]
 command = "npx.cmd"
-args = ["-y", "figma-local-agent-mcp@0.9.0", "serve"]
+args = ["-y", "figma-local-agent-mcp@<VERSION>", "serve"]
 startup_timeout_sec = 15
 tool_timeout_sec = 130
 enabled = true
@@ -114,7 +114,7 @@ Add this entry in the client's MCP settings:
     "figma-local-agent": {
       "type": "stdio",
       "command": "npx.cmd",
-      "args": ["-y", "figma-local-agent-mcp@0.9.0", "serve"]
+      "args": ["-y", "figma-local-agent-mcp@<VERSION>", "serve"]
     }
   }
 }
@@ -208,7 +208,7 @@ After switching commits or rebuilding, reload or replace the Figma plugin. Never
 
 ## Troubleshooting
 
-- Stable release: run `npx -y figma-local-agent-mcp@0.9.0 doctor`.
+- Stable release: run `npx -y figma-local-agent-mcp@<VERSION> doctor`.
 - Development tarball: run `npm exec --yes --package="file:C:/Tools/figma-agent/figma-local-agent-mcp-development.tgz" -- figma-local-agent-mcp doctor`.
 - Source build: run `node .\apps\mcp-server\dist\cli.js doctor`.
 - `PLUGIN_NOT_CONNECTED`: the Figma plugin is closed, not paired, or from a different build than the Server.

@@ -2,20 +2,20 @@
 
 [English](../en-US/acceptance.md) · [文档首页](README.md)
 
-本手册供贡献者验证候选发行产物。手动验收前先运行 `pnpm build:release`。必须从生成的 Figma ZIP、npm tarball 和 Agent Plugin ZIP 执行普通用户路径，不能直接使用 workspace 入口。修改场景请使用一次性 Figma 页面。
+本手册供贡献者验证候选发行产物。手动验收前先运行 `pnpm build:release`，并用候选版本号替换本页所有 `<VERSION>`。必须从生成的 Figma ZIP、npm tarball 和 Agent Plugin ZIP 执行普通用户路径，不能直接使用 workspace 入口。修改场景请使用一次性 Figma 页面。
 
 ## 1. 分发与配对门禁
 
-1. 在只安装 Node.js 20+ 的干净 Windows 账户中检查 `artifacts/figma-agent-bridge-plugin-v0.9.0.zip`、`figma-local-agent-mcp-0.9.0.tgz`、`figma-local-agent-plugin-v0.9.0.zip`，并确认 `SHA256SUMS` 中存在三条对应记录。
+1. 在只安装 Node.js 20+ 的干净 Windows 账户中检查 `artifacts/figma-agent-bridge-plugin-v<VERSION>.zip`、`figma-local-agent-mcp-<VERSION>.tgz`、`figma-local-agent-plugin-v<VERSION>.zip`，并确认 `SHA256SUMS` 中存在三条对应记录。
 2. 解压 Figma 插件 ZIP，直接导入其中的 `manifest.json`，不得编辑 ID。
 3. 启动插件，确认界面中不存在密钥或 Plugin ID 输入框。
-4. 运行 `npm exec --yes --package="file:./artifacts/figma-local-agent-mcp-0.9.0.tgz" -- figma-local-agent-mcp pair`。
+4. 运行 `npm exec --yes --package="file:./artifacts/figma-local-agent-mcp-<VERSION>.tgz" -- figma-local-agent-mcp pair`。
 5. 确认两端显示相同六位短码，点击 **Codes match**，并确认 CLI 报告成功。
 6. 重启 Figma 和 MCP 主机，确认无需再次配对即可自动连接。
 7. 运行 `devices list`，撤销当前设备，并确认插件立即返回配对界面。
 8. 运行 `pnpm check:agent-marketplaces`，确认三份源索引与生成的 Codex、Cursor、Copilot 固定入口同步。
-9. npm `0.9.0` 和 GitHub `v0.9.0` tag 公开后，运行 `codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v0.9.0`，通过 `/plugins` 安装 **Local Figma Agent**，新建会话，并确认无需手工配置 MCP 即可发现恰好 23 个工具和随插件提供的 Skill。
-10. 在 Copilot CLI 中运行 `copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v0.9.0` 和 `copilot plugin install figma-local-agent@figma-local-agent`；新建会话并确认相同的 23 个工具和 Skill 可用。
+9. npm `<VERSION>` 和 GitHub `v<VERSION>` tag 公开后，运行 `codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v<VERSION>`，通过 `/plugins` 安装 **Local Figma Agent**，新建会话，并确认无需手工配置 MCP 即可发现恰好 23 个工具和随插件提供的 Skill。
+10. 在 Copilot CLI 中运行 `copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v<VERSION>` 和 `copilot plugin install figma-local-agent@figma-local-agent`；新建会话并确认相同的 23 个工具和 Skill 可用。
 11. 在 Cursor 团队中通过 **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo** 导入 `https://github.com/Lancasteerr/figma_bridge_agent`；从 **Customize** 安装 **Local Figma Agent**，并确认相同的 23 个工具和 Skill 可用。
 12. 在未安装 Agent Plugin 的干净 Claude Code 配置中，按[直接 MCP 指南](install-mcp-server.md#claude-code)注册 npm 稳定版；确认能够发现相同的 23 个工具，但不会自动出现 **Local Figma Agent** Skill。
 13. 检查 Agent Plugin ZIP，确认其中包含 `skills/figma-local-agent/references/design-plan-v1.md`，但不包含任何仓库级 marketplace 文件。
