@@ -109,8 +109,8 @@ export async function checkAgentPlugin() {
   const skill = await readFile(resolve(pluginRoot, 'skills/figma-local-agent/SKILL.md'), 'utf8');
   assert(!skill.includes('[TODO:'), 'Agent Plugin skill contains an unfinished placeholder.');
   assert(
-    skill.includes(`figma-local-agent-mcp@${version} pair`),
-    'Agent Plugin skill must document pairing with the matching version.',
+    skill.includes('figma-local-agent-mcp@<VERSION> pair'),
+    'Agent Plugin skill must document pairing with the release version placeholder.',
   );
 
   console.log(`Validated portable Agent Plugin v${version}.`);

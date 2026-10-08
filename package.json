@@ -18,7 +18,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:scripts": "node --test scripts/check-agent-plugin-archive.test.mjs scripts/sync-agent-marketplaces.test.mjs",
+    "test:scripts": "node --test scripts/check-agent-plugin-archive.test.mjs scripts/check-doc-release-versions.test.mjs scripts/sync-agent-marketplaces.test.mjs",
     "test": "pnpm test:scripts && vitest run",
     "check": "pnpm check:agent-plugin && pnpm check:agent-marketplaces && pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build"
   },
