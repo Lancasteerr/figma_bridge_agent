@@ -50,11 +50,113 @@ export const GetVariablesInputSchema = z.object({
   cursor: z.number().int().nonnegative().default(0),
   limit: z.number().int().min(1).max(1_000).default(200),
 });
-export const ExportAssetInputSchema = z.object({
-  nodeId: z.string().min(1),
-  format: z.enum(['PNG', 'SVG']),
-  scale: z.number().positive().max(4).default(1),
+const RelativeExportPathSchema = z
+  .string()
+  .min(1)
+  .max(500)
+  .refine((value) => !value.includes('\0'), 'Export path must not contain NUL.')
+  .refine((value) => !/^(?:[a-zA-Z]:[\\/]|[\\/]{1,2})/.test(value), {
+    message: 'Export path must be relative.',
+  })
+  .refine(
+    (value) =>
+      !value
+        .replace(/\\/g, '/')
+        .split('/')
+        .some((segment) => segment === '..'),
+    'Export path must not contain parent traversal.',
+  );
+
+const ExportWriteFieldsSchema = z.object({
+  writePolicy: z.enum(['REUSE_OR_FAIL', 'OVERWRITE']).default('REUSE_OR_FAIL'),
+  expectedExistingSha256: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .optional(),
 });
+
+export const ExportRawAssetInputSchema = z
+  .object({
+    nodeId: z.string().min(1),
+    mode: z.literal('RAW'),
+    paintSlot: z.enum(['FILLS', 'STROKES']),
+    paintIndex: z.number().int().nonnegative(),
+    expectedImageHash: z.string().min(1),
+    expectedNodeFingerprint: z.string().min(8),
+    outputPathStem: RelativeExportPathSchema.refine(
+      (value) => !/[.][a-zA-Z0-9]{1,8}$/.test(value.replace(/\\/g, '/').split('/').at(-1) ?? ''),
+      'RAW outputPathStem must not include a file extension.',
+    ),
+  })
+  .extend(ExportWriteFieldsSchema.shape)
+  .strict();
+
+const ExportRenderedBaseSchema = z
+  .object({
+    nodeId: z.string().min(1),
+    mode: z.literal('RENDERED'),
+    expectedTreeFingerprint: z.string().min(8),
+    outputPath: RelativeExportPathSchema,
+  })
+  .extend(ExportWriteFieldsSchema.shape);
+
+export const ExportRenderedAssetInputSchema = z.discriminatedUnion('format', [
+  ExportRenderedBaseSchema.extend({
+    format: z.enum(['PNG', 'JPG']),
+    scale: z.number().positive().max(4).default(1),
+  }).strict(),
+  ExportRenderedBaseSchema.extend({ format: z.literal('SVG') }).strict(),
+]);
+
+export const ExportAssetInputSchema = z
+  .union([ExportRawAssetInputSchema, ExportRenderedAssetInputSchema])
+  .superRefine((input, context) => {
+    if (input.writePolicy === 'OVERWRITE' && !input.expectedExistingSha256) {
+      context.addIssue({
+        code: 'custom',
+        path: ['expectedExistingSha256'],
+        message: 'OVERWRITE requires expectedExistingSha256.',
+      });
+    }
+    if (input.mode !== 'RENDERED') return;
+    const path = input.outputPath.toLowerCase();
+    const matches =
+      (input.format === 'PNG' && path.endsWith('.png')) ||
+      (input.format === 'JPG' && (path.endsWith('.jpg') || path.endsWith('.jpeg'))) ||
+      (input.format === 'SVG' && path.endsWith('.svg'));
+    if (!matches) {
+      context.addIssue({
+        code: 'custom',
+        path: ['outputPath'],
+        message: `Output extension must match ${input.format}.`,
+      });
+    }
+  });
+
+/** 本地路径和覆盖策略只属于 MCP Adapter，绝不转发给 Figma 插件。 */
+export const ExportAssetRpcInputSchema = z.union([
+  ExportRawAssetInputSchema.omit({
+    outputPathStem: true,
+    writePolicy: true,
+    expectedExistingSha256: true,
+  }),
+  z.discriminatedUnion('format', [
+    ExportRenderedBaseSchema.omit({
+      outputPath: true,
+      writePolicy: true,
+      expectedExistingSha256: true,
+    })
+      .extend({ format: z.enum(['PNG', 'JPG']), scale: z.number().positive().max(4).default(1) })
+      .strict(),
+    ExportRenderedBaseSchema.omit({
+      outputPath: true,
+      writePolicy: true,
+      expectedExistingSha256: true,
+    })
+      .extend({ format: z.literal('SVG') })
+      .strict(),
+  ]),
+]);
 
 export const DuplicateProposalInputSchema = z
   .object({
@@ -126,19 +228,51 @@ export const RenderResultSchema = z.object({
   bytes: z.number().int().nonnegative().optional(),
 });
 
-/** 资源导出允许 PNG/SVG，并通过 encoding 区分二进制和文本数据。 */
-export const ExportResultSchema = z.object({
+/** 插件内部导出结果携带受限数据，但不能直接作为 MCP 工具结果返回。 */
+export const ExportAssetRpcResultSchema = z.object({
   nodeId: z.string(),
-  format: z.enum(['PNG', 'SVG']),
+  mode: z.enum(['RAW', 'RENDERED']),
+  format: z.enum(['ORIGINAL', 'PNG', 'JPG', 'SVG']),
   mimeType: z.string(),
-  data: z.string().optional(),
-  encoding: z.enum(['base64', 'utf8']).optional(),
-  suggestedName: z.string(),
-  fingerprint: z.string(),
-  localPath: z.string().optional(),
-  sha256: z.string().optional(),
-  bytes: z.number().int().nonnegative().optional(),
+  data: z.string(),
+  encoding: z.enum(['base64', 'utf8']),
+  width: z.number().positive().optional(),
+  height: z.number().positive().optional(),
+  source: z
+    .object({
+      imageHash: z.string().optional(),
+      nodeFingerprint: z.string().optional(),
+      treeFingerprint: z.string().optional(),
+    })
+    .strict(),
 });
+
+/** MCP 公开结果只包含落盘后的路径与摘要，不包含素材正文。 */
+export const ExportAssetResultSchema = z
+  .object({
+    nodeId: z.string(),
+    mode: z.enum(['RAW', 'RENDERED']),
+    format: z.enum(['PNG', 'JPG', 'GIF', 'WEBP', 'SVG']),
+    mimeType: z.string(),
+    status: z.enum(['CREATED', 'REUSED', 'UPDATED']),
+    delivery: z.enum(['WORKSPACE', 'STAGED']),
+    projectRelativePath: z.string().min(1),
+    absolutePath: z.string().min(1),
+    requiresCopy: z.boolean(),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+    bytes: z.number().int().nonnegative(),
+    width: z.number().positive().optional(),
+    height: z.number().positive().optional(),
+    source: z
+      .object({
+        imageHash: z.string().optional(),
+        nodeFingerprint: z.string().optional(),
+        treeFingerprint: z.string().optional(),
+      })
+      .strict(),
+  })
+  .strict();
+export type ExportAssetResult = z.infer<typeof ExportAssetResultSchema>;
 
 /** CSS 结果是提示性映射，不承诺可直接还原为完整 Figma 样式。 */
 export const CssResultSchema = z.object({
