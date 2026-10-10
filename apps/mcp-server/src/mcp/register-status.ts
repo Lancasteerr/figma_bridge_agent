@@ -3,10 +3,15 @@ import type { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 
 import type { BridgeTransport } from '../bridge/transport.js';
+import type { ExportStore } from '../export/export-store.js';
 import { structuredResult, toolError } from './result.js';
 
 /** 注册只读状态工具，作为 MCP 侧判断桥接是否可用的入口。 */
-export function registerStatusTool(server: McpServer, broker: BridgeTransport): void {
+export function registerStatusTool(
+  server: McpServer,
+  broker: BridgeTransport,
+  exports: ExportStore,
+): void {
   server.registerTool(
     'figma_status',
     {
@@ -24,7 +29,11 @@ export function registerStatusTool(server: McpServer, broker: BridgeTransport): 
     },
     async () => {
       try {
-        const result = StatusResultSchema.parse(await broker.request('status'));
+        const pluginResult = await broker.request('status');
+        const result = StatusResultSchema.parse({
+          ...(pluginResult as Record<string, unknown>),
+          assetExport: exports.status,
+        });
         return structuredResult(result);
       } catch (error) {
         return toolError(error);

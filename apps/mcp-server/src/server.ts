@@ -4,6 +4,7 @@ import { serveStdio, type StdioServerHandle } from '@modelcontextprotocol/server
 import { DaemonBridgeClient } from './bridge/daemon-client.js';
 import type { BridgeTransport } from './bridge/transport.js';
 import type { ServerConfig } from './config/store.js';
+import { ExportStore } from './export/export-store.js';
 import { registerReadTools } from './mcp/register-read-tools.js';
 import { registerMediaTools } from './mcp/register-media-tools.js';
 import { registerDesignTools } from './mcp/register-design-tools.js';
@@ -18,11 +19,15 @@ export interface RunningServer {
 }
 
 /** 创建 MCP 工具集合；工具按读、媒体、Proposal 写入和布局计划分组注册。 */
-export function createMcpServer(broker: BridgeTransport, assets: TempAssetStore): McpServer {
+export function createMcpServer(
+  broker: BridgeTransport,
+  assets: TempAssetStore,
+  exports: ExportStore,
+): McpServer {
   const server = new McpServer({ name: 'figma-local-agent', version: __CLI_VERSION__ });
-  registerStatusTool(server, broker);
+  registerStatusTool(server, broker, exports);
   registerReadTools(server, broker);
-  registerMediaTools(server, broker, assets);
+  registerMediaTools(server, broker, assets, exports);
   registerMutationTools(server, broker);
   registerDesignTools(server, broker);
   return server;
@@ -32,10 +37,11 @@ export function createMcpServer(broker: BridgeTransport, assets: TempAssetStore)
 export async function startServer(config: ServerConfig): Promise<RunningServer> {
   const broker = new DaemonBridgeClient(config);
   const assets = new TempAssetStore();
-  await assets.initialize();
+  const exports = new ExportStore();
+  await Promise.all([assets.initialize(), exports.initialize()]);
   broker.start();
 
-  const handle: StdioServerHandle = serveStdio(() => createMcpServer(broker, assets), {
+  const handle: StdioServerHandle = serveStdio(() => createMcpServer(broker, assets, exports), {
     onerror: (error) => console.error(JSON.stringify({ level: 'error', message: error.message })),
   });
 

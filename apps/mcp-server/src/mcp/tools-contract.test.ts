@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { DaemonBridgeClient } from '../bridge/daemon-client.js';
 import { PluginConnectionBroker } from '../bridge/plugin-connection.js';
+import { ExportStore } from '../export/export-store.js';
 import { TempAssetStore } from '../temp/asset-store.js';
 import { createMcpServer } from '../server.js';
 
@@ -55,7 +56,7 @@ describe('MCP tool contract', () => {
       daemonSecret: Buffer.alloc(32, 28).toString('base64url'),
       pairedClients: {},
     });
-    const mcp = createMcpServer(broker, new TempAssetStore());
+    const mcp = createMcpServer(broker, new TempAssetStore(), new ExportStore());
     servers.push(mcp);
     const snapshot = await inspectServer(mcp);
     const tools = snapshot.tools;
@@ -97,6 +98,11 @@ describe('MCP tool contract', () => {
     expect(fingerprint?.annotations).toMatchObject({
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
+    });
+    expect(tools.find((tool) => tool.name === 'figma_export_asset')?.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: true,
       idempotentHint: true,
     });
 
@@ -154,7 +160,7 @@ describe('MCP tool contract', () => {
           { autoStart: false, connectTimeoutMs: 20, spawnDaemon: () => undefined },
         );
         daemonClients.push(client);
-        const mcp = createMcpServer(client, new TempAssetStore());
+        const mcp = createMcpServer(client, new TempAssetStore(), new ExportStore());
         servers.push(mcp);
         return (await listTools(mcp)).map((tool) => tool.name).sort();
       }),
