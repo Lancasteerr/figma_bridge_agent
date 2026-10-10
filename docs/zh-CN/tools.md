@@ -6,9 +6,9 @@ MCP Server 公开固定集合的 23 个工具。“Figma 写入”表示是否�
 
 ## 状态
 
-| 工具           | 用途                                             | Figma 写入 |
-| -------------- | ------------------------------------------------ | ---------- |
-| `figma_status` | 返回插件连接、当前文件、页面、选区和 Bridge 能力 | 否         |
+| 工具           | 用途                                                              | Figma 写入 |
+| -------------- | ----------------------------------------------------------------- | ---------- |
+| `figma_status` | 返回插件连接、当前文件、页面、选区、Bridge 能力及本会话导出根状态 | 否         |
 
 ## 读取与发现
 
@@ -20,8 +20,8 @@ MCP Server 公开固定集合的 23 个工具。“Figma 写入”表示是否�
 | `figma_get_variables`        | 分页读取本地变量及变量集合                            | 否         |
 | `figma_get_css`              | 返回 Figma Inspect CSS 代码生成提示                   | 否         |
 | `figma_get_selection`        | 返回当前页选中节点的浅层摘要                          | 否         |
-| `figma_get_node`             | 返回单个节点的规范化快照和直接子节点摘要              | 否         |
-| `figma_get_tree`             | 返回受深度、节点数和文本长度限制的规范化子树          | 否         |
+| `figma_get_node`             | 返回单个节点快照、素材事实和直接子节点摘要            | 否         |
+| `figma_get_tree`             | 返回包含素材事实且受深度、节点数和文本长度限制的子树  | 否         |
 | `figma_get_fingerprint`      | 计算有序节点完整子树的聚合指纹                        | 否         |
 
 ## 渲染与素材
@@ -29,7 +29,7 @@ MCP Server 公开固定集合的 23 个工具。“Figma 写入”表示是否�
 | 工具                 | 用途                                                   | Figma 写入     |
 | -------------------- | ------------------------------------------------------ | -------------- |
 | `figma_render_node`  | 把节点渲染为受尺寸限制的 PNG，便于视觉检查             | 否             |
-| `figma_export_asset` | 把节点导出为临时 PNG 或 SVG，并返回路径和 SHA-256      | 否             |
+| `figma_export_asset` | 提取原始 Image Paint 或渲染节点，安全写入工程/暂存根   | 否，写本地文件 |
 | `figma_stage_asset`  | 校验并把 Agent 提供的 Base64 位图或 SVG 暂存到插件内存 | 否，仅内存暂存 |
 
 ## Proposal 操作
@@ -54,13 +54,27 @@ MCP Server 公开固定集合的 23 个工具。“Figma 写入”表示是否�
 
 DesignPlan v1 的节点结构和约束见 [DesignPlan v1 reference](../../plugins/figma-local-agent/skills/figma-local-agent/references/design-plan-v1.md)。Agent Plugin 会自动包含该 reference；直接配置 MCP Server 的用户应在构建计划前从仓库阅读它。
 
+## 素材探查与导出
+
+`figma_get_node` 和 `figma_get_tree` 的 `assets` 仅陈述 Figma 事实：Image Paint 的 `FILLS`/`STROKES` 位置、索引、hash、原始尺寸、缩放/裁剪、滤镜和可见性，节点导出设置、矢量路径/段数量及蒙版状态。相同 image hash 在一次树读取中只查询一次尺寸；空 hash、找不到图片或查询异常会在对应 paint 上标记，不会使整次读取失败。上述事实与素材属性都参与节点快照指纹。
+
+`figma_export_asset` 有两个互斥模式：
+
+- `RAW`：传入 node ID、paint slot/index、当前 image hash、当前节点快照指纹，以及不带扩展名的工程相对 `outputPathStem`。插件重新定位 paint 并校验来源，然后返回原始字节；Server 只接受 PNG、JPEG、GIF、WebP 魔数并追加真实扩展名。RAW 不应用裁剪、滤镜、蒙版或格式转换。
+- `RENDERED`：先用 `figma_get_fingerprint({ nodeIds: [nodeId] })` 获取完整子树指纹，再传入匹配扩展名的工程相对 `outputPath`。PNG/JPG 支持 1–4 倍 scale，SVG 不接受 scale。任何子节点变化都会在写文件前返回 `ASSET_SOURCE_CHANGED`。
+
+每个 MCP Adapter 启动时冻结自己的 `process.cwd()`：可写时 `figma_status.assetExport.delivery` 为 `WORKSPACE`，导出直接落到该根下；不可用或不可写时为 `STAGED`，文件位于 24 小时保留的独立会话目录。`STAGED` 结果的 `requiresCopy=true`，调用方必须把 `absolutePath` 复制到 `projectRelativePath` 并核对 SHA-256；前端代码不能引用暂存绝对路径。
+
+路径只能是相对路径，不能含盘符、UNC、绝对路径、NUL、空段或 `..`。默认 `REUSE_OR_FAIL`：同路径同内容返回 `REUSED`，不同内容返回 `EXPORT_TARGET_CONFLICT`。只有调用方已检查现有文件并同时传入其 `expectedExistingSha256` 时，才可使用 `OVERWRITE`；成功返回 `UPDATED`。公开结果不包含 Base64 或 SVG 正文。
+
 ## 推荐调用流程
 
 ### 读取设计
 
 1. 调用 `figma_status`，确认插件已连接并检查当前选区。
 2. 使用 `figma_get_selection` 定位目标，再按需读取 node、tree、CSS、字体和设计资源。
-3. 使用 `figma_render_node` 核对视觉结果；只有需要交付文件时才导出素材。
+3. 使用 `figma_render_node` 核对视觉结果；Plan 阶段只记录所需素材、来源指纹和相对路径，不调用导出工具。
+4. 实施时重新读取来源，只导出计划中列出的素材，并根据 `WORKSPACE`/`STAGED` 结果完成交付和哈希复核。
 
 ### 修改现有设计
 
@@ -84,4 +98,5 @@ DesignPlan v1 的节点结构和约束见 [DesignPlan v1 reference](../../plugin
 - `figma_get_node`、`figma_get_tree` 等有界快照中的指纹覆盖范围不同，不能替代聚合指纹。
 - 写工具不能修改源节点，也不能跨越带 Bridge 标记的 Proposal 根。
 - 输入素材不接受 URL 或本地路径；Team Library 不会被查询；Instance 不会被分离。
+- 导出路径始终相对于 MCP Adapter 启动时冻结的 cwd；没有环境变量、CLI 参数或工具输入可以扩大该根。
 - 工具可发现但插件未连接时，调用会快速返回 `PLUGIN_NOT_CONNECTED`。

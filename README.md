@@ -10,13 +10,13 @@
 
 ## 能做什么
 
-| 能力         | 说明                                                       |
-| ------------ | ---------------------------------------------------------- |
-| 本地读取     | 读取当前文件、选区、节点树、样式、变量、字体和 Inspect CSS |
-| 视觉检查     | 渲染节点，并把 PNG 或 SVG 导出到自动清理的临时目录         |
-| 安全编辑     | 先复制目标和必要布局上下文，再仅在隔离 Proposal 内修改     |
-| 声明式生成   | 验证完整 DesignPlan 后，原子创建新的 Proposal              |
-| 多客户端复用 | 多个本地 MCP Adapter 共用一个自动管理的 Bridge Daemon      |
+| 能力         | 说明                                                                 |
+| ------------ | -------------------------------------------------------------------- |
+| 本地读取     | 读取当前文件、选区、节点树、素材事实、样式、变量、字体和 Inspect CSS |
+| 素材交付     | 提取原始图片或渲染节点，安全写入会话 cwd 或 24 小时暂存目录          |
+| 安全编辑     | 先复制目标和必要布局上下文，再仅在隔离 Proposal 内修改               |
+| 声明式生成   | 验证完整 DesignPlan 后，原子创建新的 Proposal                        |
+| 多客户端复用 | 多个本地 MCP Adapter 共用一个自动管理的 Bridge Daemon                |
 
 MCP Server 当前公开 23 个受限工具。完整列表和推荐调用顺序见 [MCP 工具参考](docs/zh-CN/tools.md)。
 
@@ -83,7 +83,7 @@ npx -y figma-local-agent-mcp@<VERSION> pair
 
 ### 4. 验证连接
 
-重启 MCP 客户端或新建 Agent 会话，然后让 Agent 调用 `figma_status`。正常结果会包含协议 v4、当前 Figma 文件、页面、选区和 Bridge 能力。
+重启 MCP 客户端或新建 Agent 会话，然后让 Agent 调用 `figma_status`。正常结果会包含协议 v5、当前 Figma 文件、页面、选区、素材导出根状态和 Bridge 能力。
 
 Development build、源码构建和直接 MCP 故障排查见[直接 MCP 安装指南](docs/zh-CN/install-mcp-server.md)。
 
@@ -125,7 +125,7 @@ Figma 插件 UI 与主进程
 - 公开写工具只能新建 Proposal，或修改带 Bridge 标记的 Proposal 根内部节点。
 - 输入素材只接受 Base64；Server 不抓取 URL，也不读取调用方指定的本地文件。
 - Team Library 不会被查询；需要复用的外部 Instance 必须先放到当前页面。
-- 导出内容只写入临时目录并带 SHA-256，会话结束后清理。
+- 导出根在每个 MCP Adapter 启动时由 `process.cwd()` 冻结；不可写时才进入 24 小时暂存目录。路径只能相对该根，并带 SHA-256 与冲突保护。
 - 同一时间只支持一个活动 Figma 插件窗口；纯远程 Agent 无法访问本机 Bridge。
 
 完整边界和操作建议见 [安全说明](docs/zh-CN/security.md)。

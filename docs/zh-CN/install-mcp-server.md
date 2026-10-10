@@ -128,7 +128,7 @@ enabled = true
 
 1. 确认客户端只加载一个 `figma-local-agent` Server。
 2. 确认能发现 `figma_status` 等 23 个工具。
-3. 调用 `figma_status`，检查协议 v4、当前 Figma 文件、页面、选区和 Bridge 能力。
+3. 调用 `figma_status`，检查协议 v5、当前 Figma 文件、页面、选区、素材导出根状态和 Bridge 能力。
 
 直接配置不会自动加载 Agent Plugin Skill。需要了解安全写入顺序时，请阅读 [MCP 工具参考](tools.md)，尤其是 Proposal 与 DesignPlan 流程。
 

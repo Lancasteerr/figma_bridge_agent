@@ -12,6 +12,7 @@ development plugin is open.
 ## Connection preflight
 
 1. Call `figma_status` before other Figma tools.
+   Record `assetExport.delivery`, `rootPath`, and `sessionId` before planning any file delivery.
 2. If it returns `PLUGIN_NOT_CONNECTED`, ask the user to open **Local Figma Agent Bridge** in Figma
    Desktop and keep its window open.
 3. If this is the first connection, ask the user to open the repository's latest GitHub Release,
@@ -26,10 +27,37 @@ development plugin is open.
 - Start from the current page and selection reported by `figma_status`. Read a shallow local tree,
   normally depth 2–4, then use only the targeted node reads the task still needs.
 - Keep reads bounded and render only when visual evidence is necessary.
+- `figma_get_node` and `figma_get_tree` expose Image Paint locations, original image dimensions,
+  export settings, vector counts, and mask facts under `assets`. Treat these as Figma facts, not as
+  an automatic recommendation to export.
 - Use `figma_get_fingerprint` for DesignPlan source fingerprints and Proposal concurrency checks.
   Snapshot fingerprints returned by bounded reads have a different scope and are not substitutes.
 - Request fonts and local design resources only when the task needs them. The bridge does not query
   Team Library; the user must first place any required library instance on the current page.
+
+## Asset planning and delivery
+
+Read [asset export](references/asset-export.md) before a task that may create front-end asset files.
+
+- During planning, inspect the bounded Figma scope, render only useful previews, and inspect the
+  front-end project for existing components, icons, and images. Do not call `figma_export_asset` in
+  this phase and do not create files merely to evaluate an option.
+- Prefer code for text, layout, interaction, and simple shapes. Prefer `RAW` for Image Paint source
+  bytes when CSS can reproduce crop, radius, layout, and ordinary filters. Consider `RENDERED` for
+  a standalone logo, complex vector, mask, or special compositing whose appearance must be baked.
+- Record every planned export's node ID, paint slot/index when applicable, mode, format, relative
+  destination, and source fingerprint. Export only that recorded set during implementation.
+- Immediately before export, re-read the node. Use its current snapshot fingerprint and image hash
+  for `RAW`; call `figma_get_fingerprint` for the node's current complete-tree fingerprint before
+  `RENDERED`.
+- Pass workspace-relative paths only. A `WORKSPACE` result is ready to reference. For `STAGED`, copy
+  `absolutePath` to `projectRelativePath` with local file tools and verify the copied SHA-256; never
+  reference the staging path from generated code.
+- On `EXPORT_TARGET_CONFLICT`, inspect the existing project file. Never switch to `OVERWRITE`
+  automatically; use it only after intentionally checking the existing SHA-256 and pass that value
+  as `expectedExistingSha256`.
+- Before completion, compare the implemented page with a fresh Figma render and verify all asset
+  references resolve from the project.
 
 ## Write workflow
 

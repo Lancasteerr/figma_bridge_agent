@@ -22,7 +22,7 @@ Figma 插件主进程
 
 显式 CLI 配对会话会临时启用 `ws://127.0.0.1:3900/pair`；正常运行时该路径保持关闭。
 
-`packages/protocol` 负责与传输无关的 Zod schema。每个 MCP Adapter 负责一个 stdio 会话及其临时文件。自动管理的 Bridge Daemon 独占回环监听，并把任意数量的已认证 MCP Adapter 复用到一个插件连接。插件 UI 负责插件侧身份验证和重连行为。插件主进程是唯一允许持有 Figma 对象的进程。
+`packages/protocol` 负责与传输无关的 Zod schema。每个 MCP Adapter 负责一个 stdio 会话、启动时冻结的 `process.cwd()` 工作区根和独立导出 session ID。自动管理的 Bridge Daemon 独占回环监听，只转发数据并把任意数量的已认证 MCP Adapter 复用到一个插件连接；它永远不写前端工程。插件 UI 负责插件侧身份验证和重连行为。插件主进程是唯一允许持有 Figma 对象的进程。
 
 首个 Adapter 会在需要时启动 Daemon。关闭某个主机只会关闭自己的 Adapter。当最后一个 Adapter 和插件都断开 30 秒后，Daemon 自动退出。
 
@@ -32,7 +32,18 @@ Figma 插件主进程
 - MCP Adapter 使用内部 Daemon 凭据。每个插件在用户确认六位 SAS 后获得独立的 X25519/HKDF 派生 token，随后使用新鲜 nonce 和按角色、方向隔离的 HMAC-SHA-256 proof；凭据和 proof 均不能跨角色复用。
 - RPC 信封以及每条 UI/主进程消息都会经过 schema 校验并受大小限制。
 - Adapter 日志写入 stderr。后台 Daemon 在用户配置目录写入有界 `bridge.log`，并只保留一个轮转文件。日志仅包含请求 ID、RPC 方法、耗时和结果，排除密钥、图像 base64 和原始节点 JSON。
-- 导出文件写入 `%TEMP%/figma-agent-mcp/<session>/` 下的隔离目录，文件名会经过清理并附带 SHA-256 元数据，程序关闭时删除。启动时会清理超过 24 小时的会话。
+- `figma_render_node` 的视觉预览仍写入 `%TEMP%/figma-agent-mcp/<session>/`，并随 Adapter 关闭而删除。
+- `figma_export_asset` 由 Adapter 写文件：优先写入启动时固化的可写 `realpath(process.cwd())`；否则固定使用 `~/figma_bridge_agent_export/<session-id>/`，保留 24 小时并在启动时清理过期会话。协议不接受工作区根，安装参数也无需增加配置。
+
+## 素材读取与导出生命周期
+
+1. 插件在节点快照中枚举 Image Paint、导出设置、矢量和蒙版事实；同一次树读取按 image hash 缓存尺寸查询。素材属性参与快照指纹。
+2. RAW 请求在插件中重新解析指定 paint，并同时核对 image hash 与节点快照指纹；RENDERED 请求重新计算完整节点子树指纹。来源变化会在读取字节或调用 `exportAsync()` 前尽早拒绝。
+3. 插件通过 v5 RPC 返回单项不超过 9 MiB 的原始字节、渲染字节或 SVG 字符串。公共 MCP 结果不会透出这些正文。
+4. Adapter 对 RAW 再做 PNG/JPEG/GIF/WebP 魔数识别，对 RENDERED 核对格式、扩展名和载荷上限。
+5. Adapter 校验相对路径与已有路径的 realpath，阻止 symlink/junction 越界；随后在目标目录写随机临时文件并通过 rename 提交。
+6. 同路径同 hash 返回 `REUSED`；不同 hash 默认返回 `EXPORT_TARGET_CONFLICT`。显式覆盖要求现有 SHA-256，并在 rename 前再次核对以防并发修改。
+7. `WORKSPACE` 结果可直接由工程引用；`STAGED` 结果要求调用方复制到 `projectRelativePath` 并复核 SHA-256。
 
 ## 源稿不可变
 
@@ -70,6 +81,6 @@ DesignPlan v1 支持 Frame、Text、Rectangle、Ellipse、Line、Image、SVG、C
 - 文本：由调用方限制长度，并在截断时明确标记。
 - 渲染：请求的最大尺寸为 2048 px，原始 PNG 限制为 9 MiB（使编码后的 RPC 载荷保持在桥接限制以内）。
 - 原始 REST JSON：默认 2 MiB，请求硬限制为 8 MiB。
-- 临时资源：每个服务器会话 256 MiB。
+- 暂存导出：每个服务器会话 256 MiB，保留 24 小时；工作区导出不使用暂存配额。
 
 `getCSSAsync()` 返回的 CSS 会标记为代码生成提示。规范化快照仍然是结构事实来源。

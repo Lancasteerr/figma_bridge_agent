@@ -22,7 +22,7 @@ current Design page
 
 An explicit CLI pairing session temporarily enables `ws://127.0.0.1:3900/pair`; normal operation leaves that path closed.
 
-`packages/protocol` owns transport-independent Zod schemas. Each MCP adapter owns one stdio session and its temporary files. The automatically managed Bridge Daemon owns the loopback listener and multiplexes any number of authenticated MCP adapters onto one plugin connection. Plugin UI owns plugin-side authentication and reconnect behavior. Plugin main is the only process allowed to hold Figma objects.
+`packages/protocol` owns transport-independent Zod schemas. Each MCP adapter owns one stdio session, a workspace root frozen from `process.cwd()` at startup, and an independent export session ID. The automatically managed Bridge Daemon owns the loopback listener, forwards data only, and multiplexes any number of authenticated MCP adapters onto one plugin connection; it never writes a front-end project. Plugin UI owns plugin-side authentication and reconnect behavior. Plugin main is the only process allowed to hold Figma objects.
 
 The first adapter starts the Daemon when needed. Closing one host only closes its adapter. The Daemon exits after both the last adapter and the plugin have been disconnected for 30 seconds.
 
@@ -32,7 +32,18 @@ The first adapter starts the Daemon when needed. Closing one host only closes it
 - MCP adapters use an internal Daemon credential. Each plugin receives a separate X25519/HKDF-derived token after six-digit SAS confirmation, then uses fresh nonces plus role- and direction-specific HMAC-SHA-256 proofs. Credentials and proofs cannot be reused across roles.
 - RPC envelopes and every UI/main message are schema-validated and size-limited.
 - Adapter logs go to stderr. The detached Daemon writes a bounded `bridge.log` in the user configuration directory and retains one rotated file. Logs contain only request ID, RPC method, duration, and outcome; secrets, image base64, and raw node JSON are excluded.
-- Exported files go to an isolated directory under `%TEMP%/figma-agent-mcp/<session>/`, have sanitized names and SHA-256 metadata, and are removed at shutdown. Startup removes sessions older than 24 hours.
+- Visual previews from `figma_render_node` still go to `%TEMP%/figma-agent-mcp/<session>/` and are removed when the Adapter closes.
+- `figma_export_asset` is written by the Adapter: it first uses writable `realpath(process.cwd())` captured at startup, otherwise it permanently uses `~/figma_bridge_agent_export/<session-id>/` for that session. Fallback sessions remain for 24 hours and stale sessions are removed at startup. The protocol accepts no workspace root and installation arguments need no new setting.
+
+## Asset read and export lifecycle
+
+1. Node snapshots enumerate Image Paint, export-setting, vector, and mask facts. One tree read caches dimension lookup by image hash. Asset properties participate in snapshot fingerprints.
+2. A RAW request resolves the exact paint again and verifies both image hash and node snapshot fingerprint. A RENDERED request recalculates the complete node-subtree fingerprint. Source drift is rejected before reading bytes or calling `exportAsync()` where possible.
+3. The plugin returns original bytes, rendered bytes, or an SVG string through v5 RPC, with a 9 MiB per-item limit. Public MCP results never expose those bodies.
+4. The Adapter rechecks RAW PNG/JPEG/GIF/WebP magic bytes and checks RENDERED format, extension, and payload size.
+5. The Adapter validates relative paths and realpaths of existing parents to block symlink/junction escapes, then writes a random temporary file in the destination directory and commits it by rename.
+6. Identical content at the same path returns `REUSED`; different content returns `EXPORT_TARGET_CONFLICT` by default. Explicit overwrite requires the existing SHA-256 and rechecks it just before rename to block concurrent modification.
+7. A `WORKSPACE` result is ready for project use. A `STAGED` result must be copied to `projectRelativePath` and verified against SHA-256.
 
 ## Source immutability
 
@@ -70,6 +81,6 @@ DesignPlan v1 supports Frame, Text, Rectangle, Ellipse, Line, Image, SVG, Clone,
 - Text: caller-bounded and explicitly marked when truncated.
 - Render: maximum requested dimension 2048 px and raw PNG limit 9 MiB (keeps encoded RPC payload below the bridge limit).
 - Raw REST JSON: default 2 MiB, hard request limit 8 MiB.
-- Temporary assets: 256 MiB per server session.
+- Staged exports: 256 MiB per server session and retained for 24 hours. Workspace exports do not consume the staging quota.
 
 CSS from `getCSSAsync()` is labeled as a code-generation hint. Normalized snapshots remain the structural truth.

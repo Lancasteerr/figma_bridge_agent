@@ -86,7 +86,7 @@ figma-agent-bridge-plugin/manifest.json
 
 1. 确认客户端只加载一个 `figma-local-agent` MCP Server。
 2. 让 Agent 调用 `figma_status`。
-3. 确认结果包含协议 v4、当前 Figma 文件、页面、选区和 Bridge 能力。
+3. 确认结果包含协议 v5、当前 Figma 文件、页面、选区、素材导出根状态和 Bridge 能力。
 4. 确认 **Local Figma Agent** Skill 可用，并能指导 Agent 使用 Proposal 工作流。
 
 ## 更新与排查

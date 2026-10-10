@@ -10,13 +10,13 @@ This unofficial developer tool is distributed through GitHub. It is not affiliat
 
 ## What it does
 
-| Capability             | Description                                                                              |
-| ---------------------- | ---------------------------------------------------------------------------------------- |
-| Local reads            | Read the current file, selection, node tree, styles, variables, fonts, and Inspect CSS   |
-| Visual inspection      | Render nodes and export PNG or SVG files to an automatically cleaned temporary directory |
-| Safe edits             | Clone targets and required layout context, then edit only inside an isolated Proposal    |
-| Declarative generation | Validate a complete DesignPlan before atomically creating a new Proposal                 |
-| Multi-client reuse     | Share one managed Bridge Daemon across multiple local MCP Adapters                       |
+| Capability             | Description                                                                                         |
+| ---------------------- | --------------------------------------------------------------------------------------------------- |
+| Local reads            | Read the current file, selection, node tree, asset facts, styles, variables, fonts, and Inspect CSS |
+| Asset delivery         | Extract original images or render nodes into the session cwd or 24-hour staging fallback            |
+| Safe edits             | Clone targets and required layout context, then edit only inside an isolated Proposal               |
+| Declarative generation | Validate a complete DesignPlan before atomically creating a new Proposal                            |
+| Multi-client reuse     | Share one managed Bridge Daemon across multiple local MCP Adapters                                  |
 
 The MCP Server currently exposes 23 bounded tools. See the [MCP tool reference](docs/en-US/tools.md) for the complete list and recommended call sequences.
 
@@ -83,7 +83,7 @@ Click **Codes match** only when the six-digit codes in the terminal and plugin a
 
 ### 4. Verify the connection
 
-Restart the MCP client or open a new agent session, then ask the agent to call `figma_status`. A healthy result includes protocol v4, the current Figma file, page, selection, and Bridge capabilities.
+Restart the MCP client or open a new agent session, then ask the agent to call `figma_status`. A healthy result includes protocol v5, the current Figma file, page, selection, asset-export root status, and Bridge capabilities.
 
 For Development builds, source builds, and direct MCP troubleshooting, see the [direct MCP installation guide](docs/en-US/install-mcp-server.md).
 
@@ -125,7 +125,7 @@ See the [architecture and safety model](docs/en-US/architecture.md) for implemen
 - Public write tools can only create a Proposal or edit nodes inside a Bridge-marked Proposal root.
 - Input assets accept Base64 only. The Server does not fetch URLs or read caller-provided local files.
 - Team Library is never queried. Place an external Instance on the current page before reusing it.
-- Exports go only to a temporary directory, include a SHA-256 digest, and are cleaned up after the session.
+- Each MCP Adapter freezes its export root from `process.cwd()` at startup and falls back to 24-hour staging only when that root is unwritable. Paths remain relative to that root and use SHA-256 conflict protection.
 - Only one Figma plugin window can be active at a time. Remote-only agents cannot reach the local Bridge.
 
 See [security notes](docs/en-US/security.md) for complete boundaries and operational guidance.

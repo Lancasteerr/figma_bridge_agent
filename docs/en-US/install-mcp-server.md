@@ -128,7 +128,7 @@ Restart the MCP client or open a new session after saving the configuration. The
 
 1. Confirm the client loads only one `figma-local-agent` Server.
 2. Confirm all 23 tools, including `figma_status`, are discoverable.
-3. Call `figma_status` and check protocol v4, the current Figma file, page, selection, and Bridge capabilities.
+3. Call `figma_status` and check protocol v5, the current Figma file, page, selection, asset-export root status, and Bridge capabilities.
 
 Direct configuration does not automatically load the Agent Plugin Skill. Read the [MCP tool reference](tools.md), especially the Proposal and DesignPlan workflows, before performing writes.
 

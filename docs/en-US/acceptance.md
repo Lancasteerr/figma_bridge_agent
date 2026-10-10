@@ -25,13 +25,14 @@ Do not continue acceptance if this gate fails.
 ## 2. Connection and read path
 
 1. Start Codex with the installed Agent Plugin. Then repeat the essential connection check in a separate Claude Code configuration without that plugin, following the [direct MCP guide](install-mcp-server.md). Each client must load exactly one `figma-local-agent` Server.
-2. Call `figma_status`; confirm authenticated protocol v4, file/page metadata, selection summary, and the `design-plan-v1`, `asset-staging-v1`, `font-catalog-v1`, and `design-resources-v1` capabilities.
+2. Call `figma_status`; confirm authenticated protocol v5, file/page metadata, selection summary, `assetExport` `WORKSPACE`/`STAGED` status, and the `asset-inspection-v1`, `asset-export-v2`, `design-plan-v1`, `asset-staging-v1`, `font-catalog-v1`, and `design-resources-v1` capabilities.
 3. Close the plugin and call it again; confirm `PLUGIN_NOT_CONNECTED` returns in about one second rather than hanging.
 4. Reopen the plugin and confirm automatic reconnection.
 5. Open two additional Codex tasks. Confirm all three tasks discover the same 23 tools and can call `figma_status` through the same plugin.
 6. Close one task and confirm the other two remain connected. Run `bridge status` and confirm the client count changes without disconnecting the plugin.
 7. Select the rough ArticleCard and call selection, node, tree, and render tools.
-8. Confirm the normalized tree plus image is sufficient to identify row/column relationships and the overlay.
+8. Confirm the normalized tree plus image identifies row/column relationships and the overlay. Asset snapshots should include multiple Image Paints across fills/strokes, dimensions for repeated hashes, CROP/TILE/transform/filters/opacity, export settings, vector segments, and masks.
+9. Simulate an empty image hash, missing image, and dimension-query failure. Confirm paint location plus error state remain and the node read succeeds. Change image, crop, vector, mask, or export-setting facts and confirm the snapshot fingerprint changes.
 
 ## 3. Primitive Proposal path
 
@@ -65,7 +66,15 @@ Do not continue acceptance if this gate fails.
 4. Create Paint/Text/Effect/Grid styles and one-mode COLOR/FLOAT/STRING/BOOLEAN variables. Confirm `Agent/<Proposal>/...` names, identical-resource reuse, different-content conflict, bindings, and `resourceMap`.
 5. Create an Instance from a current-page Component and clone an imported Instance already on the current page. Set exposed text/boolean/variant/instance-swap values; reject non-current-page sources and never detach an Instance.
 6. Force a mid-build exception and confirm node/resource cleanup. Simulate a `BUILDING` marker and confirm the next write recovers it. Discard a successful Proposal and confirm committed resources remain.
-7. Render the final root and export PNG and SVG assets. Confirm temporary paths/SHA-256 and no file in the front-end repository.
+7. In planning mode, inspect a cropped avatar, background, multiple Image Fills, image stroke, multi-vector logo, mask, and blend effects. Record implementation choices, paint locations, formats, relative paths, and fingerprints. Confirm neither the project nor staging directory gains a file.
+8. With a writable cwd, export avatar/background originals using RAW. Confirm PNG/JPEG/GIF/WebP use their magic-detected extension, delivery is `WORKSPACE`, and no crop, filter composition, or transcoding occurred.
+9. Export the logo as SVG with a freshly fetched complete-tree fingerprint and reference its returned project-relative path. PNG/JPG scale must be 1–4; reject SVG scale and mismatched extensions.
+10. Start another MCP Adapter with cwd missing, not a directory, or unwritable. Confirm `figma_status` reports an independent `STAGED` session, 24-hour expiry, and preserved project-relative hierarchy. Copy the file to `projectRelativePath`, verify SHA-256, and never reference the staging path in code.
+11. Change the Figma image hash, crop parameters, or a Logo descendant and export with the old fingerprint. Confirm `ASSET_SOURCE_CHANGED` and no output file.
+12. Repeat identical output and confirm `REUSED`. Change the local target and use the default policy; confirm `EXPORT_TARGET_CONFLICT` without modification.
+13. Inspect the existing SHA-256, then pass `OVERWRITE` with that digest and confirm `UPDATED`. Reject wrong or stale digests. A mid-write failure must leave neither a partial target nor `.tmp` file.
+14. Try an absolute path, drive path, UNC path, `..`, NUL, symlink/junction escape, directory, and other non-regular target. Reject each before writing. Confirm public MCP results contain no Base64 or SVG body.
+15. Create a fallback session older than 24 hours and restart the Adapter; confirm stale cleanup. Exceed 256 MiB in one staged session and confirm the quota error.
 
 ## 6. Natural-language Codex scenario
 
@@ -73,7 +82,7 @@ Use this acceptance prompt:
 
 > Inspect the selected rough ArticleCard and a reference web page. Read the bounded tree, render, fonts, and current-page design resources. Before constructing a DesignPlan, read the bundled DesignPlan v1 reference. Fetch the ordered complete-tree fingerprint for all source roots. Provide any required image/SVG as Base64, build one complete candidate without querying Team Library, validate it once, apply it as an isolated Proposal, re-read and render the result. Stop on stale dependencies, asset errors, resource conflicts, or unavailable explicit fonts instead of bypassing validation.
 
-Pass criteria: source screenshot/fingerprint/hierarchy remain unchanged; the Proposal has expected Auto Layout; no Instance is detached; cancellation/failure leaves no temporary node; the plugin recognizes the Proposal after restart; exported artifacts are temporary and checksummed.
+Pass criteria: source screenshot/fingerprint/hierarchy remain unchanged; the Proposal has expected Auto Layout; no Instance is detached; cancellation/failure leaves no temporary node; the plugin recognizes the Proposal after restart; implementation assets are safely delivered under the frozen workspace root or a verifiable staging session, and public results contain no asset body.
 
 ## Visual comparison
 
