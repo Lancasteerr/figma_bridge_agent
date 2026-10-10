@@ -8,6 +8,7 @@ export const AGENT_PLUGIN_FILES = [
   'skills/figma-local-agent/SKILL.md',
   'skills/figma-local-agent/references/asset-export.md',
   'skills/figma-local-agent/references/design-plan-v1.md',
+  'skills/figma-local-agent/references/frontend-implementation.md',
 ];
 export const AGENT_PLUGIN_ARCHIVE_ROOT = 'figma-local-agent';
 
@@ -112,6 +113,10 @@ export async function checkAgentPlugin() {
   assert(
     skill.includes('figma-local-agent-mcp@<VERSION> pair'),
     'Agent Plugin skill must document pairing with the release version placeholder.',
+  );
+  assert(
+    skill.includes('references/frontend-implementation.md'),
+    'Agent Plugin skill must route front-end implementation tasks to its reference.',
   );
 
   console.log(`Validated portable Agent Plugin v${version}.`);
