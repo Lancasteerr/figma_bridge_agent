@@ -18,7 +18,7 @@ This runbook is for contributors validating candidate distribution artifacts. Ru
 10. In Copilot CLI, run `copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v<VERSION>` and `copilot plugin install figma-local-agent@figma-local-agent`; start a new session and confirm the same 23 tools and Skill are available.
 11. In a Cursor team, import `https://github.com/Lancasteerr/figma_bridge_agent` through **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo**. Install **Local Figma Agent** from **Customize** and confirm the same 23 tools and Skill are available.
 12. In a clean Claude Code configuration without the Agent Plugin, register the stable npm release using the [direct MCP guide](install-mcp-server.md#claude-code). Confirm the same 23 tools are available but the **Local Figma Agent** Skill is not installed automatically.
-13. Inspect the Agent Plugin ZIP and confirm it contains both `skills/figma-local-agent/references/design-plan-v1.md` and `skills/figma-local-agent/references/asset-export.md`, but none of the repository-level marketplace files.
+13. Inspect the Agent Plugin ZIP and confirm it contains `skills/figma-local-agent/references/design-plan-v1.md`, `skills/figma-local-agent/references/asset-export.md`, and `skills/figma-local-agent/references/frontend-implementation.md`, but none of the repository-level marketplace files.
 
 Do not continue acceptance if this gate fails.
 
@@ -83,6 +83,16 @@ Use this acceptance prompt:
 > Inspect the selected rough ArticleCard and a reference web page. Read the bounded tree, render, fonts, and current-page design resources. Before constructing a DesignPlan, read the bundled DesignPlan v1 reference. Fetch the ordered complete-tree fingerprint for all source roots. Provide any required image/SVG as Base64, build one complete candidate without querying Team Library, validate it once, apply it as an isolated Proposal, re-read and render the result. Stop on stale dependencies, asset errors, resource conflicts, or unavailable explicit fonts instead of bypassing validation.
 
 Pass criteria: source screenshot/fingerprint/hierarchy remain unchanged; the Proposal has expected Auto Layout; no Instance is detached; cancellation/failure leaves no temporary node; the plugin recognizes the Proposal after restart; implementation assets are safely delivered under the frozen workspace root or a verifiable staging session, and public results contain no asset body.
+
+### High-fidelity front-end implementation scenario
+
+Prepare a disposable React project and select a Figma page containing a distinctive icon, a local selected-state indicator, a translucent panel without blur, specified typography, and a cropped image. Use this prompt without stating a fidelity policy:
+
+> Implement the currently selected Figma page in React.
+
+Confirm the Agent asks the user to choose high-fidelity reproduction or engineering adaptation before finalizing the implementation plan. Choose high fidelity and confirm the Agent reads visually salient or ambiguous leaf nodes, uses CSS or bounded raw-node data only when normalized snapshots are insufficient, does not substitute a generic icon with a different silhouette, does not invent effects, and reproduces the recorded Image Paint transform.
+
+Pass criteria: the Agent fixes the viewport, DPR, fonts, and page state before comparing a fresh Figma render with a complete browser screenshot, and also checks geometry and computed styles. Minor renderer noise such as font antialiasing may be recorded as tolerance. Wrong icon silhouettes, colors, effects, image crops, or layout must be corrected or reported as unresolved, and the Agent must not claim visual validation passed while such differences remain. Repeat with engineering adaptation and confirm project components or icon libraries are allowed only when visible deviations are disclosed in both the plan and final handoff.
 
 ## Visual comparison
 

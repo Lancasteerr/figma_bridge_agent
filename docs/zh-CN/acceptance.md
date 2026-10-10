@@ -18,7 +18,7 @@
 10. 在 Copilot CLI 中运行 `copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v<VERSION>` 和 `copilot plugin install figma-local-agent@figma-local-agent`；新建会话并确认相同的 23 个工具和 Skill 可用。
 11. 在 Cursor 团队中通过 **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo** 导入 `https://github.com/Lancasteerr/figma_bridge_agent`；从 **Customize** 安装 **Local Figma Agent**，并确认相同的 23 个工具和 Skill 可用。
 12. 在未安装 Agent Plugin 的干净 Claude Code 配置中，按[直接 MCP 指南](install-mcp-server.md#claude-code)注册 npm 稳定版；确认能够发现相同的 23 个工具，但不会自动出现 **Local Figma Agent** Skill。
-13. 检查 Agent Plugin ZIP，确认其中包含 `skills/figma-local-agent/references/design-plan-v1.md` 和 `skills/figma-local-agent/references/asset-export.md`，但不包含任何仓库级 marketplace 文件。
+13. 检查 Agent Plugin ZIP，确认其中包含 `skills/figma-local-agent/references/design-plan-v1.md`、`skills/figma-local-agent/references/asset-export.md` 和 `skills/figma-local-agent/references/frontend-implementation.md`，但不包含任何仓库级 marketplace 文件。
 
 如果此门禁失败，不要继续验收。
 
@@ -83,6 +83,16 @@
 > 检查选中的粗略 ArticleCard 和参考网页。读取有界树、渲染、字体及当前页设计资源；构建 DesignPlan 前先读取随插件提供的 DesignPlan v1 reference，再获取全部来源根的有序完整树指纹；把所需图片/SVG 以 Base64 提供，构建一个完整候选且不查询 Team Library，只验证一次并应用为隔离 Proposal，然后重新读取并渲染结果。遇到依赖过期、素材错误、资源冲突或显式字体不可用时停止，不要绕过校验。
 
 通过标准：源截图、指纹和层级结构保持不变；Proposal 具备预期的 Auto Layout；没有 Instance 被分离；取消或失败后不留下临时节点；插件重启后仍能识别 Proposal；实施所需素材安全落到冻结的工程根或可复核的暂存会话，且公开结果不含素材正文。
+
+### 前端高保真实现场景
+
+准备一个一次性 React 工程，并在 Figma 中选择包含特征图标、局部选中指示器、无模糊半透明面板、指定字体和裁剪图片的页面。使用以下提示词，但不要预先说明保真策略：
+
+> 使用 React 实现当前选中的 Figma 页面。
+
+确认 Agent 在确定实现计划前询问选择“高保真复现”或“工程化适配”。选择高保真后，确认 Agent 读取视觉显著或存在歧义的叶子节点；只在普通快照不足时使用 CSS 或受限原始节点数据；不使用轮廓不同的通用图标，不增加设计稿不存在的效果，并按照记录的 Image Paint transform 实现裁切。
+
+通过标准：Agent 使用固定视口、DPR、字体和页面状态比较最新 Figma 渲染与完整浏览器截图，并同时检查几何和计算样式。字体抗锯齿等轻微渲染噪声可以记录为容差；错误图标轮廓、颜色、效果、图片裁切或布局必须修正或明确报告为未解决，存在这些差异时不得声称视觉验收通过。再选择工程化适配重复一次，确认允许使用项目组件或图标库，但计划和最终交付均明确列出可见偏差。
 
 ## 视觉对比
 

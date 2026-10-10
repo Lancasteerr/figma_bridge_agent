@@ -35,6 +35,27 @@ development plugin is open.
 - Request fonts and local design resources only when the task needs them. The bridge does not query
   Team Library; the user must first place any required library instance on the current page.
 
+## Front-end implementation
+
+Read [front-end implementation](references/frontend-implementation.md) before implementing a web
+page, application screen, or reusable UI component from the current Figma document.
+
+- If the user has not specified the fidelity policy, ask them to choose high-fidelity reproduction
+  or engineering adaptation before committing to an implementation plan. Do not ask again when the
+  request already makes the priority clear. If interaction is unavailable or the user asks you to
+  continue without answering, default to high fidelity and state that assumption.
+- In high-fidelity mode, do not replace a visually distinctive Figma icon or vector with a library
+  icon unless their outline, fill, stroke, bounds, and optical alignment have been verified as
+  equivalent. Do not add effects or typographic adjustments that are absent from the design.
+- Target visually important, ambiguous, or replacement-candidate leaf nodes instead of reading
+  every descendant. Escalate from normalized snapshots to `figma_get_css`, then bounded
+  `figma_get_raw_node`, only when the missing fact changes the implementation decision.
+- A fresh Figma render and an implementation screenshot are a completion gate for high-fidelity
+  work. Known material differences in geometry, color, effects, icon shape, typography, or image
+  crop must be corrected or reported as unresolved; do not describe such work as visually passed.
+- Engineering adaptation may favor existing components and icon libraries, but disclose planned
+  and delivered visible deviations from Figma.
+
 ## Asset planning and delivery
 
 Read [asset export](references/asset-export.md) before a task that may create front-end asset files.
