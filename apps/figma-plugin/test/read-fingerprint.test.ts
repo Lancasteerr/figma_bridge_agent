@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ fingerprintNodeTree: vi.fn() }));
 
 vi.mock('../src/main/serialization/node-snapshot.js', () => ({
+  createSerializeContext: vi.fn(() => ({ imageSizes: new Map() })),
   fingerprintNodeTree: mocks.fingerprintNodeTree,
   serializeNode: vi.fn(),
 }));

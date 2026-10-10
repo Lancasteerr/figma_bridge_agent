@@ -77,6 +77,67 @@ export const VisualSnapshotSchema = z.object({
   clipsContent: z.boolean().optional(),
 });
 
+/** 从节点视觉属性中提取的素材事实，只辅助 Agent 判断，不替代原始 visual 快照。 */
+export const NodeAssetSnapshotSchema = z
+  .object({
+    imagePaints: z.array(
+      z
+        .object({
+          paintSlot: z.enum(['FILLS', 'STROKES']),
+          paintIndex: z.number().int().nonnegative(),
+          imageHash: z.string(),
+          imageSize: z
+            .object({ width: z.number().positive(), height: z.number().positive() })
+            .optional(),
+          imageSizeUnavailable: z.literal(true).optional(),
+          imageSizeError: z
+            .enum(['EMPTY_IMAGE_HASH', 'IMAGE_NOT_FOUND', 'QUERY_FAILED'])
+            .optional(),
+          scaleMode: z.enum(['FILL', 'FIT', 'CROP', 'TILE']),
+          imageTransform: z.array(z.array(z.number())).optional(),
+          scalingFactor: z.number().optional(),
+          rotation: z.number().optional(),
+          filters: z.json().optional(),
+          opacity: z.number().optional(),
+          blendMode: z.string().optional(),
+          visible: z.boolean().optional(),
+        })
+        .strict(),
+    ),
+    exportSettings: z.array(
+      z
+        .object({
+          format: z.enum(['PNG', 'JPG', 'SVG', 'PDF']),
+          suffix: z.string().optional(),
+          constraint: z
+            .object({
+              type: z.enum(['SCALE', 'WIDTH', 'HEIGHT']),
+              value: z.number().positive(),
+            })
+            .optional(),
+          contentsOnly: z.boolean().optional(),
+          useAbsoluteBounds: z.boolean().optional(),
+        })
+        .strict(),
+    ),
+    vector: z
+      .object({
+        pathCount: z.number().int().nonnegative(),
+        segmentCount: z.number().int().nonnegative(),
+      })
+      .strict()
+      .optional(),
+    mask: z
+      .object({
+        isMask: z.boolean(),
+        maskType: z.string().optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+export type NodeAssetSnapshot = z.infer<typeof NodeAssetSnapshotSchema>;
+
 /** Component、Component Set 和 Instance 的关联信息。 */
 export const ComponentSnapshotSchema = z.object({
   kind: z.enum(['COMPONENT', 'COMPONENT_SET', 'INSTANCE']),
@@ -104,6 +165,7 @@ export const NodeSnapshotSchema = NodeSummarySchema.extend({
   layout: LayoutSnapshotSchema.optional(),
   text: TextSnapshotSchema.optional(),
   visual: VisualSnapshotSchema.optional(),
+  assets: NodeAssetSnapshotSchema.optional(),
   component: ComponentSnapshotSchema.optional(),
   children: z.array(NodeSummarySchema),
   fingerprint: z.string().min(8),
@@ -142,6 +204,15 @@ export const StatusResultSchema = z.object({
   page: z.object({ id: z.string(), name: z.string() }).optional(),
   selection: z.array(NodeSummarySchema),
   capabilities: z.array(z.string()),
+  assetExport: z
+    .object({
+      delivery: z.enum(['WORKSPACE', 'STAGED']),
+      rootPath: z.string().min(1),
+      sessionId: z.string().uuid(),
+      fallbackExpiresAt: z.string().datetime().optional(),
+    })
+    .strict()
+    .optional(),
 });
 /** 插件状态结果类型。 */
 export type StatusResult = z.infer<typeof StatusResultSchema>;

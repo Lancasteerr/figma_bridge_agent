@@ -10,7 +10,11 @@ import {
 import type { z } from 'zod';
 
 import { serializeNodeSummary } from '../serialization/node-summary.js';
-import { fingerprintNodeTree, serializeNode } from '../serialization/node-snapshot.js';
+import {
+  createSerializeContext,
+  fingerprintNodeTree,
+  serializeNode,
+} from '../serialization/node-snapshot.js';
 import { resolveCurrentPageNode } from '../serialization/resolve.js';
 import { isSceneNode } from '../serialization/resolve.js';
 
@@ -43,10 +47,11 @@ export async function getTree(params: unknown): Promise<TreeResult> {
   const root = await resolveCurrentPageNode(input.nodeId);
   let nodeCount = 0;
   let limitReached = false;
+  const context = createSerializeContext();
 
   const visit = async (node: SceneNode, depth: number): Promise<SnapshotTreeNode> => {
     nodeCount += 1;
-    const snapshot = await serializeNode(node, { maxTextLength: input.maxTextLength });
+    const snapshot = await serializeNode(node, { maxTextLength: input.maxTextLength }, context);
     const childNodes = 'children' in node ? node.children.filter(isSceneNode) : [];
     const expanded: SnapshotTreeNode[] = [];
     if (depth > 0) {
