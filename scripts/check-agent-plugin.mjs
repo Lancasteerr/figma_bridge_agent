@@ -6,6 +6,7 @@ export const AGENT_PLUGIN_FILES = [
   'plugin.json',
   'mcp.json',
   'skills/figma-local-agent/SKILL.md',
+  'skills/figma-local-agent/references/asset-export.md',
   'skills/figma-local-agent/references/design-plan-v1.md',
 ];
 export const AGENT_PLUGIN_ARCHIVE_ROOT = 'figma-local-agent';
