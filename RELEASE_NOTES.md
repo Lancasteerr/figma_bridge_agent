@@ -1,3 +1,27 @@
+# 2.1.0 release notes
+
+## 中文
+
+这是一次素材交付安全修复。Figma 插件、MCP npm 包和 Agent Plugin 应统一使用 2.1.0；Bridge 协议继续保持 v5。
+
+- MCP Adapter 不再把插件进程的 `process.cwd()` 当作项目目录，所有会话默认进入独立的 24 小时 `STAGED` 暂存目录。
+- 新增 `figma_bind_export_root`。Agent 在首次导出前把自身任务执行环境的准确 cwd 与最新 session ID 绑定到当前 Adapter；绑定成功后才直接写入项目。
+- 绑定会校验 realpath、目录类型、可写性和危险目录，并拒绝跨会话、改绑、首次写入后的绑定以及与导出并发的绑定。
+- 新增 `EXPORT_SESSION_MISMATCH`、`EXPORT_ROOT_INVALID`、`EXPORT_ROOT_CONFLICT` 稳定错误码；并发冲突继续使用可重试的 `BUSY`。
+- 未绑定流程仍安全写入暂存目录并返回 `requiresCopy: true`；相对路径、symlink/junction、SHA-256、冲突覆盖、配额和原子写入保护保持不变。
+- Agent Plugin Skill、双语文档和验收手册已更新。公开 MCP 工具总数从 23 增至 24。
+
+## English
+
+This release fixes asset-delivery safety. The Figma plugin, MCP npm package, and Agent Plugin should all use version 2.1.0; Bridge protocol v5 remains unchanged.
+
+- MCP Adapters no longer treat the plugin process's `process.cwd()` as the project directory. Every session starts in an independent 24-hour `STAGED` directory.
+- `figma_bind_export_root` lets the Agent bind the exact cwd from its own task execution environment, together with the latest session ID, before the first export. Direct project writes begin only after a successful binding.
+- Binding validates realpath, directory type, writability, and dangerous locations, and rejects cross-session use, rebinding, binding after the first write, and binding concurrent with export.
+- Stable error codes now include `EXPORT_SESSION_MISMATCH`, `EXPORT_ROOT_INVALID`, and `EXPORT_ROOT_CONFLICT`; concurrent conflicts continue to use retryable `BUSY`.
+- Unbound export remains safe in staging with `requiresCopy: true`. Existing relative-path, symlink/junction, SHA-256, conflict-overwrite, quota, and atomic-write protections remain intact.
+- The Agent Plugin Skill, bilingual documentation, and acceptance runbook are updated. The public MCP tool count increases from 23 to 24.
+
 # 2.0.0 release notes
 
 ## 中文
