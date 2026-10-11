@@ -1,3 +1,27 @@
+# 2.2.0 release notes
+
+## 中文
+
+这次发布增加会话化 Figma 语义快照。Figma 插件、MCP npm 包和 Agent Plugin 应统一使用 2.2.0；Bridge 协议升级到 v6。
+
+- 新增 `figma_export_semantic_scope`，可把任意节点、组件、区域或页面以 `OUTLINE`/`IMPLEMENTATION` 配置导出为扁平 JSONL；公开结果只返回路径、指纹和摘要。
+- 新增 `figma_check_semantic_scope`，可在不重新导出正文的情况下检查已存快照是 `FRESH` 还是 `STALE`。
+- 快照按 MCP Adapter session ID 写入 `.figma_bridge_agent/sessions/`，与素材导出共享一次性工作区绑定、路径包含检查、原子写入、SHA-256 和暂存配额。
+- 插件在序列化前后校验完整树指纹，并提供结构化截断信息和 12 MiB 语义 RPC 正文上限。
+- Agent Plugin Skill 新增按任务范围工作流：单组件直接导出，大范围先读 outline 再按需拆分，用定向 `rg` 查询代替把整个 facts 文件注入上下文。轻量工作单元由 Agent 创建，不复制语义树。
+- 公开 MCP 工具总数从 24 增至 26。
+
+## English
+
+This release adds session-persisted Figma semantic snapshots. The Figma plugin, MCP npm package, and Agent Plugin should all use version 2.2.0; the Bridge protocol moves to v6.
+
+- `figma_export_semantic_scope` exports any node, component, region, or page as flat JSONL with `OUTLINE` or `IMPLEMENTATION`; public results contain only paths, fingerprints, and summaries.
+- `figma_check_semantic_scope` checks whether a stored snapshot is `FRESH` or `STALE` without re-exporting semantic bodies.
+- Snapshots are stored by MCP Adapter session ID below `.figma_bridge_agent/sessions/` and share one-time workspace binding, containment checks, atomic writes, SHA-256, and staged quota with asset exports.
+- The plugin fingerprints the complete source tree before and after serialization, reports structured truncation, and enforces a 12 MiB semantic RPC body limit.
+- The Agent Plugin Skill now keeps work task-shaped: export a component directly, inspect an outline before splitting large scopes, and use targeted `rg` queries instead of injecting a complete facts file into context. Agent-created lightweight work units reference snapshots without copying their trees.
+- The public MCP tool count increases from 24 to 26.
+
 # 2.1.0 release notes
 
 ## 中文
