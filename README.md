@@ -1,6 +1,6 @@
 # Local Figma Agent MCP
 
-让本地 Coding Agent 安全读取 Figma Design 文档，并在隔离的 Proposal 副本中创建可审查的修改。
+让本地 Coding Agent 安全读取 Figma Design 文档，把设计证据与素材带入前端工程生成代码，并在隔离的 Proposal 副本中创建可审查的设计修改。
 
 [English](README.en-US.md) · [中文文档](docs/zh-CN/README.md) · [最新版本](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest) · [报告问题](https://github.com/Lancasteerr/figma_bridge_agent/issues)
 
@@ -10,13 +10,17 @@
 
 ## 能做什么
 
-| 能力         | 说明                                                                 |
-| ------------ | -------------------------------------------------------------------- |
-| 本地读取     | 读取当前文件、选区、节点树、素材事实、样式、变量、字体和 Inspect CSS |
-| 素材交付     | 提取原始图片或渲染节点，安全写入会话绑定根或 24 小时暂存目录         |
-| 安全编辑     | 先复制目标和必要布局上下文，再仅在隔离 Proposal 内修改               |
-| 声明式生成   | 验证完整 DesignPlan 后，原子创建新的 Proposal                        |
-| 多客户端复用 | 多个本地 MCP Adapter 共用一个自动管理的 Bridge Daemon                |
+| 能力           | 说明                                                                     |
+| -------------- | ------------------------------------------------------------------------ |
+| 设计稿生成代码 | 向 Agent 提供有界设计语义、素材和新鲜度证据，由 Agent 按目标工程规范实现 |
+| 本地读取       | 读取当前文件、选区、节点树、素材事实、样式、变量、字体和 Inspect CSS     |
+| 语义快照       | 持久化范围化 outline/facts，避免把整页设计事实塞入对话上下文             |
+| 素材交付       | 提取原始图片或渲染节点，安全写入会话绑定根或 24 小时暂存目录             |
+| 安全编辑       | 先复制目标和必要布局上下文，再仅在隔离 Proposal 内修改                   |
+| 声明式生成     | 验证完整 DesignPlan 后，原子创建新的 Proposal                            |
+| 多客户端复用   | 多个本地 MCP Adapter 共用一个自动管理的 Bridge Daemon                    |
+
+Bridge 本身不是特定框架的代码生成器。它为 Coding Agent 提供结构化设计证据、安全素材交付和来源新鲜度校验；Agent 再结合目标仓库的技术栈、组件库和工程约定编写代码。
 
 MCP Server 当前公开 26 个受限工具。完整列表和推荐调用顺序见 [MCP 工具参考](docs/zh-CN/tools.md)。
 
@@ -56,7 +60,7 @@ Agent 的修改会出现在 Figma 画布上的隔离 Proposal 中，便于与源
 
 两种方式公开相同的 26 个 MCP 工具，只需选择其中一种：
 
-- **安装 Agent Plugin**：适用于本项目当前已适配的 Codex、Cursor 和 GitHub Copilot；自动提供 MCP 配置及安全 Proposal 工作流 Skill。请按[插件安装指南](docs/zh-CN/install-plugin.md)操作。
+- **安装 Agent Plugin**：适用于本项目当前已适配的 Codex、Cursor 和 GitHub Copilot；自动提供 MCP 配置，以及设计稿实现代码与安全 Proposal 工作流 Skill。请按[插件安装指南](docs/zh-CN/install-plugin.md)操作。
 - **直接配置 MCP Server**：适用于 Claude Code、Claude Desktop及其他本地 stdio 主机；需要手工添加 MCP 配置，且不会自动安装 Skill。请按[直接 MCP 安装指南](docs/zh-CN/install-mcp-server.md)操作。
 
 不要同时安装 Agent Plugin 和手工注册同名 MCP Server，否则客户端可能加载重复工具。完整对比见[选择安装方式](docs/zh-CN/configuration.md)。
@@ -89,9 +93,27 @@ Development build、源码构建和直接 MCP 故障排查见[直接 MCP 安装�
 
 ## 基本使用
 
+### 从设计稿实现代码
+
+1. 打开目标前端工程，并在 Figma Desktop 中打开 Design 文件和 **Local Figma Agent Bridge**；让 Agent 先调用 `figma_status` 检查连接与当前选区。
+2. 说明采用**高保真还原**，还是优先复用现有设计系统的**工程化适配**。未指定时，Agent Plugin 的工作流默认采用高保真还原。
+3. 让 Agent 用最新 session ID 绑定当前工程。单节点或组件直接导出 `IMPLEMENTATION` 语义快照；大型区域或页面先读取 `OUTLINE`，再逐个激活有界实现范围。
+4. Agent 检查仓库中的现有组件、图标和素材，按需安全导出图片或 SVG，并按照项目的框架与约定实现代码。
+5. 完成前调用 `figma_check_semantic_scope` 检查设计来源是否仍为 `FRESH`，并用最新 Figma 渲染结果与实现截图核对视觉差异。
+
+示例请求：
+
+- “用高保真方式把当前选中的卡片实现为本项目中的 React 组件，优先复用已有 token，完成后与 Figma 渲染结果核对。”
+- “先读取当前页面的 OUTLINE，按本仓库结构提出实现范围，再逐块生成代码，不要一次加载整页事实。”
+- “按现有设计系统实现当前页面，并列出所有相对 Figma 的可见适配。”
+
+详细的范围选择、素材策略和视觉验收规则见[前端实现工作流](plugins/figma-local-agent/skills/figma-local-agent/references/frontend-implementation.md)与[语义快照工作流](plugins/figma-local-agent/skills/figma-local-agent/references/semantic-snapshots.md)。
+
+### 在 Figma 中创建或修改 Proposal
+
 1. 在 Figma Desktop 打开目标 Design 文件和 **Local Figma Agent Bridge**。
-2. 在 Agent 中先检查 `figma_status`。
-3. 在 Figma 中选择要处理的节点，向 Agent 描述读取、修改或生成目标。
+2. 在 Agent 中先检查 `figma_status`，再选择要处理的节点并描述读取、修改或生成目标。
+3. 修改现有设计时，Agent 会先创建隔离 Proposal；从零生成复杂界面时，会先验证完整 DesignPlan。
 4. 在画布中审查生成的 Proposal；公开写工具不会覆盖源稿。
 
 示例请求：
@@ -103,18 +125,22 @@ Development build、源码构建和直接 MCP 故障排查见[直接 MCP 安装�
 ## 工作方式
 
 ```text
-Coding Agent
-  ↕ 独立 stdio 会话
-MCP Adapter
-  ↕ 已认证的 ws://127.0.0.1:3900/mcp
-Local Bridge Daemon
-  ↕ 每设备认证的 ws://127.0.0.1:3900/
-Figma 插件 UI 与主进程
-  ↕ Figma Plugin API
 当前 Design 文件的当前页面
+  ↕ Figma Plugin API
+Figma 插件 UI 与主进程
+  ↕ 每设备认证的 ws://127.0.0.1:3900/
+Local Bridge Daemon
+  ↕ 已认证的 ws://127.0.0.1:3900/mcp
+MCP Adapter
+  ↕ 独立 stdio 会话
+Coding Agent
+  ├─ 读取设计事实、语义快照和素材 → 在本地前端工程生成代码
+  └─ 发起受控设计写入 → 在 Figma 中创建或修改隔离 Proposal
 ```
 
 首次配对由用户核对六位短码。之后每个插件设备使用独立凭据和新鲜 proof 认证。Bridge 只监听 `127.0.0.1`，不提供远程或云端传输。
+
+从设计稿实现代码时，Agent 可以把单个组件直接持久化为 `IMPLEMENTATION` 快照；面对大型区域或页面时，则先读取 `OUTLINE` 再选择有界范围。公开 MCP 结果只返回路径、指纹和摘要，Agent 在本地按节点 ID 或名称定向查询 JSONL，并结合目标工程决定组件边界和代码映射。
 
 修改现有设计时，Bridge 会把目标与必要布局上下文复制到 Page 级 Proposal；连续写入使用完整树指纹保护并发编辑。从零生成复杂界面时，Agent 可以先验证 DesignPlan，再使用五分钟内单次有效的验证 ID 原子创建 Proposal。
 
@@ -125,7 +151,9 @@ Figma 插件 UI 与主进程
 - 公开写工具只能新建 Proposal，或修改带 Bridge 标记的 Proposal 根内部节点。
 - 输入素材只接受 Base64；Server 不抓取 URL，也不读取调用方指定的本地文件。
 - Team Library 不会被查询；需要复用的外部 Instance 必须先放到当前页面。
-- 每个 MCP Adapter 默认进入独立的 24 小时暂存会话。实施阶段由 Agent 提交自身任务执行环境的准确 cwd 与最新 session ID，绑定成功后才直接写入工程；相对路径、SHA-256 与冲突保护保持不变。
+- 语义快照正文只写入会话目录；公开结果只包含路径、摘要、指纹和完整性信息，不把完整设计事实注入对话。
+- 语义快照与素材导出共享一次性工作区绑定。每个 MCP Adapter 默认进入独立的 24 小时暂存会话；实施阶段由 Agent 提交自身任务执行环境的准确 cwd 与最新 session ID，绑定成功后才直接写入工程。
+- Bridge 不决定组件职责、代码映射或框架写法；这些实现决策由 Agent 根据用户要求和目标仓库作出。
 - 同一时间只支持一个活动 Figma 插件窗口；纯远程 Agent 无法访问本机 Bridge。
 
 完整边界和操作建议见 [安全说明](docs/zh-CN/security.md)。
@@ -159,9 +187,9 @@ pnpm build:release
 
 ## 当前范围
 
-当前稳定版支持 Windows、本地 stdio、多个 MCP Adapter、一个活动 Figma 插件，以及当前 Design 文件的当前页面。它支持读取、渲染、导出、受控 Proposal 编辑和已验证的 DesignPlan。
+当前稳定版支持 Windows、本地 stdio、多个 MCP Adapter、一个活动 Figma 插件，以及当前 Design 文件的当前页面。它支持读取、渲染、素材导出、会话化语义快照、受控 Proposal 编辑和已验证的 DesignPlan。Coding Agent 可以依据这些能力在本地前端工程中生成代码。
 
-当前不提供 Windows 安装器、自动更新、远程传输、云同步、任意 JavaScript、源稿直接写入、通用删除、Instance 分离、Team Library 查询或框架代码生成。
+当前不提供 Windows 安装器、自动更新、远程传输、云同步、任意 JavaScript、源稿直接写入、通用删除、Instance 分离或 Team Library 查询。Bridge 也不内置特定框架的一键代码生成器；代码生成由所连接的 Coding Agent 完成。
 
 ## License
 

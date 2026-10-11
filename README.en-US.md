@@ -1,6 +1,6 @@
 # Local Figma Agent MCP
 
-Let local coding agents read Figma Design documents safely and create reviewable changes in isolated Proposal copies.
+Let local coding agents read Figma Design documents safely, carry design evidence and assets into front-end projects, and create reviewable design changes in isolated Proposal copies.
 
 [中文](README.md) · [English documentation](docs/en-US/README.md) · [Latest release](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest) · [Report an issue](https://github.com/Lancasteerr/figma_bridge_agent/issues)
 
@@ -12,13 +12,17 @@ This unofficial developer tool is distributed through GitHub. It is not affiliat
 
 | Capability             | Description                                                                                         |
 | ---------------------- | --------------------------------------------------------------------------------------------------- |
+| Design-to-code         | Give the agent bounded design semantics, assets, and freshness evidence for repository-aware coding |
 | Local reads            | Read the current file, selection, node tree, asset facts, styles, variables, fonts, and Inspect CSS |
+| Semantic snapshots     | Persist scoped outline/facts data without loading a whole page of design facts into conversation    |
 | Asset delivery         | Extract original images or render nodes into a session-bound root or 24-hour staging directory      |
 | Safe edits             | Clone targets and required layout context, then edit only inside an isolated Proposal               |
 | Declarative generation | Validate a complete DesignPlan before atomically creating a new Proposal                            |
 | Multi-client reuse     | Share one managed Bridge Daemon across multiple local MCP Adapters                                  |
 
-The MCP Server currently exposes 23 bounded tools. See the [MCP tool reference](docs/en-US/tools.md) for the complete list and recommended call sequences.
+The Bridge is not a framework-specific code generator. It gives the coding agent structured design evidence, safe asset delivery, and source-freshness checks; the agent writes code using the target repository's stack, component library, and conventions.
+
+The MCP Server currently exposes 26 bounded tools. See the [MCP tool reference](docs/en-US/tools.md) for the complete list and recommended call sequences.
 
 ## Interface preview
 
@@ -54,9 +58,9 @@ Regular users do not need Git, pnpm, or a source checkout. Open the [latest GitH
 
 ### 1. Choose one installation method
 
-Both methods expose the same 24 MCP tools. Choose exactly one:
+Both methods expose the same 26 MCP tools. Choose exactly one:
 
-- **Install the Agent Plugin**: for Codex, Cursor, and GitHub Copilot, which currently have entry points maintained by this project. It automatically supplies the MCP configuration and safe Proposal workflow Skill. Follow the [Agent Plugin installation guide](docs/en-US/install-plugin.md).
+- **Install the Agent Plugin**: for Codex, Cursor, and GitHub Copilot, which currently have entry points maintained by this project. It automatically supplies the MCP configuration plus design-to-code and safe Proposal workflow guidance. Follow the [Agent Plugin installation guide](docs/en-US/install-plugin.md).
 - **Configure the MCP Server directly**: for Claude Code, Claude Desktop, and other local stdio hosts. You add the MCP configuration manually, and the Skill is not installed automatically. Follow the [direct MCP installation guide](docs/en-US/install-mcp-server.md).
 
 Do not install the Agent Plugin and manually register the same MCP Server at the same time, or the client may load duplicate tools. See [choose an installation method](docs/en-US/configuration.md) for the complete comparison.
@@ -83,15 +87,33 @@ Click **Codes match** only when the six-digit codes in the terminal and plugin a
 
 ### 4. Verify the connection
 
-Restart the MCP client or open a new agent session, then ask the agent to call `figma_status`. A healthy result includes protocol v5, the current Figma file, page, selection, asset-export root status, and Bridge capabilities.
+Restart the MCP client or open a new agent session, then ask the agent to call `figma_status`. A healthy result includes protocol v6, the current Figma file, page, selection, asset-export root status, and Bridge capabilities.
 
 For Development builds, source builds, and direct MCP troubleshooting, see the [direct MCP installation guide](docs/en-US/install-mcp-server.md).
 
 ## Basic usage
 
+### Implement code from a design
+
+1. Open the target front-end project, then open the Design file and **Local Figma Agent Bridge** in Figma Desktop. Ask the agent to call `figma_status` first and inspect the current selection.
+2. Choose **high-fidelity reproduction** or **engineering adaptation** that prioritizes the existing design system. When unspecified, the Agent Plugin workflow defaults to high fidelity.
+3. Let the agent bind the current project with the latest session ID. Export one node or component directly as an `IMPLEMENTATION` semantic snapshot; for a large region or page, read `OUTLINE` first and activate bounded implementation scopes one at a time.
+4. The agent inspects existing project components, icons, and assets; safely exports images or SVGs when needed; and implements the result using the project's framework and conventions.
+5. Before completion, call `figma_check_semantic_scope` to confirm that the design source is still `FRESH`, then compare a fresh Figma render with an implementation screenshot.
+
+Example requests:
+
+- “Implement the selected card as a high-fidelity React component in this project. Prefer existing tokens, then compare the result with a fresh Figma render.”
+- “Read the current page OUTLINE first, propose implementation scopes that fit this repository, then generate the code scope by scope without loading the entire page's facts.”
+- “Implement the current page using the existing design system and list every visible adaptation from Figma.”
+
+See the [front-end implementation workflow](plugins/figma-local-agent/skills/figma-local-agent/references/frontend-implementation.md) and [semantic snapshot workflow](plugins/figma-local-agent/skills/figma-local-agent/references/semantic-snapshots.md) for scope selection, asset decisions, and visual acceptance rules.
+
+### Create or edit a Proposal in Figma
+
 1. Open the target Design file and **Local Figma Agent Bridge** in Figma Desktop.
-2. Check `figma_status` first in the agent.
-3. Select the relevant nodes in Figma and describe the read, edit, or generation task.
+2. Check `figma_status` first, select the relevant nodes, and describe the read, edit, or generation task.
+3. For an existing design, the agent first creates an isolated Proposal. For complex generation from scratch, it validates a complete DesignPlan first.
 4. Review the resulting Proposal on the canvas. Public write tools never overwrite the source artwork.
 
 Example requests:
@@ -103,18 +125,22 @@ Example requests:
 ## How it works
 
 ```text
-Coding Agent
-  ↕ independent stdio session
-MCP Adapter
-  ↕ authenticated ws://127.0.0.1:3900/mcp
-Local Bridge Daemon
-  ↕ per-device authenticated ws://127.0.0.1:3900/
-Figma plugin UI and main process
-  ↕ Figma Plugin API
 Current page of the current Design file
+  ↕ Figma Plugin API
+Figma plugin UI and main process
+  ↕ per-device authenticated ws://127.0.0.1:3900/
+Local Bridge Daemon
+  ↕ authenticated ws://127.0.0.1:3900/mcp
+MCP Adapter
+  ↕ independent stdio session
+Coding Agent
+  ├─ reads design facts, semantic snapshots, and assets → generates code in a local front-end project
+  └─ sends bounded design writes → creates or edits an isolated Proposal in Figma
 ```
 
 During first-time pairing, the user compares a six-digit code. Later connections authenticate each plugin device with an independent credential and fresh proofs. The Bridge listens only on `127.0.0.1`; it has no remote or cloud transport.
+
+When implementing code from a design, the agent can persist a single component directly as an `IMPLEMENTATION` snapshot. For a large region or page, it reads `OUTLINE` first and then chooses bounded scopes. Public MCP results contain paths, fingerprints, and summaries only. The agent queries local JSONL by node ID or name and uses the target project to decide component boundaries and code mappings.
 
 When editing an existing design, the Bridge clones the targets and required layout context into a Page-level Proposal. Consecutive writes use complete-tree fingerprints to protect concurrent edits. To generate a complex design from scratch, an agent can validate a DesignPlan and then use the single-use, five-minute validation ID to create the Proposal atomically.
 
@@ -125,7 +151,9 @@ See the [architecture and safety model](docs/en-US/architecture.md) for implemen
 - Public write tools can only create a Proposal or edit nodes inside a Bridge-marked Proposal root.
 - Input assets accept Base64 only. The Server does not fetch URLs or read caller-provided local files.
 - Team Library is never queried. Place an external Instance on the current page before reusing it.
-- Every MCP Adapter starts in an independent 24-hour staging session. During implementation, the Agent submits the exact cwd from its own task execution environment with the latest session ID; only a successful binding enables direct project writes. Relative paths, SHA-256, and conflict protection remain unchanged.
+- Semantic snapshot bodies are written only to the session directory. Public results contain paths, summaries, fingerprints, and completeness information rather than injecting complete design facts into conversation.
+- Semantic snapshots and asset exports share one immutable workspace binding. Every MCP Adapter starts in an independent 24-hour staging session; during implementation, the agent submits the exact cwd from its own task execution environment with the latest session ID before direct project writes begin.
+- The Bridge does not decide component responsibilities, code mappings, or framework patterns. The agent makes those implementation decisions from the user's request and target repository.
 - Only one Figma plugin window can be active at a time. Remote-only agents cannot reach the local Bridge.
 
 See [security notes](docs/en-US/security.md) for complete boundaries and operational guidance.
@@ -138,7 +166,7 @@ See [security notes](docs/en-US/security.md) for complete boundaries and operati
 | [Choose an installation method](docs/en-US/configuration.md) | Users                      | Compare the Agent Plugin and direct MCP routes           |
 | [Install the Agent Plugin](docs/en-US/install-plugin.md)     | Plugin client users        | Stable Codex, Cursor, and Copilot installation           |
 | [Configure MCP directly](docs/en-US/install-mcp-server.md)   | stdio host users           | Claude, generic hosts, Development, and source builds    |
-| [MCP tool reference](docs/en-US/tools.md)                    | Users and agent developers | 24 tools, write boundaries, and call sequences           |
+| [MCP tool reference](docs/en-US/tools.md)                    | Users and agent developers | 26 tools, write boundaries, and call sequences           |
 | [Architecture and safety model](docs/en-US/architecture.md)  | Developers                 | Processes, protocol, Proposal, and DesignPlan lifecycles |
 | [Development guide](docs/en-US/development.md)               | Contributors               | Monorepo, commands, tests, and builds                    |
 | [End-to-end acceptance](docs/en-US/acceptance.md)            | Contributors               | Distribution and Figma scenario validation               |
@@ -159,9 +187,9 @@ See the [development guide](docs/en-US/development.md) for the environment and r
 
 ## Current scope
 
-The current stable release supports Windows, local stdio, multiple MCP Adapters, one active Figma plugin, and the current page of the current Design file. It supports reads, renders, exports, controlled Proposal edits, and validated DesignPlans.
+The current stable release supports Windows, local stdio, multiple MCP Adapters, one active Figma plugin, and the current page of the current Design file. It supports reads, renders, asset exports, session-persisted semantic snapshots, controlled Proposal edits, and validated DesignPlans. A connected coding agent can use these capabilities to generate code in a local front-end project.
 
-The current release does not provide a Windows installer, automatic updates, remote transport, cloud sync, arbitrary JavaScript, direct source-artwork writes, general deletion, Instance detaching, Team Library queries, or framework code generation.
+The current release does not provide a Windows installer, automatic updates, remote transport, cloud sync, arbitrary JavaScript, direct source-artwork writes, general deletion, Instance detaching, or Team Library queries. The Bridge also has no built-in one-click generator for a particular framework; the connected coding agent performs code generation.
 
 ## License
 
