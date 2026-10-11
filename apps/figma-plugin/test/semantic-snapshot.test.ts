@@ -64,7 +64,7 @@ describe('范围语义序列化', () => {
     ]);
   });
 
-  it('focusNodeIds 只保留焦点路径，并只为焦点生成事实', async () => {
+  it('focusNodeIds 保留完整 outline，并只为焦点生成事实', async () => {
     vi.stubGlobal('figma', { getImageByHash: vi.fn() });
     const leaf = node('leaf', 'Indicator', 'RECTANGLE', page);
     const branch = node('branch', 'Selected item', 'FRAME', page, [leaf]);
@@ -88,7 +88,7 @@ describe('范围语义序列化', () => {
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line).nodeId);
-    expect(outlineIds).toEqual(['root', 'branch', 'leaf']);
+    expect(outlineIds).toEqual(['root', 'branch', 'leaf', 'other']);
     expect(factIds).toEqual(['leaf']);
   });
 

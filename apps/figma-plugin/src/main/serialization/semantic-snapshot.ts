@@ -23,8 +23,8 @@ type SemanticPayload = Pick<
 >;
 
 /**
- * 将范围序列化为稳定的扁平 JSONL。指定 focusNodes 时只遍历根到焦点的路径，
- * 避免为了少数关键节点把整个组件细节重新注入磁盘快照。
+ * 将范围序列化为稳定的扁平 JSONL。outline 始终保留完整范围结构，
+ * focusNodes 只限制详细 facts，避免为少数关键节点写入全树细节。
  */
 export async function serializeSemanticScope(
   input: SerializeSemanticScopeInput,
@@ -33,7 +33,6 @@ export async function serializeSemanticScope(
   const facts: SemanticFactRecord[] = [];
   const context = createSerializeContext();
   const focusIds = new Set(input.focusNodes.map((node) => node.id));
-  const focusedPathIds = collectFocusedPathIds(input.root, input.focusNodes);
   const reasons = new Set<SemanticTruncation['reasons'][number]>();
   const frontierNodeIds: string[] = [];
   let omittedChildCount = 0;
@@ -88,16 +87,14 @@ export async function serializeSemanticScope(
       if (snapshot.text?.truncated) reasons.add('TEXT_LIMIT');
     }
 
-    const selectedChildren =
-      focusedPathIds.size > 0 ? children.filter((child) => focusedPathIds.has(child.id)) : children;
     if (depth >= input.depth) {
-      omit(selectedChildren, 'DEPTH_LIMIT');
+      omit(children, 'DEPTH_LIMIT');
       return;
     }
-    for (const child of selectedChildren) {
+    for (const child of children) {
       if (outline.length >= input.maxNodes) {
-        const start = selectedChildren.indexOf(child);
-        omit(selectedChildren.slice(start), 'NODE_LIMIT');
+        const start = children.indexOf(child);
+        omit(children.slice(start), 'NODE_LIMIT');
         break;
       }
       await visit(child, depth + 1, children.indexOf(child), node.id);
@@ -121,19 +118,6 @@ export async function serializeSemanticScope(
     outlineJsonl: toJsonl(outline),
     factsJsonl: toJsonl(facts),
   };
-}
-
-function collectFocusedPathIds(root: SceneNode, focusNodes: readonly SceneNode[]): Set<string> {
-  const ids = new Set<string>();
-  for (const focus of focusNodes) {
-    let current: BaseNode | null = focus;
-    while (current && current.id !== root.id) {
-      if (isSceneNode(current)) ids.add(current.id);
-      current = current.parent;
-    }
-    ids.add(root.id);
-  }
-  return ids;
 }
 
 function toJsonl(records: readonly unknown[]): string {
