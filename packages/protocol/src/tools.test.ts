@@ -1,11 +1,44 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  BindExportRootInputSchema,
+  BindExportRootResultSchema,
   DuplicateProposalInputSchema,
   ExportAssetInputSchema,
   ExportAssetRpcInputSchema,
   GetFingerprintInputSchema,
 } from './tools.js';
+
+describe('export root binding contract', () => {
+  it('accepts only a bounded path string and matching session UUID shape', () => {
+    const input = {
+      rootPath: 'E:\\workspace\\project',
+      expectedSessionId: '11111111-1111-4111-8111-111111111111',
+    };
+    expect(BindExportRootInputSchema.parse(input)).toEqual(input);
+    expect(BindExportRootInputSchema.safeParse({ ...input, extra: true }).success).toBe(false);
+    expect(
+      BindExportRootInputSchema.safeParse({ ...input, rootPath: 'x'.repeat(1_025) }).success,
+    ).toBe(false);
+  });
+
+  it('returns only a WORKSPACE status without fallback expiry', () => {
+    expect(
+      BindExportRootResultSchema.safeParse({
+        delivery: 'WORKSPACE',
+        rootPath: 'E:\\workspace\\project',
+        sessionId: '11111111-1111-4111-8111-111111111111',
+      }).success,
+    ).toBe(true);
+    expect(
+      BindExportRootResultSchema.safeParse({
+        delivery: 'STAGED',
+        rootPath: 'E:\\workspace\\project',
+        sessionId: '11111111-1111-4111-8111-111111111111',
+      }).success,
+    ).toBe(false);
+  });
+});
 
 describe('duplicate Proposal input', () => {
   it('accepts edit targets and rejects the removed nodeIds field', () => {

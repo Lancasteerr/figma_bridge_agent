@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -17,6 +17,7 @@ type ToolHandler = (input: Record<string, unknown>) => Promise<{
 }>;
 
 const cleanupPaths: string[] = [];
+const SESSION_ID = '11111111-1111-4111-8111-111111111111';
 
 afterEach(async () => {
   for (const path of cleanupPaths.splice(0).reverse()) {
@@ -24,10 +25,11 @@ afterEach(async () => {
   }
 });
 
-async function setup(rpcResult: Record<string, unknown>) {
-  const cwd = await mkdtemp(join(tmpdir(), 'figma-media-tool-test-'));
-  cleanupPaths.push(cwd);
-  const exports = new ExportStore({ cwd, homeDirectory: cwd });
+async function setup(rpcResult: Record<string, unknown>, options: { bind?: boolean } = {}) {
+  const workspace = await mkdtemp(join(tmpdir(), 'figma-media-tool-workspace-test-'));
+  const home = await mkdtemp(join(tmpdir(), 'figma-media-tool-home-test-'));
+  cleanupPaths.push(workspace, home);
+  const exports = new ExportStore({ homeDirectory: home, sessionId: SESSION_ID, pluginRoots: [] });
   await exports.initialize();
   const handlers = new Map<string, ToolHandler>();
   const server = {
@@ -43,7 +45,20 @@ async function setup(rpcResult: Record<string, unknown>) {
     close: vi.fn(async () => undefined),
   } as unknown as BridgeTransport;
   registerMediaTools(server, broker, {} as TempAssetStore, exports);
-  return { cwd, exports, broker, handler: handlers.get('figma_export_asset')! };
+  if (options.bind !== false) {
+    const response = await handlers.get('figma_bind_export_root')!({
+      rootPath: workspace,
+      expectedSessionId: SESSION_ID,
+    });
+    if (response.isError) throw new Error(response.content[0]?.text ?? 'Binding failed.');
+  }
+  return {
+    workspace,
+    exports,
+    broker,
+    handlers,
+    handler: handlers.get('figma_export_asset')!,
+  };
 }
 
 const rawSamples = {
@@ -55,7 +70,7 @@ const rawSamples = {
 
 describe('figma_export_asset MCP 工具', () => {
   it.each(Object.entries(rawSamples))('识别 RAW %s 魔数并追加真实扩展名', async (ext, bytes) => {
-    const { handler, cwd } = await setup({
+    const { handler, workspace } = await setup({
       nodeId: 'node:1',
       mode: 'RAW',
       format: 'ORIGINAL',
@@ -85,7 +100,7 @@ describe('figma_export_asset MCP 工具', () => {
       requiresCopy: false,
     });
     expect(response.structuredContent).not.toHaveProperty('data');
-    await expect(readFile(join(cwd, `src/assets/image.${ext}`))).resolves.toEqual(bytes);
+    await expect(readFile(join(workspace, `src/assets/image.${ext}`))).resolves.toEqual(bytes);
   });
 
   it('拒绝不支持的 RAW 编码且不落盘', async () => {
@@ -124,21 +139,31 @@ describe('figma_export_asset MCP 工具', () => {
     expect(broker.request).not.toHaveBeenCalled();
   });
 
+  it('绑定工具不依赖 Figma RPC，且过期会话返回结构化错误', async () => {
+    const { workspace, exports, broker, handlers } = await setup({}, { bind: false });
+    const handler = handlers.get('figma_bind_export_root')!;
+
+    const mismatch = await handler({
+      rootPath: workspace,
+      expectedSessionId: '22222222-2222-4222-8222-222222222222',
+    });
+    expect(mismatch.isError).toBe(true);
+    expect(mismatch.content[0]?.text).toContain('EXPORT_SESSION_MISMATCH');
+
+    const response = await handler({ rootPath: workspace, expectedSessionId: SESSION_ID });
+    expect(response.isError).not.toBe(true);
+    expect(response.structuredContent).toEqual({
+      delivery: 'WORKSPACE',
+      rootPath: await realpath(workspace),
+      sessionId: SESSION_ID,
+    });
+    expect(exports.status.delivery).toBe('WORKSPACE');
+    expect(broker.request).not.toHaveBeenCalled();
+  });
+
   it('STAGED 返回 requiresCopy 与工程相对路径，且不泄漏正文', async () => {
-    const home = await mkdtemp(join(tmpdir(), 'figma-media-stage-test-'));
-    cleanupPaths.push(home);
-    const exports = new ExportStore({ cwd: null, homeDirectory: home });
-    await exports.initialize();
-    const handlers = new Map<string, ToolHandler>();
-    const server = {
-      registerTool: (name: string, _definition: unknown, handler: ToolHandler) => {
-        handlers.set(name, handler);
-      },
-    } as unknown as McpServer;
-    const broker = {
-      connected: true,
-      pluginVersion: '2.0.0',
-      request: vi.fn(async () => ({
+    const { handlers } = await setup(
+      {
         nodeId: 'node:1',
         mode: 'RENDERED',
         format: 'SVG',
@@ -146,11 +171,9 @@ describe('figma_export_asset MCP 工具', () => {
         data: '<svg xmlns="http://www.w3.org/2000/svg" />',
         encoding: 'utf8',
         source: { treeFingerprint: 'tree-fingerprint' },
-      })),
-      onEvent: vi.fn(() => () => undefined),
-      close: vi.fn(async () => undefined),
-    } as unknown as BridgeTransport;
-    registerMediaTools(server, broker, {} as TempAssetStore, exports);
+      },
+      { bind: false },
+    );
 
     const response = await handlers.get('figma_export_asset')!({
       nodeId: 'node:1',
