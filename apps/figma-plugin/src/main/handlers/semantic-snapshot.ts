@@ -47,8 +47,16 @@ export async function exportSemanticScope(params: unknown) {
   const result = {
     rootNodeId: root.id,
     rootNodeName: root.name,
-    pageId: figma.currentPage.id,
+    document: { name: figma.root.name },
+    page: { id: figma.currentPage.id, name: figma.currentPage.name },
     profile: input.profile,
+    request: {
+      focusNodeIds: input.focusNodeIds ?? [],
+      includeRender: input.includeRender,
+      depth: input.depth,
+      maxNodes: input.maxNodes,
+      maxTextLength: input.maxTextLength,
+    },
     sourceFingerprint: after,
     ...payload,
     ...(render ? { render } : {}),

@@ -100,8 +100,18 @@ export const ExportSemanticScopeRpcResultSchema = z
   .object({
     rootNodeId: z.string(),
     rootNodeName: z.string(),
-    pageId: z.string(),
+    document: z.object({ name: z.string() }).strict(),
+    page: z.object({ id: z.string(), name: z.string() }).strict(),
     profile: SemanticSnapshotProfileSchema,
+    request: z
+      .object({
+        focusNodeIds: z.array(z.string()),
+        includeRender: z.boolean(),
+        depth: z.number().int().nonnegative(),
+        maxNodes: z.number().int().positive(),
+        maxTextLength: z.number().int().nonnegative(),
+      })
+      .strict(),
     sourceFingerprint: z.string().min(8),
     nodeCount: z.number().int().nonnegative(),
     complete: z.boolean(),
@@ -163,8 +173,17 @@ export const SemanticSnapshotManifestSchema = z
     scopeId: z.string(),
     rootNodeId: z.string(),
     rootNodeName: z.string(),
-    pageId: z.string(),
+    page: z.object({ id: z.string(), name: z.string() }).strict(),
     profile: SemanticSnapshotProfileSchema,
+    request: z
+      .object({
+        focusNodeIds: z.array(z.string()),
+        includeRender: z.boolean(),
+        depth: z.number().int().nonnegative(),
+        maxNodes: z.number().int().positive(),
+        maxTextLength: z.number().int().nonnegative(),
+      })
+      .strict(),
     sourceFingerprint: z.string().min(8),
     nodeCount: z.number().int().nonnegative(),
     complete: z.boolean(),

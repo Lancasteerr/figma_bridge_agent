@@ -10,6 +10,8 @@ import { registerMediaTools } from './mcp/register-media-tools.js';
 import { registerDesignTools } from './mcp/register-design-tools.js';
 import { registerMutationTools } from './mcp/register-mutation-tools.js';
 import { registerStatusTool } from './mcp/register-status.js';
+import { registerSemanticTools } from './mcp/register-semantic-tools.js';
+import { SemanticSnapshotStore } from './semantic/semantic-snapshot-store.js';
 import { TempAssetStore } from './temp/asset-store.js';
 import { SessionWorkspace } from './storage/session-workspace.js';
 
@@ -24,11 +26,15 @@ export function createMcpServer(
   broker: BridgeTransport,
   assets: TempAssetStore,
   exports: ExportStore,
+  snapshots = new SemanticSnapshotStore(exports.workspace, {
+    pluginVersion: () => broker.pluginVersion,
+  }),
 ): McpServer {
   const server = new McpServer({ name: 'figma-local-agent', version: __CLI_VERSION__ });
   registerStatusTool(server, broker, exports);
   registerReadTools(server, broker);
   registerMediaTools(server, broker, assets, exports);
+  registerSemanticTools(server, broker, snapshots);
   registerMutationTools(server, broker);
   registerDesignTools(server, broker);
   return server;
@@ -40,12 +46,18 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
   const assets = new TempAssetStore();
   const workspace = new SessionWorkspace();
   const exports = new ExportStore({ workspace });
+  const snapshots = new SemanticSnapshotStore(workspace, {
+    pluginVersion: () => broker.pluginVersion,
+  });
   await Promise.all([assets.initialize(), workspace.initialize()]);
   broker.start();
 
-  const handle: StdioServerHandle = serveStdio(() => createMcpServer(broker, assets, exports), {
-    onerror: (error) => console.error(JSON.stringify({ level: 'error', message: error.message })),
-  });
+  const handle: StdioServerHandle = serveStdio(
+    () => createMcpServer(broker, assets, exports, snapshots),
+    {
+      onerror: (error) => console.error(JSON.stringify({ level: 'error', message: error.message })),
+    },
+  );
 
   return {
     broker,

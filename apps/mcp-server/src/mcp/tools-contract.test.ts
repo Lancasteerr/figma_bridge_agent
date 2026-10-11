@@ -14,11 +14,13 @@ import { createMcpServer } from '../server.js';
 const EXPECTED_TOOLS = [
   'figma_apply_design_plan',
   'figma_bind_export_root',
+  'figma_check_semantic_scope',
   'figma_create_component_from_node',
   'figma_create_frame',
   'figma_discard_proposal',
   'figma_duplicate_as_proposal',
   'figma_export_asset',
+  'figma_export_semantic_scope',
   'figma_get_css',
   'figma_get_design_resources',
   'figma_get_fingerprint',
@@ -48,7 +50,7 @@ afterEach(async () => {
 });
 
 describe('MCP tool contract', () => {
-  it('advertises its package version and exactly 24 closed-world tools', async () => {
+  it('advertises its package version and exactly 26 closed-world tools', async () => {
     const broker = new PluginConnectionBroker({
       version: 2,
       serverId: '11111111-1111-4111-8111-111111111111',
@@ -66,7 +68,7 @@ describe('MCP tool contract', () => {
 
     // 除名称外还检查 schema 和注解，防止工具虽然注册成功但失去客户端元数据。
     expect(tools.map((tool) => tool.name).sort()).toEqual(EXPECTED_TOOLS);
-    expect(tools).toHaveLength(24);
+    expect(tools).toHaveLength(26);
     for (const tool of tools) {
       expect(tool.inputSchema).toMatchObject({ type: 'object' });
       expect(tool.outputSchema).toMatchObject({ type: 'object' });
