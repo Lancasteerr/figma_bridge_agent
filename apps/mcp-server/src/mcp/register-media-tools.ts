@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { DOMParser } from '@xmldom/xmldom';
 import {
   BridgeFault,
+  BindExportRootInputSchema,
+  BindExportRootResultSchema,
   ExportAssetInputSchema,
   ExportAssetResultSchema,
   ExportAssetRpcInputSchema,
@@ -31,6 +33,32 @@ export function registerMediaTools(
   previews: TempAssetStore,
   exports: ExportStore,
 ): void {
+  server.registerTool(
+    'figma_bind_export_root',
+    {
+      description:
+        'Bind the current MCP session to the exact absolute workspace root reported by the Agent execution environment. Call figma_status first and bind before the first export.',
+      inputSchema: BindExportRootInputSchema,
+      outputSchema: BindExportRootResultSchema,
+      annotations: {
+        title: 'Bind Figma export root',
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const parsed = BindExportRootInputSchema.parse(input);
+        const status = await exports.bindRoot(parsed.rootPath, parsed.expectedSessionId);
+        return structuredResult(BindExportRootResultSchema.parse(status));
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
   server.registerTool(
     'figma_stage_asset',
     {
@@ -64,7 +92,7 @@ export function registerMediaTools(
     'figma_export_asset',
     {
       description:
-        'Export an exact Figma image paint or a strongly versioned node render to a workspace-relative path. The server writes under its frozen startup cwd, or returns a staged path when that cwd was unavailable.',
+        'Export an exact Figma image paint or a strongly versioned node render to a relative path under the session-bound workspace, or to the staged session when no workspace is bound.',
       inputSchema: ExportAssetInputSchema,
       outputSchema: ExportAssetResultSchema,
       annotations: {

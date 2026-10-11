@@ -194,6 +194,18 @@ export const SelectionResultSchema = z.object({
   selection: z.array(NodeSummarySchema),
 });
 
+/** Adapter 会话级的素材导出交付状态。 */
+export const AssetExportStatusSchema = z
+  .object({
+    delivery: z.enum(['WORKSPACE', 'STAGED']),
+    rootPath: z.string().min(1),
+    sessionId: z.string().uuid(),
+    fallbackExpiresAt: z.string().datetime().optional(),
+  })
+  .strict();
+/** 素材导出交付状态类型。 */
+export type AssetExportStatus = z.infer<typeof AssetExportStatusSchema>;
+
 /** status 工具返回的连接、页面、选区和能力信息。 */
 export const StatusResultSchema = z.object({
   connected: z.boolean(),
@@ -204,15 +216,7 @@ export const StatusResultSchema = z.object({
   page: z.object({ id: z.string(), name: z.string() }).optional(),
   selection: z.array(NodeSummarySchema),
   capabilities: z.array(z.string()),
-  assetExport: z
-    .object({
-      delivery: z.enum(['WORKSPACE', 'STAGED']),
-      rootPath: z.string().min(1),
-      sessionId: z.string().uuid(),
-      fallbackExpiresAt: z.string().datetime().optional(),
-    })
-    .strict()
-    .optional(),
+  assetExport: AssetExportStatusSchema.optional(),
 });
 /** 插件状态结果类型。 */
 export type StatusResult = z.infer<typeof StatusResultSchema>;
