@@ -11,6 +11,7 @@ import { registerDesignTools } from './mcp/register-design-tools.js';
 import { registerMutationTools } from './mcp/register-mutation-tools.js';
 import { registerStatusTool } from './mcp/register-status.js';
 import { TempAssetStore } from './temp/asset-store.js';
+import { SessionWorkspace } from './storage/session-workspace.js';
 
 /** MCP server 运行期间需要同时关闭 stdio、桥接和临时资源。 */
 export interface RunningServer {
@@ -37,8 +38,9 @@ export function createMcpServer(
 export async function startServer(config: ServerConfig): Promise<RunningServer> {
   const broker = new DaemonBridgeClient(config);
   const assets = new TempAssetStore();
-  const exports = new ExportStore();
-  await Promise.all([assets.initialize(), exports.initialize()]);
+  const workspace = new SessionWorkspace();
+  const exports = new ExportStore({ workspace });
+  await Promise.all([assets.initialize(), workspace.initialize()]);
   broker.start();
 
   const handle: StdioServerHandle = serveStdio(() => createMcpServer(broker, assets, exports), {
