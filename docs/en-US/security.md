@@ -15,8 +15,8 @@ This project is a local development tool, not a remote service.
 - Pairing is disabled by default. An explicit `pair` command opens one 120-second session, and the user must compare a six-digit SAS before the device credential is stored.
 - X25519 and HKDF-SHA-256 derive a unique token for every paired plugin. The token is never transmitted over WebSocket and is separate from the Daemon credential used by MCP adapters.
 - Long-running file output is bounded to 9 MiB per item and 256 MiB per staged session.
-- Each MCP Adapter freezes `realpath(process.cwd())` as its only workspace root at startup. The Agent can provide only paths relative to that root; it cannot provide a root, absolute path, environment override, or CLI override.
-- When cwd is missing, not a directory, or unwritable, the Adapter permanently falls back for that session to `~/figma_bridge_agent_export/<session-id>/`. The session remains for 24 hours so interrupted work can recover. The shared Daemon never writes project files.
+- Every MCP Adapter initially writes only to its independent `~/figma_bridge_agent_export/<session-id>/`. Before the first export, the Agent may submit the absolute cwd from its own task execution environment together with the latest session ID. The Adapter validates realpath, directory type, writability, and dangerous locations, then freezes the canonical root for that session.
+- Binding rejects filesystem roots, the user home itself, plugin roots, plugin data directories, and staging directories or their descendants. A session cannot bind after writing starts or switch to another root. Unbound sessions remain for 24 hours so interrupted work can recover. The shared Daemon never writes project files.
 - Exports reject traversal, drive/UNC/absolute paths, NUL, symlink/junction escapes, and non-regular targets. Missing ordinary directories may be created only inside the frozen root.
 - Files are committed through a same-directory temporary file and rename. Identical content is reused; different content is rejected by default. Overwrite requires the existing SHA-256 just inspected by the caller and rechecks it before commit.
 - Inbound design assets are accepted only as Base64, validated and bounded before reaching the plugin, and never trigger an external network request.
@@ -29,7 +29,7 @@ This project is a local development tool, not a remote service.
 - Do not expose port 3900 through a proxy or port-forward.
 - Keep the Figma plugin status window open only while using the bridge.
 - Review a Proposal visually before copying it into production artwork.
-- Check `figma_status` for `WORKSPACE` versus `STAGED`. Copy staged results to the returned project-relative path and verify SHA-256; never put a staging path into generated code.
+- Check `figma_status` for `WORKSPACE` versus `STAGED`. During implementation, call `figma_bind_export_root` with the latest session ID. If binding is unavailable or fails, copy staged results to the returned project-relative path and verify SHA-256; never put a staging path into generated code.
 - Use Figma native Undo for user-directed history changes. The bridge uses undo only inside an anchored write boundary for the operation that has just failed; read-only validation failures never trigger undo.
 
 ## Explicit non-goals

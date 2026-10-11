@@ -2,13 +2,14 @@
 
 [中文版](../zh-CN/tools.md) · [Documentation home](README.md)
 
-The MCP Server exposes a fixed set of 23 tools. “Writes to Figma” indicates whether a tool changes the current Figma document. Reads, exports, and in-memory asset staging do not modify the document.
+The MCP Server exposes a fixed set of 24 tools. “Writes to Figma” indicates whether a tool changes the current Figma document. Reads, exports, and in-memory asset staging do not modify the document.
 
 ## Status
 
-| Tool           | Purpose                                                                                  | Writes to Figma |
-| -------------- | ---------------------------------------------------------------------------------------- | --------------- |
-| `figma_status` | Return connection, document context, capabilities, and this session's export-root status | No              |
+| Tool                     | Purpose                                                                                     | Writes to Figma |
+| ------------------------ | ------------------------------------------------------------------------------------------- | --------------- |
+| `figma_status`           | Return connection, document context, capabilities, and this session's export-root status    | No              |
+| `figma_bind_export_root` | Bind the Agent task execution environment's absolute cwd once as this session's export root | No              |
 
 ## Reads and discovery
 
@@ -63,7 +64,9 @@ The `assets` field from `figma_get_node` and `figma_get_tree` reports Figma fact
 - `RAW`: provide the node ID, exact paint slot/index, current image hash, current node snapshot fingerprint, and an extensionless workspace-relative `outputPathStem`. The plugin resolves and validates that paint again, then returns original bytes. The Server accepts PNG, JPEG, GIF, or WebP magic bytes and appends the actual extension. RAW does not apply crop, filters, masks, or transcoding.
 - `RENDERED`: first call `figma_get_fingerprint({ nodeIds: [nodeId] })`, then provide that complete-subtree fingerprint and a workspace-relative `outputPath` with a matching extension. PNG/JPG accept scale 1–4; SVG accepts no scale. Any descendant change returns `ASSET_SOURCE_CHANGED` before a file is written.
 
-Each MCP Adapter freezes its own `process.cwd()` at startup. When writable, `figma_status.assetExport.delivery` is `WORKSPACE` and exports land directly below that root. If it is unavailable or unwritable, delivery is `STAGED` in a separate 24-hour session directory. A `STAGED` result has `requiresCopy=true`: copy `absolutePath` to `projectRelativePath` and verify SHA-256. Generated code must never reference the staging path.
+Every MCP Adapter starts as `STAGED` with an independent session directory retained for 24 hours. Before the first implementation-phase export, the Agent obtains the exact absolute cwd from its own local task execution environment and calls `figma_bind_export_root` with the latest `sessionId`. The root must not be inferred from the plugin process, plugin cache, Git metadata, or user prose. A successful binding changes delivery to `WORKSPACE` and cannot be switched to another root during that session.
+
+When Agent cwd discovery or binding is unavailable, the session remains `STAGED`. A `STAGED` result has `requiresCopy=true`: copy `absolutePath` to `projectRelativePath` and verify SHA-256. Generated code must never reference the staging path.
 
 Paths must be relative and cannot contain drive letters, UNC/absolute roots, NUL, empty segments, or `..`. The default `REUSE_OR_FAIL` reuses identical content and rejects different content with `EXPORT_TARGET_CONFLICT`. `OVERWRITE` is accepted only with the SHA-256 of the existing file that the caller just inspected, and returns `UPDATED` after a checked replacement. Public results contain no Base64 or SVG body.
 
@@ -74,7 +77,7 @@ Paths must be relative and cannot contain drive letters, UNC/absolute roots, NUL
 1. Call `figma_status` to confirm the plugin connection and inspect the current selection.
 2. Use `figma_get_selection` to locate the target, then read the node, tree, CSS, fonts, and design resources as needed.
 3. Use `figma_render_node` to verify visual evidence. During planning, record assets, source fingerprints, and relative destinations without calling the export tool.
-4. During implementation, re-read each source, export only the recorded set, and complete the `WORKSPACE`/`STAGED` delivery and hash verification.
+4. During implementation, refresh status and sources, bind the Agent task cwd before the first export, export only the recorded set, and complete the `WORKSPACE`/`STAGED` delivery and hash verification.
 
 ### Edit an existing design
 
@@ -98,5 +101,5 @@ Paths must be relative and cannot contain drive letters, UNC/absolute roots, NUL
 - Fingerprints in bounded snapshots from `figma_get_node`, `figma_get_tree`, and similar reads cover different data and are not substitutes for the aggregate fingerprint.
 - Write tools cannot change source nodes or cross a Bridge-marked Proposal root.
 - Input assets cannot use URLs or local paths. Team Library is never queried, and Instances are never detached.
-- Export paths are always relative to the MCP Adapter's startup cwd; no environment variable, CLI argument, or tool input can expand that root.
+- Export paths are always relative to the session's staging root or explicit bound root. Binding never trusts the MCP process cwd and cannot change after the first export.
 - Tools remain discoverable while the plugin is closed, but calls fail quickly with `PLUGIN_NOT_CONNECTED`.

@@ -13,12 +13,12 @@
 | 能力         | 说明                                                                 |
 | ------------ | -------------------------------------------------------------------- |
 | 本地读取     | 读取当前文件、选区、节点树、素材事实、样式、变量、字体和 Inspect CSS |
-| 素材交付     | 提取原始图片或渲染节点，安全写入会话 cwd 或 24 小时暂存目录          |
+| 素材交付     | 提取原始图片或渲染节点，安全写入会话绑定根或 24 小时暂存目录         |
 | 安全编辑     | 先复制目标和必要布局上下文，再仅在隔离 Proposal 内修改               |
 | 声明式生成   | 验证完整 DesignPlan 后，原子创建新的 Proposal                        |
 | 多客户端复用 | 多个本地 MCP Adapter 共用一个自动管理的 Bridge Daemon                |
 
-MCP Server 当前公开 23 个受限工具。完整列表和推荐调用顺序见 [MCP 工具参考](docs/zh-CN/tools.md)。
+MCP Server 当前公开 24 个受限工具。完整列表和推荐调用顺序见 [MCP 工具参考](docs/zh-CN/tools.md)。
 
 ## 界面预览
 
@@ -54,7 +54,7 @@ Agent 的修改会出现在 Figma 画布上的隔离 Proposal 中，便于与源
 
 ### 1. 选择一种安装方式
 
-两种方式公开相同的 23 个 MCP 工具，只需选择其中一种：
+两种方式公开相同的 24 个 MCP 工具，只需选择其中一种：
 
 - **安装 Agent Plugin**：适用于本项目当前已适配的 Codex、Cursor 和 GitHub Copilot；自动提供 MCP 配置及安全 Proposal 工作流 Skill。请按[插件安装指南](docs/zh-CN/install-plugin.md)操作。
 - **直接配置 MCP Server**：适用于 Claude Code、Claude Desktop及其他本地 stdio 主机；需要手工添加 MCP 配置，且不会自动安装 Skill。请按[直接 MCP 安装指南](docs/zh-CN/install-mcp-server.md)操作。
@@ -125,7 +125,7 @@ Figma 插件 UI 与主进程
 - 公开写工具只能新建 Proposal，或修改带 Bridge 标记的 Proposal 根内部节点。
 - 输入素材只接受 Base64；Server 不抓取 URL，也不读取调用方指定的本地文件。
 - Team Library 不会被查询；需要复用的外部 Instance 必须先放到当前页面。
-- 导出根在每个 MCP Adapter 启动时由 `process.cwd()` 冻结；不可写时才进入 24 小时暂存目录。路径只能相对该根，并带 SHA-256 与冲突保护。
+- 每个 MCP Adapter 默认进入独立的 24 小时暂存会话。实施阶段由 Agent 提交自身任务执行环境的准确 cwd 与最新 session ID，绑定成功后才直接写入工程；相对路径、SHA-256 与冲突保护保持不变。
 - 同一时间只支持一个活动 Figma 插件窗口；纯远程 Agent 无法访问本机 Bridge。
 
 完整边界和操作建议见 [安全说明](docs/zh-CN/security.md)。
@@ -138,7 +138,7 @@ Figma 插件 UI 与主进程
 | [选择安装方式](docs/zh-CN/configuration.md)       | 使用者               | 对比插件与直接 MCP 两条路线                 |
 | [安装 Agent Plugin](docs/zh-CN/install-plugin.md) | 插件客户端用户       | Codex、Cursor、Copilot 稳定版安装           |
 | [直接配置 MCP](docs/zh-CN/install-mcp-server.md)  | stdio 主机用户       | Claude、通用主机、Development 与源码构建    |
-| [MCP 工具参考](docs/zh-CN/tools.md)               | 使用者、Agent 开发者 | 23 个工具、写入边界和调用流程               |
+| [MCP 工具参考](docs/zh-CN/tools.md)               | 使用者、Agent 开发者 | 24 个工具、写入边界和调用流程               |
 | [架构与安全模型](docs/zh-CN/architecture.md)      | 开发者               | 进程、协议、Proposal 和 DesignPlan 生命周期 |
 | [开发指南](docs/zh-CN/development.md)             | 贡献者               | Monorepo、常用命令、测试和构建              |
 | [端到端验收](docs/zh-CN/acceptance.md)            | 贡献者               | 发行产物和 Figma 场景验收                   |

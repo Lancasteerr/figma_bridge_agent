@@ -2,13 +2,14 @@
 
 [English](../en-US/tools.md) · [文档首页](README.md)
 
-MCP Server 公开固定集合的 23 个工具。“Figma 写入”表示是否会改变当前 Figma 文档；读取、导出和内存素材暂存不会修改文档。
+MCP Server 公开固定集合的 24 个工具。“Figma 写入”表示是否会改变当前 Figma 文档；读取、导出和内存素材暂存不会修改文档。
 
 ## 状态
 
-| 工具           | 用途                                                              | Figma 写入 |
-| -------------- | ----------------------------------------------------------------- | ---------- |
-| `figma_status` | 返回插件连接、当前文件、页面、选区、Bridge 能力及本会话导出根状态 | 否         |
+| 工具                     | 用途                                                              | Figma 写入 |
+| ------------------------ | ----------------------------------------------------------------- | ---------- |
+| `figma_status`           | 返回插件连接、当前文件、页面、选区、Bridge 能力及本会话导出根状态 | 否         |
+| `figma_bind_export_root` | 将 Agent 任务执行环境的绝对 cwd 一次性绑定为本会话导出根          | 否         |
 
 ## 读取与发现
 
@@ -63,7 +64,9 @@ DesignPlan v1 的节点结构和约束见 [DesignPlan v1 reference](../../plugin
 - `RAW`：传入 node ID、paint slot/index、当前 image hash、当前节点快照指纹，以及不带扩展名的工程相对 `outputPathStem`。插件重新定位 paint 并校验来源，然后返回原始字节；Server 只接受 PNG、JPEG、GIF、WebP 魔数并追加真实扩展名。RAW 不应用裁剪、滤镜、蒙版或格式转换。
 - `RENDERED`：先用 `figma_get_fingerprint({ nodeIds: [nodeId] })` 获取完整子树指纹，再传入匹配扩展名的工程相对 `outputPath`。PNG/JPG 支持 1–4 倍 scale，SVG 不接受 scale。任何子节点变化都会在写文件前返回 `ASSET_SOURCE_CHANGED`。
 
-每个 MCP Adapter 启动时冻结自己的 `process.cwd()`：可写时 `figma_status.assetExport.delivery` 为 `WORKSPACE`，导出直接落到该根下；不可用或不可写时为 `STAGED`，文件位于 24 小时保留的独立会话目录。`STAGED` 结果的 `requiresCopy=true`，调用方必须把 `absolutePath` 复制到 `projectRelativePath` 并核对 SHA-256；前端代码不能引用暂存绝对路径。
+每个 MCP Adapter 启动时都为 `STAGED`，并创建保留 24 小时的独立会话目录。实施阶段第一次导出前，Agent 必须在自己的本地任务执行环境取得精确绝对 cwd，然后用最新 `sessionId` 调用 `figma_bind_export_root`。不得从插件进程、插件缓存、Git 元数据或用户文本推测工作区。绑定成功后为 `WORKSPACE`，且本会话不能切换到另一根目录。
+
+无法获得 Agent cwd、绑定失败或选择不绑定时，会话保持 `STAGED`。`STAGED` 结果的 `requiresCopy=true`，调用方必须把 `absolutePath` 复制到 `projectRelativePath` 并核对 SHA-256；前端代码不能引用暂存绝对路径。
 
 路径只能是相对路径，不能含盘符、UNC、绝对路径、NUL、空段或 `..`。默认 `REUSE_OR_FAIL`：同路径同内容返回 `REUSED`，不同内容返回 `EXPORT_TARGET_CONFLICT`。只有调用方已检查现有文件并同时传入其 `expectedExistingSha256` 时，才可使用 `OVERWRITE`；成功返回 `UPDATED`。公开结果不包含 Base64 或 SVG 正文。
 
@@ -74,7 +77,7 @@ DesignPlan v1 的节点结构和约束见 [DesignPlan v1 reference](../../plugin
 1. 调用 `figma_status`，确认插件已连接并检查当前选区。
 2. 使用 `figma_get_selection` 定位目标，再按需读取 node、tree、CSS、字体和设计资源。
 3. 使用 `figma_render_node` 核对视觉结果；Plan 阶段只记录所需素材、来源指纹和相对路径，不调用导出工具。
-4. 实施时重新读取来源，只导出计划中列出的素材，并根据 `WORKSPACE`/`STAGED` 结果完成交付和哈希复核。
+4. 实施时重新读取状态与来源，在首次导出前绑定 Agent 任务 cwd，只导出计划中列出的素材，并根据 `WORKSPACE`/`STAGED` 结果完成交付和哈希复核。
 
 ### 修改现有设计
 
@@ -98,5 +101,5 @@ DesignPlan v1 的节点结构和约束见 [DesignPlan v1 reference](../../plugin
 - `figma_get_node`、`figma_get_tree` 等有界快照中的指纹覆盖范围不同，不能替代聚合指纹。
 - 写工具不能修改源节点，也不能跨越带 Bridge 标记的 Proposal 根。
 - 输入素材不接受 URL 或本地路径；Team Library 不会被查询；Instance 不会被分离。
-- 导出路径始终相对于 MCP Adapter 启动时冻结的 cwd；没有环境变量、CLI 参数或工具输入可以扩大该根。
+- 导出路径始终相对于本会话的暂存根或显式绑定根；绑定不依赖 MCP 进程 cwd，且不能在首次导出后变更。
 - 工具可发现但插件未连接时，调用会快速返回 `PLUGIN_NOT_CONNECTED`。

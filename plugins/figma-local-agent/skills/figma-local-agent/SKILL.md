@@ -71,6 +71,11 @@ Read [asset export](references/asset-export.md) before a task that may create fr
 - Immediately before export, re-read the node. Use its current snapshot fingerprint and image hash
   for `RAW`; call `figma_get_fingerprint` for the node's current complete-tree fingerprint before
   `RENDERED`.
+- Before the first implementation-phase export, obtain the exact current working directory from the
+  Agent's own local task execution environment and call `figma_bind_export_root` with that absolute
+  path and the latest `assetExport.sessionId`. Never derive the root from the plugin process,
+  plugin cache, Git metadata, or user-provided prose. Binding is session-local and must happen
+  before any staged export. If local execution or binding is unavailable, remain `STAGED`.
 - Pass workspace-relative paths only. A `WORKSPACE` result is ready to reference. For `STAGED`, copy
   `absolutePath` to `projectRelativePath` with local file tools and verify the copied SHA-256; never
   reference the staging path from generated code.

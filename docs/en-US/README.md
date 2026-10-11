@@ -9,7 +9,7 @@ These documents are for Local Figma Agent users, integrators, and contributors. 
 - [Choose an installation method](configuration.md): compare the Agent Plugin and direct MCP routes.
 - [Install the Agent Plugin](install-plugin.md): install the stable plugin and Skill in Codex, Cursor, or GitHub Copilot.
 - [Configure the MCP Server directly](install-mcp-server.md): configure a stable, Development, or source build in Claude Code, Claude Desktop, and other stdio hosts.
-- [MCP tool reference](tools.md): understand the 23 public tools, their write boundaries, and recommended call sequences.
+- [MCP tool reference](tools.md): understand the 24 public tools, their write boundaries, and recommended call sequences.
 - [Security notes](security.md): understand credential, network, asset, Proposal, workspace-export, and staging-file boundaries.
 
 ## Developers and contributors

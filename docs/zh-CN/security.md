@@ -15,8 +15,8 @@
 - 配对默认关闭。只有显式运行 `pair` 才会开启一个 120 秒会话，并且必须由用户核对六位 SAS 短码后才保存设备凭据。
 - X25519 与 HKDF-SHA-256 为每个插件派生独立 token。token 不会通过 WebSocket 传输，并与 MCP Adapter 使用的 Daemon 凭据隔离。
 - 长时间运行的文件输出受 9 MiB 单项载荷和 256 MiB 暂存会话配额限制。
-- 每个 MCP Adapter 在启动时以 `realpath(process.cwd())` 固化唯一工作区根；Agent 只能提供根内相对路径，不能提供根目录、绝对路径或通过环境变量/CLI 参数扩大范围。
-- cwd 不存在、不是目录或不可写时，Adapter 固定降级到 `~/figma_bridge_agent_export/<session-id>/`。该会话保留 24 小时供中断恢复；共享 Daemon 永远不写工程文件。
+- 每个 MCP Adapter 默认只写入独立的 `~/figma_bridge_agent_export/<session-id>/`。Agent 可在首次导出前提交自身任务执行环境的绝对 cwd 与最新 session ID；Adapter 会执行 realpath、目录类型、可写性和危险路径校验，并把规范根冻结到当前会话。
+- 绑定拒绝文件系统根、用户主目录、插件根、插件数据目录和暂存目录及其子目录。会话开始写入后不能绑定，也不能改绑到另一目录；未绑定会话保留 24 小时供中断恢复，共享 Daemon 永远不写工程文件。
 - 导出拒绝路径穿越、盘符、UNC、NUL、symlink/junction 越界和非普通目标。缺失的普通子目录只能在冻结根内创建。
 - 文件通过同目录临时文件和 rename 提交。同路径同内容复用；不同内容默认拒绝。覆盖必须携带调用方刚检查过的现有 SHA-256，并在提交前再次核对。
 - 入站设计素材只接受 Base64，在到达插件前经过格式和容量校验，且不会触发外部网络请求。
@@ -29,7 +29,7 @@
 - 不要通过代理或端口转发暴露 3900 端口。
 - 仅在使用桥接工具期间保持 Figma 插件状态窗口打开。
 - 将 Proposal 复制到生产稿前，先进行视觉审查。
-- `figma_status` 显示 `WORKSPACE` 或 `STAGED`。暂存结果必须复制到返回的工程相对路径并复核 SHA-256，不能直接写入生成代码。
+- `figma_status` 显示 `WORKSPACE` 或 `STAGED`。实施阶段应使用最新 session ID 调用 `figma_bind_export_root`；绑定失败时，暂存结果必须复制到返回的工程相对路径并复核 SHA-256，不能直接写入生成代码。
 - 用户要求修改历史记录时，请使用 Figma 原生 Undo。桥接工具只会在带锚点的写入边界内为刚刚失败的操作使用 undo；只读校验失败绝不会触发 undo。
 
 ## 明确不支持的目标

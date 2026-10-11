@@ -2,7 +2,7 @@
 
 [中文版](../zh-CN/install-mcp-server.md) · [Choose an installation method](configuration.md) · [Documentation home](README.md)
 
-This guide is for Claude Code, Claude Desktop, and other clients that can start a local stdio MCP Server on Windows. Direct configuration exposes the same 23 MCP tools as the Agent Plugin, but it does not automatically install the workflow Skill under `plugins/figma-local-agent/skills/`.
+This guide is for Claude Code, Claude Desktop, and other clients that can start a local stdio MCP Server on Windows. Direct configuration exposes the same 24 MCP tools as the Agent Plugin, but it does not automatically install the workflow Skill under `plugins/figma-local-agent/skills/`.
 
 Claude Code has its own plugin system, but this project does not currently publish a matching plugin marketplace entry. The recommended integration is therefore the direct stdio configuration on this page. This is a first-class installation method, not a degraded fallback.
 
@@ -127,7 +127,7 @@ The exact settings file and UI label depend on the host. Remote-only environment
 Restart the MCP client or open a new session after saving the configuration. Then:
 
 1. Confirm the client loads only one `figma-local-agent` Server.
-2. Confirm all 23 tools, including `figma_status`, are discoverable.
+2. Confirm all 24 tools, including `figma_status` and `figma_bind_export_root`, are discoverable.
 3. Call `figma_status` and check protocol v5, the current Figma file, page, selection, asset-export root status, and Bridge capabilities.
 
 Direct configuration does not automatically load the Agent Plugin Skill. Read the [MCP tool reference](tools.md), especially the Proposal and DesignPlan workflows, before performing writes.

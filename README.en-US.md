@@ -13,7 +13,7 @@ This unofficial developer tool is distributed through GitHub. It is not affiliat
 | Capability             | Description                                                                                         |
 | ---------------------- | --------------------------------------------------------------------------------------------------- |
 | Local reads            | Read the current file, selection, node tree, asset facts, styles, variables, fonts, and Inspect CSS |
-| Asset delivery         | Extract original images or render nodes into the session cwd or 24-hour staging fallback            |
+| Asset delivery         | Extract original images or render nodes into a session-bound root or 24-hour staging directory      |
 | Safe edits             | Clone targets and required layout context, then edit only inside an isolated Proposal               |
 | Declarative generation | Validate a complete DesignPlan before atomically creating a new Proposal                            |
 | Multi-client reuse     | Share one managed Bridge Daemon across multiple local MCP Adapters                                  |
@@ -54,7 +54,7 @@ Regular users do not need Git, pnpm, or a source checkout. Open the [latest GitH
 
 ### 1. Choose one installation method
 
-Both methods expose the same 23 MCP tools. Choose exactly one:
+Both methods expose the same 24 MCP tools. Choose exactly one:
 
 - **Install the Agent Plugin**: for Codex, Cursor, and GitHub Copilot, which currently have entry points maintained by this project. It automatically supplies the MCP configuration and safe Proposal workflow Skill. Follow the [Agent Plugin installation guide](docs/en-US/install-plugin.md).
 - **Configure the MCP Server directly**: for Claude Code, Claude Desktop, and other local stdio hosts. You add the MCP configuration manually, and the Skill is not installed automatically. Follow the [direct MCP installation guide](docs/en-US/install-mcp-server.md).
@@ -125,7 +125,7 @@ See the [architecture and safety model](docs/en-US/architecture.md) for implemen
 - Public write tools can only create a Proposal or edit nodes inside a Bridge-marked Proposal root.
 - Input assets accept Base64 only. The Server does not fetch URLs or read caller-provided local files.
 - Team Library is never queried. Place an external Instance on the current page before reusing it.
-- Each MCP Adapter freezes its export root from `process.cwd()` at startup and falls back to 24-hour staging only when that root is unwritable. Paths remain relative to that root and use SHA-256 conflict protection.
+- Every MCP Adapter starts in an independent 24-hour staging session. During implementation, the Agent submits the exact cwd from its own task execution environment with the latest session ID; only a successful binding enables direct project writes. Relative paths, SHA-256, and conflict protection remain unchanged.
 - Only one Figma plugin window can be active at a time. Remote-only agents cannot reach the local Bridge.
 
 See [security notes](docs/en-US/security.md) for complete boundaries and operational guidance.
@@ -138,7 +138,7 @@ See [security notes](docs/en-US/security.md) for complete boundaries and operati
 | [Choose an installation method](docs/en-US/configuration.md) | Users                      | Compare the Agent Plugin and direct MCP routes           |
 | [Install the Agent Plugin](docs/en-US/install-plugin.md)     | Plugin client users        | Stable Codex, Cursor, and Copilot installation           |
 | [Configure MCP directly](docs/en-US/install-mcp-server.md)   | stdio host users           | Claude, generic hosts, Development, and source builds    |
-| [MCP tool reference](docs/en-US/tools.md)                    | Users and agent developers | 23 tools, write boundaries, and call sequences           |
+| [MCP tool reference](docs/en-US/tools.md)                    | Users and agent developers | 24 tools, write boundaries, and call sequences           |
 | [Architecture and safety model](docs/en-US/architecture.md)  | Developers                 | Processes, protocol, Proposal, and DesignPlan lifecycles |
 | [Development guide](docs/en-US/development.md)               | Contributors               | Monorepo, commands, tests, and builds                    |
 | [End-to-end acceptance](docs/en-US/acceptance.md)            | Contributors               | Distribution and Figma scenario validation               |

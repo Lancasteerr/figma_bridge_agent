@@ -18,6 +18,15 @@ project asset delivery path.
 
 ## Implementation phase
 
+Before the first export:
+
+1. Call `figma_status` again and record the current `assetExport.sessionId`.
+2. Obtain the exact absolute `process.cwd()` from the Agent's own local task execution environment.
+   Do not infer a root from the plugin process, plugin cache, Git metadata, or user-provided prose.
+3. Call `figma_bind_export_root` with that path and `expectedSessionId`. The binding is immutable for
+   the Adapter session and must happen before any export write. If local execution is unavailable or
+   binding fails, keep the session `STAGED` and use the copy-and-hash workflow below.
+
 For `RAW`, re-read the node and call `figma_export_asset` with:
 
 - `mode: "RAW"`;
@@ -42,8 +51,8 @@ Handle results as follows:
 - `CREATED`: use the new file.
 - `REUSED`: the existing file already has identical bytes.
 - `UPDATED`: an explicitly authorized hash-checked overwrite succeeded.
-- `WORKSPACE`: `absolutePath` is already the requested `projectRelativePath` below the MCP
-  Adapter's frozen startup working directory.
+- `WORKSPACE`: `absolutePath` is already the requested `projectRelativePath` below the session-bound
+  Agent workspace root.
 - `STAGED`: copy from `absolutePath` to `projectRelativePath` and verify SHA-256. Staged sessions are
   retained for 24 hours but are not project asset directories.
 

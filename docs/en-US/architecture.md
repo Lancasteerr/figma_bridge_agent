@@ -22,7 +22,7 @@ current Design page
 
 An explicit CLI pairing session temporarily enables `ws://127.0.0.1:3900/pair`; normal operation leaves that path closed.
 
-`packages/protocol` owns transport-independent Zod schemas. Each MCP adapter owns one stdio session, a workspace root frozen from `process.cwd()` at startup, and an independent export session ID. The automatically managed Bridge Daemon owns the loopback listener, forwards data only, and multiplexes any number of authenticated MCP adapters onto one plugin connection; it never writes a front-end project. Plugin UI owns plugin-side authentication and reconnect behavior. Plugin main is the only process allowed to hold Figma objects.
+`packages/protocol` owns transport-independent Zod schemas. Each MCP adapter owns one stdio session, a default staged export root, an optional Agent workspace binding, and an independent export session ID. The automatically managed Bridge Daemon owns the loopback listener, forwards data only, and multiplexes any number of authenticated MCP adapters onto one plugin connection; it never writes a front-end project. Plugin UI owns plugin-side authentication and reconnect behavior. Plugin main is the only process allowed to hold Figma objects.
 
 The first adapter starts the Daemon when needed. Closing one host only closes its adapter. The Daemon exits after both the last adapter and the plugin have been disconnected for 30 seconds.
 
@@ -33,7 +33,7 @@ The first adapter starts the Daemon when needed. Closing one host only closes it
 - RPC envelopes and every UI/main message are schema-validated and size-limited.
 - Adapter logs go to stderr. The detached Daemon writes a bounded `bridge.log` in the user configuration directory and retains one rotated file. Logs contain only request ID, RPC method, duration, and outcome; secrets, image base64, and raw node JSON are excluded.
 - Visual previews from `figma_render_node` still go to `%TEMP%/figma-agent-mcp/<session>/` and are removed when the Adapter closes.
-- `figma_export_asset` is written by the Adapter: it first uses writable `realpath(process.cwd())` captured at startup, otherwise it permanently uses `~/figma_bridge_agent_export/<session-id>/` for that session. Fallback sessions remain for 24 hours and stale sessions are removed at startup. The protocol accepts no workspace root and installation arguments need no new setting.
+- `figma_export_asset` is written by the Adapter: every session starts under `~/figma_bridge_agent_export/<session-id>/`, retained for 24 hours with stale sessions removed at startup. Before the first export, the Agent may bind the exact absolute cwd from its own task execution environment with the latest session ID. The Adapter no longer trusts its own `process.cwd()`.
 
 ## Asset read and export lifecycle
 
@@ -43,7 +43,7 @@ The first adapter starts the Daemon when needed. Closing one host only closes it
 4. The Adapter rechecks RAW PNG/JPEG/GIF/WebP magic bytes and checks RENDERED format, extension, and payload size.
 5. The Adapter validates relative paths and realpaths of existing parents to block symlink/junction escapes, then writes a random temporary file in the destination directory and commits it by rename.
 6. Identical content at the same path returns `REUSED`; different content returns `EXPORT_TARGET_CONFLICT` by default. Explicit overwrite requires the existing SHA-256 and rechecks it just before rename to block concurrent modification.
-7. A `WORKSPACE` result is ready for project use. A `STAGED` result must be copied to `projectRelativePath` and verified against SHA-256.
+7. Binding must happen before any export write. The same canonical root is idempotent, and a session cannot switch to another root. A `WORKSPACE` result is ready for project use. A `STAGED` result must be copied to `projectRelativePath` and verified against SHA-256.
 
 ## Source immutability
 
