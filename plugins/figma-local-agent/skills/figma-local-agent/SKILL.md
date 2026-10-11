@@ -26,6 +26,9 @@ development plugin is open.
 
 - Start from the current page and selection reported by `figma_status`. Read a shallow local tree,
   normally depth 2–4, then use only the targeted node reads the task still needs.
+- For implementation work that needs durable design evidence, read
+  [semantic snapshots](references/semantic-snapshots.md). The bridge exports objective Figma facts;
+  the Agent decides scope boundaries, code mappings, and unresolved differences.
 - Keep reads bounded and render only when visual evidence is necessary.
 - `figma_get_node` and `figma_get_tree` expose Image Paint locations, original image dimensions,
   export settings, vector counts, and mask facts under `assets`. Treat these as Figma facts, not as
@@ -55,6 +58,9 @@ page, application screen, or reusable UI component from the current Figma docume
   crop must be corrected or reported as unresolved; do not describe such work as visually passed.
 - Engineering adaptation may favor existing components and icon libraries, but disclose planned
   and delivered visible deviations from Figma.
+- A single-node or single-component request stays scoped to that target. Do not expand it into a
+  page workflow. For a large region or page, export `OUTLINE` first and activate only one bounded
+  `IMPLEMENTATION` scope at a time.
 
 ## Asset planning and delivery
 
@@ -71,11 +77,12 @@ Read [asset export](references/asset-export.md) before a task that may create fr
 - Immediately before export, re-read the node. Use its current snapshot fingerprint and image hash
   for `RAW`; call `figma_get_fingerprint` for the node's current complete-tree fingerprint before
   `RENDERED`.
-- Before the first implementation-phase export, obtain the exact current working directory from the
-  Agent's own local task execution environment and call `figma_bind_export_root` with that absolute
-  path and the latest `assetExport.sessionId`. Never derive the root from the plugin process,
-  plugin cache, Git metadata, or user-provided prose. Binding is session-local and must happen
-  before any staged export. If local execution or binding is unavailable, remain `STAGED`.
+- Before the first implementation-phase asset or semantic write, obtain the exact current working
+  directory from the Agent's own local task execution environment and call
+  `figma_bind_export_root` with that absolute path and the latest `assetExport.sessionId`. Never
+  derive the root from the plugin process, plugin cache, Git metadata, or user-provided prose.
+  Binding is session-local and must happen before either write class starts. If local execution or
+  binding is unavailable, remain `STAGED`.
 - Pass workspace-relative paths only. A `WORKSPACE` result is ready to reference. For `STAGED`, copy
   `absolutePath` to `projectRelativePath` with local file tools and verify the copied SHA-256; never
   reference the staging path from generated code.

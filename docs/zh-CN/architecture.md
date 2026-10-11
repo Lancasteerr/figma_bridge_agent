@@ -33,17 +33,26 @@ Figma 插件主进程
 - RPC 信封以及每条 UI/主进程消息都会经过 schema 校验并受大小限制。
 - Adapter 日志写入 stderr。后台 Daemon 在用户配置目录写入有界 `bridge.log`，并只保留一个轮转文件。日志仅包含请求 ID、RPC 方法、耗时和结果，排除密钥、图像 base64 和原始节点 JSON。
 - `figma_render_node` 的视觉预览仍写入 `%TEMP%/figma-agent-mcp/<session>/`，并随 Adapter 关闭而删除。
-- `figma_export_asset` 由 Adapter 写文件：会话启动时固定使用 `~/figma_bridge_agent_export/<session-id>/`，保留 24 小时并清理过期会话。Agent 在首次导出前可用最新 session ID 把自身任务执行环境的绝对 cwd 一次性绑定为工作区根；Adapter 不再信任它自身的 `process.cwd()`。
+- 素材和语义快照由 Adapter 写文件，共享同一个会话根绑定、路径校验、原子写入和暂存配额。会话启动时固定使用 `~/figma_bridge_agent_export/<session-id>/`，保留 24 小时并清理过期会话。Agent 在首次写入前可用最新 session ID 把自身任务执行环境的绝对 cwd 一次性绑定为工作区根；Adapter 不再信任它自身的 `process.cwd()`。任一类写入开始后都不能改绑。
 
 ## 素材读取与导出生命周期
 
 1. 插件在节点快照中枚举 Image Paint、导出设置、矢量和蒙版事实；同一次树读取按 image hash 缓存尺寸查询。素材属性参与快照指纹。
 2. RAW 请求在插件中重新解析指定 paint，并同时核对 image hash 与节点快照指纹；RENDERED 请求重新计算完整节点子树指纹。来源变化会在读取字节或调用 `exportAsync()` 前尽早拒绝。
-3. 插件通过 v5 RPC 返回单项不超过 9 MiB 的原始字节、渲染字节或 SVG 字符串。公共 MCP 结果不会透出这些正文。
+3. 插件通过 v6 RPC 返回单项不超过 9 MiB 的原始字节、渲染字节或 SVG 字符串。公共 MCP 结果不会透出这些正文。
 4. Adapter 对 RAW 再做 PNG/JPEG/GIF/WebP 魔数识别，对 RENDERED 核对格式、扩展名和载荷上限。
 5. Adapter 校验相对路径与已有路径的 realpath，阻止 symlink/junction 越界；随后在目标目录写随机临时文件并通过 rename 提交。
 6. 同路径同 hash 返回 `REUSED`；不同 hash 默认返回 `EXPORT_TARGET_CONFLICT`。显式覆盖要求现有 SHA-256，并在 rename 前再次核对以防并发修改。
 7. 绑定必须在任何导出写入前完成，相同规范根可幂等重试，会话内不得切换到其他根。`WORKSPACE` 结果可直接由工程引用；`STAGED` 结果要求调用方复制到 `projectRelativePath` 并复核 SHA-256。
+
+## 语义快照生命周期
+
+1. 插件对请求根计算完整树指纹，然后按稳定次序生成扁平 `outline.jsonl`。`IMPLEMENTATION` 另生成不嵌套子节点的 `facts.jsonl`；`focusNodeIds` 只限制详细事实。
+2. 序列化后再计算指纹。来源改变返回 `SEMANTIC_SOURCE_CHANGED`；正文超过 12 MiB 返回 `PAYLOAD_TOO_LARGE`，两者都不写文件。
+3. Adapter 以 node ID 短哈希作为 scope ID，并在来源指纹下使用请求变体哈希，因此同一设计状态的 OUTLINE、焦点集、渲染和预算不会相互覆盖。
+4. Adapter 经共享安全写入层依次提交 JSONL、可选 PNG，最后写 `manifest.json` 作为完整修订标记。公开 MCP 结果只返回路径和摘要。
+5. Agent 用普通文件编辑创建轻量 `work-units/<scopeId>.json`，只引用 manifest 并保存代码映射、状态和未解决差异；工具不会生成主观角色或页面状态机。
+6. 完成范围前，Agent 通过 `figma_check_semantic_scope` 比较已存指纹与当前完整子树，不重新导出正文。
 
 ## 源稿不可变
 
@@ -81,6 +90,7 @@ DesignPlan v1 支持 Frame、Text、Rectangle、Ellipse、Line、Image、SVG、C
 - 文本：由调用方限制长度，并在截断时明确标记。
 - 渲染：请求的最大尺寸为 2048 px，原始 PNG 限制为 9 MiB（使编码后的 RPC 载荷保持在桥接限制以内）。
 - 原始 REST JSON：默认 2 MiB，请求硬限制为 8 MiB。
+- 语义 RPC 正文：12 MiB；超限要求缩小根范围或拆分子范围。
 - 暂存导出：每个服务器会话 256 MiB，保留 24 小时；工作区导出不使用暂存配额。
 
 `getCSSAsync()` 返回的 CSS 会标记为代码生成提示。规范化快照仍然是结构事实来源。

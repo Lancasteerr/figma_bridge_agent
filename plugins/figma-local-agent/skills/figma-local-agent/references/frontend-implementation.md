@@ -20,16 +20,19 @@ the user asks to continue without choosing, use high fidelity and state the assu
 
 ## Gather implementation evidence
 
-1. Read a shallow tree and render the target scope to identify layout regions and visually salient
-   elements. Treat the render as appearance evidence, not a substitute for node structure.
+1. Follow [semantic snapshots](semantic-snapshots.md) when durable evidence is useful. Export a
+   single component directly; for a large region or page, inspect `OUTLINE` before choosing bounded
+   implementation scopes. Treat an optional render as appearance evidence, not a substitute for
+   node structure.
 2. Read only leaf nodes whose exact treatment affects the result, especially selected-state
    indicators, distinctive icons, text, image crops, masks, overlays, and effects. Also inspect any
    element that may be replaced by an existing project component or icon.
 3. Use normalized snapshots as the structural source of truth. Call `figma_get_css` when its Inspect
    output can clarify front-end styling. Use bounded `figma_get_raw_node` only for a material detail
    that remains unavailable; do not fetch raw data speculatively.
-4. Record the relevant Figma fact and implementation decision for each material element. If a fact
-   cannot be established, preserve the uncertainty instead of inventing a visual value.
+4. Record the relevant Figma fact and implementation decision for each material element in a
+   lightweight work unit. Reference the source manifest instead of copying semantic records. If a
+   fact cannot be established, preserve the uncertainty instead of inventing a visual value.
 
 ## Decide between code and assets
 

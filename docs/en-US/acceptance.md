@@ -14,21 +14,21 @@ This runbook is for contributors validating candidate distribution artifacts. Ru
 6. Restart Figma and the MCP host; confirm the plugin reconnects without another pairing.
 7. Run `devices list`, revoke the connected device, and confirm the plugin immediately returns to the pairing screen.
 8. Run `pnpm check:agent-marketplaces`. Confirm the three canonical indexes and the generated Codex, Cursor, and Copilot entry points are synchronized.
-9. After npm `<VERSION>` and GitHub tag `v<VERSION>` are public, run `codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v<VERSION>`, install **Local Figma Agent** through `/plugins`, start a new session, and confirm exactly 24 tools and the bundled Skill are discovered without manual MCP configuration.
-10. In Copilot CLI, run `copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v<VERSION>` and `copilot plugin install figma-local-agent@figma-local-agent`; start a new session and confirm the same 24 tools and Skill are available.
-11. In a Cursor team, import `https://github.com/Lancasteerr/figma_bridge_agent` through **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo**. Install **Local Figma Agent** from **Customize** and confirm the same 24 tools and Skill are available.
-12. In a clean Claude Code configuration without the Agent Plugin, register the stable npm release using the [direct MCP guide](install-mcp-server.md#claude-code). Confirm the same 24 tools are available but the **Local Figma Agent** Skill is not installed automatically.
-13. Inspect the Agent Plugin ZIP and confirm it contains `skills/figma-local-agent/references/design-plan-v1.md`, `skills/figma-local-agent/references/asset-export.md`, and `skills/figma-local-agent/references/frontend-implementation.md`, but none of the repository-level marketplace files.
+9. After npm `<VERSION>` and GitHub tag `v<VERSION>` are public, run `codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v<VERSION>`, install **Local Figma Agent** through `/plugins`, start a new session, and confirm exactly 26 tools and the bundled Skill are discovered without manual MCP configuration.
+10. In Copilot CLI, run `copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v<VERSION>` and `copilot plugin install figma-local-agent@figma-local-agent`; start a new session and confirm the same 26 tools and Skill are available.
+11. In a Cursor team, import `https://github.com/Lancasteerr/figma_bridge_agent` through **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo**. Install **Local Figma Agent** from **Customize** and confirm the same 26 tools and Skill are available.
+12. In a clean Claude Code configuration without the Agent Plugin, register the stable npm release using the [direct MCP guide](install-mcp-server.md#claude-code). Confirm the same 26 tools are available but the **Local Figma Agent** Skill is not installed automatically.
+13. Inspect the Agent Plugin ZIP and confirm it contains `skills/figma-local-agent/references/design-plan-v1.md`, `skills/figma-local-agent/references/asset-export.md`, `skills/figma-local-agent/references/frontend-implementation.md`, and `skills/figma-local-agent/references/semantic-snapshots.md`, but none of the repository-level marketplace files.
 
 Do not continue acceptance if this gate fails.
 
 ## 2. Connection and read path
 
 1. Start Codex with the installed Agent Plugin. Then repeat the essential connection check in a separate Claude Code configuration without that plugin, following the [direct MCP guide](install-mcp-server.md). Each client must load exactly one `figma-local-agent` Server.
-2. Call `figma_status`; confirm authenticated protocol v5, file/page metadata, selection summary, `assetExport` `WORKSPACE`/`STAGED` status, and the `asset-inspection-v1`, `asset-export-v2`, `design-plan-v1`, `asset-staging-v1`, `font-catalog-v1`, and `design-resources-v1` capabilities.
+2. Call `figma_status`; confirm authenticated protocol v6, file/page metadata, selection summary, `assetExport` `WORKSPACE`/`STAGED` status, and the `asset-inspection-v1`, `asset-export-v2`, `design-plan-v1`, `asset-staging-v1`, `font-catalog-v1`, `design-resources-v1`, and `semantic-snapshot-v1` capabilities.
 3. Close the plugin and call it again; confirm `PLUGIN_NOT_CONNECTED` returns in about one second rather than hanging.
 4. Reopen the plugin and confirm automatic reconnection.
-5. Open two additional Codex tasks. Confirm all three tasks discover the same 24 tools and can call `figma_status` through the same plugin.
+5. Open two additional Codex tasks. Confirm all three tasks discover the same 26 tools and can call `figma_status` through the same plugin.
 6. Close one task and confirm the other two remain connected. Run `bridge status` and confirm the client count changes without disconnecting the plugin.
 7. Select the rough ArticleCard and call selection, node, tree, and render tools.
 8. Confirm the normalized tree plus image identifies row/column relationships and the overlay. Asset snapshots should include multiple Image Paints across fills/strokes, dimensions for repeated hashes, CROP/TILE/transform/filters/opacity, export settings, vector segments, and masks.

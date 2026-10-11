@@ -18,7 +18,7 @@
 | 声明式生成   | 验证完整 DesignPlan 后，原子创建新的 Proposal                        |
 | 多客户端复用 | 多个本地 MCP Adapter 共用一个自动管理的 Bridge Daemon                |
 
-MCP Server 当前公开 24 个受限工具。完整列表和推荐调用顺序见 [MCP 工具参考](docs/zh-CN/tools.md)。
+MCP Server 当前公开 26 个受限工具。完整列表和推荐调用顺序见 [MCP 工具参考](docs/zh-CN/tools.md)。
 
 ## 界面预览
 
@@ -54,7 +54,7 @@ Agent 的修改会出现在 Figma 画布上的隔离 Proposal 中，便于与源
 
 ### 1. 选择一种安装方式
 
-两种方式公开相同的 24 个 MCP 工具，只需选择其中一种：
+两种方式公开相同的 26 个 MCP 工具，只需选择其中一种：
 
 - **安装 Agent Plugin**：适用于本项目当前已适配的 Codex、Cursor 和 GitHub Copilot；自动提供 MCP 配置及安全 Proposal 工作流 Skill。请按[插件安装指南](docs/zh-CN/install-plugin.md)操作。
 - **直接配置 MCP Server**：适用于 Claude Code、Claude Desktop及其他本地 stdio 主机；需要手工添加 MCP 配置，且不会自动安装 Skill。请按[直接 MCP 安装指南](docs/zh-CN/install-mcp-server.md)操作。
@@ -83,7 +83,7 @@ npx -y figma-local-agent-mcp@<VERSION> pair
 
 ### 4. 验证连接
 
-重启 MCP 客户端或新建 Agent 会话，然后让 Agent 调用 `figma_status`。正常结果会包含协议 v5、当前 Figma 文件、页面、选区、素材导出根状态和 Bridge 能力。
+重启 MCP 客户端或新建 Agent 会话，然后让 Agent 调用 `figma_status`。正常结果会包含协议 v6、当前 Figma 文件、页面、选区、素材导出根状态和 Bridge 能力。
 
 Development build、源码构建和直接 MCP 故障排查见[直接 MCP 安装指南](docs/zh-CN/install-mcp-server.md)。
 
@@ -138,7 +138,7 @@ Figma 插件 UI 与主进程
 | [选择安装方式](docs/zh-CN/configuration.md)       | 使用者               | 对比插件与直接 MCP 两条路线                 |
 | [安装 Agent Plugin](docs/zh-CN/install-plugin.md) | 插件客户端用户       | Codex、Cursor、Copilot 稳定版安装           |
 | [直接配置 MCP](docs/zh-CN/install-mcp-server.md)  | stdio 主机用户       | Claude、通用主机、Development 与源码构建    |
-| [MCP 工具参考](docs/zh-CN/tools.md)               | 使用者、Agent 开发者 | 24 个工具、写入边界和调用流程               |
+| [MCP 工具参考](docs/zh-CN/tools.md)               | 使用者、Agent 开发者 | 26 个工具、写入边界和调用流程               |
 | [架构与安全模型](docs/zh-CN/architecture.md)      | 开发者               | 进程、协议、Proposal 和 DesignPlan 生命周期 |
 | [开发指南](docs/zh-CN/development.md)             | 贡献者               | Monorepo、常用命令、测试和构建              |
 | [端到端验收](docs/zh-CN/acceptance.md)            | 贡献者               | 发行产物和 Figma 场景验收                   |

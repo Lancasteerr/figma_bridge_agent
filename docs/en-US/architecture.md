@@ -33,17 +33,34 @@ The first adapter starts the Daemon when needed. Closing one host only closes it
 - RPC envelopes and every UI/main message are schema-validated and size-limited.
 - Adapter logs go to stderr. The detached Daemon writes a bounded `bridge.log` in the user configuration directory and retains one rotated file. Logs contain only request ID, RPC method, duration, and outcome; secrets, image base64, and raw node JSON are excluded.
 - Visual previews from `figma_render_node` still go to `%TEMP%/figma-agent-mcp/<session>/` and are removed when the Adapter closes.
-- `figma_export_asset` is written by the Adapter: every session starts under `~/figma_bridge_agent_export/<session-id>/`, retained for 24 hours with stale sessions removed at startup. Before the first export, the Agent may bind the exact absolute cwd from its own task execution environment with the latest session ID. The Adapter no longer trusts its own `process.cwd()`.
+- Assets and semantic snapshots are written by the Adapter and share one session-root binding, path validation, atomic writer, and staged quota. Every session starts under `~/figma_bridge_agent_export/<session-id>/`, retained for 24 hours with stale sessions removed at startup. Before the first write, the Agent may bind the exact absolute cwd from its own task execution environment with the latest session ID. The Adapter no longer trusts its own `process.cwd()`, and neither write class may rebind after the other starts.
 
 ## Asset read and export lifecycle
 
 1. Node snapshots enumerate Image Paint, export-setting, vector, and mask facts. One tree read caches dimension lookup by image hash. Asset properties participate in snapshot fingerprints.
 2. A RAW request resolves the exact paint again and verifies both image hash and node snapshot fingerprint. A RENDERED request recalculates the complete node-subtree fingerprint. Source drift is rejected before reading bytes or calling `exportAsync()` where possible.
-3. The plugin returns original bytes, rendered bytes, or an SVG string through v5 RPC, with a 9 MiB per-item limit. Public MCP results never expose those bodies.
+3. The plugin returns original bytes, rendered bytes, or an SVG string through v6 RPC, with a 9 MiB per-item limit. Public MCP results never expose those bodies.
 4. The Adapter rechecks RAW PNG/JPEG/GIF/WebP magic bytes and checks RENDERED format, extension, and payload size.
 5. The Adapter validates relative paths and realpaths of existing parents to block symlink/junction escapes, then writes a random temporary file in the destination directory and commits it by rename.
 6. Identical content at the same path returns `REUSED`; different content returns `EXPORT_TARGET_CONFLICT` by default. Explicit overwrite requires the existing SHA-256 and rechecks it just before rename to block concurrent modification.
 7. Binding must happen before any export write. The same canonical root is idempotent, and a session cannot switch to another root. A `WORKSPACE` result is ready for project use. A `STAGED` result must be copied to `projectRelativePath` and verified against SHA-256.
+
+## Semantic snapshot lifecycle
+
+1. The plugin fingerprints the complete requested root, then emits a stable flat `outline.jsonl`.
+   `IMPLEMENTATION` also emits non-nested `facts.jsonl`; `focusNodeIds` limits detailed facts only.
+2. It fingerprints the source again after serialization. Source drift returns
+   `SEMANTIC_SOURCE_CHANGED`; a body above 12 MiB returns `PAYLOAD_TOO_LARGE`. Neither case writes files.
+3. The Adapter derives a scope ID from a short node-ID hash and a request-variant hash below the
+   source fingerprint. OUTLINE, focus sets, render choices, and budgets therefore never overwrite
+   each other for the same design revision.
+4. The shared safe writer commits JSONL and optional PNG first, then writes `manifest.json` as the
+   completed-revision marker. Public MCP results contain paths and digests only.
+5. The Agent creates lightweight `work-units/<scopeId>.json` with ordinary file editing. It references
+   the manifest and records code mappings, status, and unresolved differences; the tool generates no
+   subjective roles or page state machine.
+6. Before completing a scope, the Agent calls `figma_check_semantic_scope` to compare the stored
+   fingerprint with the current complete subtree without re-exporting bodies.
 
 ## Source immutability
 
@@ -81,6 +98,7 @@ DesignPlan v1 supports Frame, Text, Rectangle, Ellipse, Line, Image, SVG, Clone,
 - Text: caller-bounded and explicitly marked when truncated.
 - Render: maximum requested dimension 2048 px and raw PNG limit 9 MiB (keeps encoded RPC payload below the bridge limit).
 - Raw REST JSON: default 2 MiB, hard request limit 8 MiB.
+- Semantic RPC body: 12 MiB; a larger scope must be narrowed or split.
 - Staged exports: 256 MiB per server session and retained for 24 hours. Workspace exports do not consume the staging quota.
 
 CSS from `getCSSAsync()` is labeled as a code-generation hint. Normalized snapshots remain the structural truth.

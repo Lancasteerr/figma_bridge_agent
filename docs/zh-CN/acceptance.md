@@ -14,21 +14,21 @@
 6. 重启 Figma 和 MCP 主机，确认无需再次配对即可自动连接。
 7. 运行 `devices list`，撤销当前设备，并确认插件立即返回配对界面。
 8. 运行 `pnpm check:agent-marketplaces`，确认三份源索引与生成的 Codex、Cursor、Copilot 固定入口同步。
-9. npm `<VERSION>` 和 GitHub `v<VERSION>` tag 公开后，运行 `codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v<VERSION>`，通过 `/plugins` 安装 **Local Figma Agent**，新建会话，并确认无需手工配置 MCP 即可发现恰好 24 个工具和随插件提供的 Skill。
-10. 在 Copilot CLI 中运行 `copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v<VERSION>` 和 `copilot plugin install figma-local-agent@figma-local-agent`；新建会话并确认相同的 24 个工具和 Skill 可用。
-11. 在 Cursor 团队中通过 **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo** 导入 `https://github.com/Lancasteerr/figma_bridge_agent`；从 **Customize** 安装 **Local Figma Agent**，并确认相同的 24 个工具和 Skill 可用。
-12. 在未安装 Agent Plugin 的干净 Claude Code 配置中，按[直接 MCP 指南](install-mcp-server.md#claude-code)注册 npm 稳定版；确认能够发现相同的 24 个工具，但不会自动出现 **Local Figma Agent** Skill。
-13. 检查 Agent Plugin ZIP，确认其中包含 `skills/figma-local-agent/references/design-plan-v1.md`、`skills/figma-local-agent/references/asset-export.md` 和 `skills/figma-local-agent/references/frontend-implementation.md`，但不包含任何仓库级 marketplace 文件。
+9. npm `<VERSION>` 和 GitHub `v<VERSION>` tag 公开后，运行 `codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v<VERSION>`，通过 `/plugins` 安装 **Local Figma Agent**，新建会话，并确认无需手工配置 MCP 即可发现恰好 26 个工具和随插件提供的 Skill。
+10. 在 Copilot CLI 中运行 `copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v<VERSION>` 和 `copilot plugin install figma-local-agent@figma-local-agent`；新建会话并确认相同的 26 个工具和 Skill 可用。
+11. 在 Cursor 团队中通过 **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo** 导入 `https://github.com/Lancasteerr/figma_bridge_agent`；从 **Customize** 安装 **Local Figma Agent**，并确认相同的 26 个工具和 Skill 可用。
+12. 在未安装 Agent Plugin 的干净 Claude Code 配置中，按[直接 MCP 指南](install-mcp-server.md#claude-code)注册 npm 稳定版；确认能够发现相同的 26 个工具，但不会自动出现 **Local Figma Agent** Skill。
+13. 检查 Agent Plugin ZIP，确认其中包含 `skills/figma-local-agent/references/design-plan-v1.md`、`skills/figma-local-agent/references/asset-export.md`、`skills/figma-local-agent/references/frontend-implementation.md` 和 `skills/figma-local-agent/references/semantic-snapshots.md`，但不包含任何仓库级 marketplace 文件。
 
 如果此门禁失败，不要继续验收。
 
 ## 2. 连接和读取路径
 
 1. 先使用已安装的 Agent Plugin 启动 Codex；再在未安装该插件的独立 Claude Code 配置中，按[直接 MCP 指南](install-mcp-server.md)重复关键连接检查。两个客户端都只能加载一个 `figma-local-agent` Server。
-2. 调用 `figma_status`；确认协议 v5 已认证，并返回文件/页面元数据、选择摘要、`assetExport` 的 `WORKSPACE`/`STAGED` 状态，以及 `asset-inspection-v1`、`asset-export-v2`、`design-plan-v1`、`asset-staging-v1`、`font-catalog-v1`、`design-resources-v1` 能力。
+2. 调用 `figma_status`；确认协议 v6 已认证，并返回文件/页面元数据、选择摘要、`assetExport` 的 `WORKSPACE`/`STAGED` 状态，以及 `asset-inspection-v1`、`asset-export-v2`、`design-plan-v1`、`asset-staging-v1`、`font-catalog-v1`、`design-resources-v1`、`semantic-snapshot-v1` 能力。
 3. 关闭插件并再次调用；确认约一秒内返回 `PLUGIN_NOT_CONNECTED`，而不是一直挂起。
 4. 重新打开插件，确认能够自动重连。
-5. 再打开两个 Codex 任务，确认三个任务都发现相同的 24 个工具，并能通过同一插件调用 `figma_status`。
+5. 再打开两个 Codex 任务，确认三个任务都发现相同的 26 个工具，并能通过同一插件调用 `figma_status`。
 6. 关闭其中一个任务，确认另两个任务仍保持连接。运行 `bridge status`，确认客户端数量变化且插件不断线。
 7. 选择粗略的 ArticleCard，并调用 selection、node、tree 和 render 工具。
 8. 确认规范化树和图像足以识别行/列关系以及覆盖层；节点素材快照应列出 fills/strokes 中多个 Image Paint、重复 hash 的尺寸、CROP/TILE/transform/filters/透明度、exportSettings、矢量段数和蒙版。

@@ -2,7 +2,7 @@
 
 [English](../en-US/tools.md) · [文档首页](README.md)
 
-MCP Server 公开固定集合的 24 个工具。“Figma 写入”表示是否会改变当前 Figma 文档；读取、导出和内存素材暂存不会修改文档。
+MCP Server 公开固定集合的 26 个工具。“Figma 写入”表示是否会改变当前 Figma 文档；读取、导出和内存素材暂存不会修改文档。
 
 ## 状态
 
@@ -24,6 +24,13 @@ MCP Server 公开固定集合的 24 个工具。“Figma 写入”表示是否�
 | `figma_get_node`             | 返回单个节点快照、素材事实和直接子节点摘要            | 否         |
 | `figma_get_tree`             | 返回包含素材事实且受深度、节点数和文本长度限制的子树  | 否         |
 | `figma_get_fingerprint`      | 计算有序节点完整子树的聚合指纹                        | 否         |
+
+## 语义快照
+
+| 工具                          | 用途                                                         | Figma 写入     |
+| ----------------------------- | ------------------------------------------------------------ | -------------- |
+| `figma_export_semantic_scope` | 把有界节点范围持久化为 outline/facts JSONL，只返回路径和摘要 | 否，写本地文件 |
+| `figma_check_semantic_scope`  | 比较已存指纹和当前完整子树，返回 `FRESH` 或 `STALE`          | 否             |
 
 ## 渲染与素材
 
@@ -70,6 +77,24 @@ DesignPlan v1 的节点结构和约束见 [DesignPlan v1 reference](../../plugin
 
 路径只能是相对路径，不能含盘符、UNC、绝对路径、NUL、空段或 `..`。默认 `REUSE_OR_FAIL`：同路径同内容返回 `REUSED`，不同内容返回 `EXPORT_TARGET_CONFLICT`。只有调用方已检查现有文件并同时传入其 `expectedExistingSha256` 时，才可使用 `OVERWRITE`；成功返回 `UPDATED`。公开结果不包含 Base64 或 SVG 正文。
 
+## 会话化语义快照
+
+`figma_export_semantic_scope` 把范围快照写入
+`.figma_bridge_agent/sessions/<sessionId>/scopes/`。`OUTLINE` 只生成扁平层级概要；
+`IMPLEMENTATION` 还生成布局、文本、视觉、素材和组件事实。指定 `focusNodeIds`
+时，outline 仍保留有界范围，facts 只写焦点节点。文件不嵌套 `children`，也不包含图片
+Base64 或 SVG 正文。
+
+插件在序列化前后校验完整树指纹；变化时返回 `SEMANTIC_SOURCE_CHANGED`，不落盘。
+语义 RPC 正文上限为 12 MiB，超限返回 `PAYLOAD_TOO_LARGE`。`manifest.json` 记录结构化截断原因、
+边界节点和省略子节点数；`DEPTH_LIMIT`、`NODE_LIMIT` 或 `BYTE_LIMIT` 会使
+`complete=false`。
+
+公开结果只包含会话、路径、指纹、完整性、字节数和 SHA-256。Agent 应读取
+manifest，再用 `rg` 按 node ID/name 定向查询 JSONL，不应整文件读取
+`facts.jsonl`。工具只导出客观事实；拆分范围、节点到代码映射和轻量工作单元由
+Agent 决定。
+
 ## 推荐调用流程
 
 ### 读取设计
@@ -78,6 +103,15 @@ DesignPlan v1 的节点结构和约束见 [DesignPlan v1 reference](../../plugin
 2. 使用 `figma_get_selection` 定位目标，再按需读取 node、tree、CSS、字体和设计资源。
 3. 使用 `figma_render_node` 核对视觉结果；Plan 阶段只记录所需素材、来源指纹和相对路径，不调用导出工具。
 4. 实施时重新读取状态与来源，在首次导出前绑定 Agent 任务 cwd，只导出计划中列出的素材，并根据 `WORKSPACE`/`STAGED` 结果完成交付和哈希复核。
+
+### 从设计实施代码
+
+1. 用 `figma_status` 的最新 session ID 绑定 Agent 真实 cwd，再开始任何语义或素材写入。
+2. 单节点/组件直接导出目标的 `IMPLEMENTATION`；大型区域/页面先导出 `OUTLINE`，由 Agent
+   根据任务和代码结构决定子范围。
+3. 每次只激活一个有界详细快照，用定向行查询获取需要的节点事实，并创建不复制语义树的轻量工作单元。
+4. 完成前调用 `figma_check_semantic_scope`。`STALE` 时重新导出并复核受影响决策；
+   `FRESH` 只表示设计来源未变，不代替用户要求的局部或组合验证。
 
 ### 修改现有设计
 

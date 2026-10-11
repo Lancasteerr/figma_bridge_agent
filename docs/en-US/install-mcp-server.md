@@ -127,8 +127,8 @@ The exact settings file and UI label depend on the host. Remote-only environment
 Restart the MCP client or open a new session after saving the configuration. Then:
 
 1. Confirm the client loads only one `figma-local-agent` Server.
-2. Confirm all 24 tools, including `figma_status` and `figma_bind_export_root`, are discoverable.
-3. Call `figma_status` and check protocol v5, the current Figma file, page, selection, asset-export root status, and Bridge capabilities.
+2. Confirm all 26 tools, including `figma_status` and `figma_bind_export_root`, are discoverable.
+3. Call `figma_status` and check protocol v6, the current Figma file, page, selection, asset-export root status, and Bridge capabilities.
 
 Direct configuration does not automatically load the Agent Plugin Skill. Read the [MCP tool reference](tools.md), especially the Proposal and DesignPlan workflows, before performing writes.
 

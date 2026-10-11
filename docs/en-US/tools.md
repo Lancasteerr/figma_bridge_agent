@@ -2,7 +2,7 @@
 
 [中文版](../zh-CN/tools.md) · [Documentation home](README.md)
 
-The MCP Server exposes a fixed set of 24 tools. “Writes to Figma” indicates whether a tool changes the current Figma document. Reads, exports, and in-memory asset staging do not modify the document.
+The MCP Server exposes a fixed set of 26 tools. “Writes to Figma” indicates whether a tool changes the current Figma document. Reads, exports, and in-memory asset staging do not modify the document.
 
 ## Status
 
@@ -24,6 +24,13 @@ The MCP Server exposes a fixed set of 24 tools. “Writes to Figma” indicates 
 | `figma_get_node`             | Return one normalized node snapshot, asset facts, and direct-child summaries                       | No              |
 | `figma_get_tree`             | Return asset-aware subtrees bounded by depth, node count, and text length                          | No              |
 | `figma_get_fingerprint`      | Calculate an ordered aggregate fingerprint of complete node subtrees                               | No              |
+
+## Semantic snapshots
+
+| Tool                          | Purpose                                                                           | Writes to Figma        |
+| ----------------------------- | --------------------------------------------------------------------------------- | ---------------------- |
+| `figma_export_semantic_scope` | Persist a bounded scope as outline/facts JSONL and return paths plus digests only | No; writes local files |
+| `figma_check_semantic_scope`  | Compare a stored fingerprint with the current subtree and return `FRESH`/`STALE`  | No                     |
 
 ## Rendering and assets
 
@@ -70,6 +77,24 @@ When Agent cwd discovery or binding is unavailable, the session remains `STAGED`
 
 Paths must be relative and cannot contain drive letters, UNC/absolute roots, NUL, empty segments, or `..`. The default `REUSE_OR_FAIL` reuses identical content and rejects different content with `EXPORT_TARGET_CONFLICT`. `OVERWRITE` is accepted only with the SHA-256 of the existing file that the caller just inspected, and returns `UPDATED` after a checked replacement. Public results contain no Base64 or SVG body.
 
+## Session semantic snapshots
+
+`figma_export_semantic_scope` writes snapshots below
+`.figma_bridge_agent/sessions/<sessionId>/scopes/`. `OUTLINE` produces only a flat hierarchy;
+`IMPLEMENTATION` also records layout, text, visual, asset, and component facts. With
+`focusNodeIds`, the bounded outline remains available while facts are emitted only for focus nodes.
+Files have no nested `children`, image Base64, or SVG body.
+
+The plugin verifies the complete-tree fingerprint before and after serialization. A change returns
+`SEMANTIC_SOURCE_CHANGED` without writing. Semantic RPC bodies are limited to 12 MiB; larger scopes
+return `PAYLOAD_TOO_LARGE`. `manifest.json` records structured truncation reasons, frontier nodes,
+and omitted child count. `DEPTH_LIMIT`, `NODE_LIMIT`, or `BYTE_LIMIT` makes `complete=false`.
+
+The public result contains only session, paths, fingerprint, completeness, byte count, and SHA-256.
+The Agent reads the manifest and queries JSONL by exact node ID/name with `rg`; it must not load an
+entire `facts.jsonl` into context. The tool exports objective facts only. The Agent owns scope
+decomposition, node-to-code mappings, and the lightweight work unit.
+
 ## Recommended call sequences
 
 ### Read a design
@@ -78,6 +103,16 @@ Paths must be relative and cannot contain drive letters, UNC/absolute roots, NUL
 2. Use `figma_get_selection` to locate the target, then read the node, tree, CSS, fonts, and design resources as needed.
 3. Use `figma_render_node` to verify visual evidence. During planning, record assets, source fingerprints, and relative destinations without calling the export tool.
 4. During implementation, refresh status and sources, bind the Agent task cwd before the first export, export only the recorded set, and complete the `WORKSPACE`/`STAGED` delivery and hash verification.
+
+### Implement from a design
+
+1. Bind the Agent's real cwd with the latest `figma_status` session ID before any semantic or asset write.
+2. Export a single node/component directly as `IMPLEMENTATION`. For a large region/page, export
+   `OUTLINE` first and let the task plus repository structure determine child scopes.
+3. Activate one bounded detailed snapshot at a time, query only needed JSONL records, and create a
+   lightweight work unit that references rather than copies the semantic tree.
+4. Before completion, call `figma_check_semantic_scope`. Re-export and review affected decisions on
+   `STALE`; `FRESH` proves source freshness only and does not replace the user's local or combined validation.
 
 ### Edit an existing design
 

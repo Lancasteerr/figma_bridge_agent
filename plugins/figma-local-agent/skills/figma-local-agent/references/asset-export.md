@@ -18,14 +18,15 @@ project asset delivery path.
 
 ## Implementation phase
 
-Before the first export:
+Before the first asset export or semantic snapshot write:
 
 1. Call `figma_status` again and record the current `assetExport.sessionId`.
 2. Obtain the exact absolute `process.cwd()` from the Agent's own local task execution environment.
    Do not infer a root from the plugin process, plugin cache, Git metadata, or user-provided prose.
-3. Call `figma_bind_export_root` with that path and `expectedSessionId`. The binding is immutable for
-   the Adapter session and must happen before any export write. If local execution is unavailable or
-   binding fails, keep the session `STAGED` and use the copy-and-hash workflow below.
+3. Call `figma_bind_export_root` with that path and `expectedSessionId`. Asset and semantic writes
+   share one immutable Adapter-session binding, so binding must happen before either starts. If local
+   execution is unavailable or binding fails, keep the session `STAGED` and use the copy-and-hash
+   workflow below.
 
 For `RAW`, re-read the node and call `figma_export_asset` with:
 
