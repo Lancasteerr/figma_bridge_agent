@@ -32,7 +32,8 @@ Figma 插件主进程
 - MCP Adapter 使用内部 Daemon 凭据。每个插件在用户确认六位 SAS 后获得独立的 X25519/HKDF 派生 token，随后使用新鲜 nonce 和按角色、方向隔离的 HMAC-SHA-256 proof；凭据和 proof 均不能跨角色复用。
 - RPC 信封以及每条 UI/主进程消息都会经过 schema 校验并受大小限制。
 - Adapter 日志写入 stderr。后台 Daemon 在用户配置目录写入有界 `bridge.log`，并只保留一个轮转文件。日志仅包含请求 ID、RPC 方法、耗时和结果，排除密钥、图像 base64 和原始节点 JSON。
-- `figma_render_node` 的视觉预览仍写入 `%TEMP%/figma-agent-mcp/<session>/`，并随 Adapter 关闭而删除。
+- `figma_render_node` 的视觉预览和 `figma_get_tree` 的大型 JSONL 写入 `%TEMP%/figma-agent-mcp/<session-id>/`；该目录复用 Adapter 的导出 session ID，不会再生成第二套临时会话 ID。
+- 当前 Adapter 的临时文件保留三十分钟并在关闭时立即删除。其他 Adapter 不会清理其中的单个文件或空目录；异常退出的会话目录在 `mtime` 超过二十四小时后由存活 Adapter 兜底删除。若运行中的旧会话目录因此被删除，该 Adapter 会在下次写入时自动重建。
 - 素材和语义快照由 Adapter 写文件，共享同一个会话根绑定、路径校验、原子写入和暂存配额。会话启动时固定使用 `~/figma_bridge_agent_export/<session-id>/`，保留 24 小时并清理过期会话。Agent 在首次写入前可用最新 session ID 把自身任务执行环境的绝对 cwd 一次性绑定为工作区根；Adapter 不再信任它自身的 `process.cwd()`。任一类写入开始后都不能改绑。
 
 ## 素材读取与导出生命周期
