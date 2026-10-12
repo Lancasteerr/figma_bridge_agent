@@ -4,7 +4,7 @@
     "figma-local-agent": {
       "type": "stdio",
       "command": "npx.cmd",
-      "args": ["-y", "figma-local-agent-mcp@2.2.0", "serve"]
+      "args": ["-y", "figma-local-agent-mcp@2.2.5", "serve"]
     }
   }
 }

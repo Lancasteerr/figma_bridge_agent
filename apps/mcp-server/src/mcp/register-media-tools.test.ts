@@ -46,7 +46,7 @@ async function setup(rpcResult: Record<string, unknown>, options: { bind?: boole
   } as unknown as McpServer;
   const broker = {
     connected: true,
-    pluginVersion: '2.2.0',
+    pluginVersion: '2.2.5',
     request: vi.fn(async () => rpcResult),
     onEvent: vi.fn(() => () => undefined),
     close: vi.fn(async () => undefined),
