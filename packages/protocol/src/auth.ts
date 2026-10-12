@@ -6,6 +6,7 @@ import { BRIDGE_PROTOCOL_VERSION } from './constants.js';
 export const AuthChallengeSchema = z.object({
   type: z.literal('auth.challenge'),
   protocolVersion: z.literal(BRIDGE_PROTOCOL_VERSION),
+  serverVersion: z.string().min(1),
   serverId: z.string().uuid(),
   serverNonce: z.string().min(16),
 });
@@ -39,6 +40,7 @@ export const AuthRejectedSchema = z.object({
   code: z.enum([
     'AUTH_FAILED',
     'PROTOCOL_MISMATCH',
+    'VERSION_MISMATCH',
     'PLUGIN_ALREADY_CONNECTED',
     'UNKNOWN_DEVICE',
     'DEVICE_REVOKED',

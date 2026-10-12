@@ -40,6 +40,14 @@ describe('PluginConnectionBroker', () => {
     });
   });
 
+  it('rejects a plugin package from a different release', async () => {
+    const { url, auth } = await startBroker();
+
+    await expect(
+      FakePluginClient.connect(url, { ...auth, pluginVersion: '0.0.0' }, () => ({})),
+    ).rejects.toThrow();
+  });
+
   it('documents the fixed-port conflict between two legacy server sessions', async () => {
     const { config } = await startBroker();
     const competingBroker = new PluginConnectionBroker(config);

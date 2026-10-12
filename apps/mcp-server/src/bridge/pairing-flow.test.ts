@@ -77,7 +77,7 @@ describe('short-lived pairing flow', () => {
         deviceId,
         pluginNonce,
         pluginPublicKey: publicKey,
-        pluginVersion: 'test-plugin',
+        pluginVersion: __CLI_VERSION__,
       }),
     );
     const ready = PairingReadySchema.parse(await nextMessage(socket));
@@ -103,7 +103,7 @@ describe('short-lived pairing flow', () => {
     closeTasks.push(() => plugin.close());
     await expect(control.request('status')).resolves.toBe('status');
     await expect(control.request('$daemon.devices.list')).resolves.toEqual([
-      expect.objectContaining({ deviceId, connected: true, pluginVersion: 'test-plugin' }),
+      expect.objectContaining({ deviceId, connected: true, pluginVersion: __CLI_VERSION__ }),
     ]);
 
     await control.request('$daemon.devices.revoke', { deviceId });

@@ -80,6 +80,14 @@ export class BridgeSocketClient {
         if (!authenticated) {
           const challenge = AuthChallengeSchema.safeParse(value);
           if (challenge.success) {
+            if (challenge.data.serverVersion !== __PLUGIN_VERSION__) {
+              terminal = true;
+              this.#onAuthInvalid(
+                `Plugin ${__PLUGIN_VERSION__} does not match server ${challenge.data.serverVersion}. Install both from the same release.`,
+              );
+              socket.close(4003, 'VERSION_MISMATCH');
+              return;
+            }
             if (challenge.data.serverId !== auth.serverId) {
               terminal = true;
               this.#onAuthInvalid('The local bridge identity changed. Pair this plugin again.');

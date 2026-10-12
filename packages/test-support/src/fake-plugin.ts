@@ -15,6 +15,7 @@ export interface FakePluginAuth {
   serverId: string;
   deviceId: string;
   token: string;
+  pluginVersion?: string;
 }
 
 /**
@@ -58,7 +59,7 @@ export class FakePluginClient {
           auth.token,
           `figma-agent/plugin/v2|${auth.serverId}|${auth.deviceId}|${challenge.serverNonce}|${pluginNonce}`,
         ),
-        pluginVersion: 'test-plugin',
+        pluginVersion: auth.pluginVersion ?? challenge.serverVersion,
       }),
     );
     const proof = AuthServerProofSchema.parse(await nextMessage(this.socket));

@@ -182,6 +182,7 @@ export class PluginConnectionBroker implements BridgeTransport {
       JSON.stringify({
         type: 'auth.challenge',
         protocolVersion: BRIDGE_PROTOCOL_VERSION,
+        serverVersion: __CLI_VERSION__,
         serverId: this.#config.serverId,
         serverNonce,
       }),
@@ -204,6 +205,14 @@ export class PluginConnectionBroker implements BridgeTransport {
       const parsed = AuthPluginProofSchema.safeParse(value);
       if (!parsed.success || parsed.data.serverNonce !== serverNonce) {
         this.#rejectSocket(socket, 'AUTH_FAILED', 'Invalid authentication response.');
+        return;
+      }
+      if (parsed.data.pluginVersion !== __CLI_VERSION__) {
+        this.#rejectSocket(
+          socket,
+          'VERSION_MISMATCH',
+          `Plugin ${parsed.data.pluginVersion} does not match server ${__CLI_VERSION__}.`,
+        );
         return;
       }
       if (this.connected) {
@@ -308,6 +317,7 @@ export class PluginConnectionBroker implements BridgeTransport {
     code:
       | 'AUTH_FAILED'
       | 'PROTOCOL_MISMATCH'
+      | 'VERSION_MISMATCH'
       | 'PLUGIN_ALREADY_CONNECTED'
       | 'UNKNOWN_DEVICE'
       | 'SERVER_CHANGED',

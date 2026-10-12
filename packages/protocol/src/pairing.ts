@@ -10,6 +10,7 @@ import { BRIDGE_PROTOCOL_VERSION } from './constants.js';
 export const PairingServerHelloSchema = z.object({
   type: z.literal('pair.server-hello'),
   protocolVersion: z.literal(BRIDGE_PROTOCOL_VERSION),
+  serverVersion: z.string().min(1),
   serverId: z.string().uuid(),
   sessionId: z.string().uuid(),
   serverNonce: z.string().min(16),
@@ -60,6 +61,7 @@ export const PairingRejectedSchema = z.object({
     'DEVICE_LIMIT',
     'INVALID_MESSAGE',
     'CONFIRMATION_FAILED',
+    'VERSION_MISMATCH',
   ]),
   message: z.string().min(1),
 });

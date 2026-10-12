@@ -130,6 +130,7 @@ export class PairingManager {
       JSON.stringify({
         type: 'pair.server-hello',
         protocolVersion: BRIDGE_PROTOCOL_VERSION,
+        serverVersion: __CLI_VERSION__,
         serverId: this.#config.serverId,
         sessionId: session.sessionId,
         serverNonce: session.serverNonce,
@@ -162,6 +163,14 @@ export class PairingManager {
       const hello = PairingPluginHelloSchema.safeParse(value);
       if (!hello.success || hello.data.sessionId !== session.sessionId) {
         this.#reject(socket, 'INVALID_MESSAGE', 'Invalid plugin pairing hello.');
+        return;
+      }
+      if (hello.data.pluginVersion !== __CLI_VERSION__) {
+        this.#reject(
+          socket,
+          'VERSION_MISMATCH',
+          `Plugin ${hello.data.pluginVersion} does not match server ${__CLI_VERSION__}.`,
+        );
         return;
       }
       try {
@@ -282,7 +291,12 @@ export class PairingManager {
 
   #reject(
     socket: WebSocket,
-    code: 'PAIRING_DISABLED' | 'PAIRING_BUSY' | 'INVALID_MESSAGE' | 'CONFIRMATION_FAILED',
+    code:
+      | 'PAIRING_DISABLED'
+      | 'PAIRING_BUSY'
+      | 'INVALID_MESSAGE'
+      | 'CONFIRMATION_FAILED'
+      | 'VERSION_MISMATCH',
     message: string,
   ): void {
     if (socket.readyState === WebSocket.OPEN) {

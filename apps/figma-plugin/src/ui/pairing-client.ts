@@ -89,6 +89,15 @@ export class PairingClient {
         const value: unknown = JSON.parse(String(event.data));
         const hello = PairingServerHelloSchema.safeParse(value);
         if (hello.success) {
+          if (hello.data.serverVersion !== __PLUGIN_VERSION__) {
+            retry = false;
+            this.#onState({
+              state: 'error',
+              message: `Plugin ${__PLUGIN_VERSION__} does not match server ${hello.data.serverVersion}. Install both from the same release.`,
+            });
+            socket.close(4003, 'VERSION_MISMATCH');
+            return;
+          }
           const privateKey = randomBytes(32);
           const publicKey = encodeBase64Url(x25519.getPublicKey(privateKey));
           const deviceId = randomUuid();
