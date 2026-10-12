@@ -29,7 +29,7 @@ export function serializeLightweightTreeNode(
     id: node.id,
     ...(node.parent ? { parentId: node.parent.id } : {}),
     order,
-    name: node.name,
+    name: node.name.slice(0, 200),
     type: node.type,
     visible: 'visible' in node ? node.visible : true,
     geometry: serializeGeometry(node),

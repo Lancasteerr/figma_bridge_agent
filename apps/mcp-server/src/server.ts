@@ -32,7 +32,7 @@ export function createMcpServer(
 ): McpServer {
   const server = new McpServer({ name: 'figma-local-agent', version: __CLI_VERSION__ });
   registerStatusTool(server, broker, exports);
-  registerReadTools(server, broker);
+  registerReadTools(server, broker, assets);
   registerMediaTools(server, broker, assets, exports);
   registerSemanticTools(server, broker, snapshots);
   registerMutationTools(server, broker);

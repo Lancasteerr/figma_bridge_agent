@@ -174,20 +174,6 @@ export const NodeSnapshotSchema = NodeSummarySchema.extend({
 /** 完整节点快照类型。 */
 export type NodeSnapshot = z.infer<typeof NodeSnapshotSchema>;
 
-/** 递归树结果中的节点类型，和 NodeSnapshot 保持相同字段。 */
-export type SnapshotTreeNode = NodeSnapshot & { children: SnapshotTreeNode[] };
-export const SnapshotTreeNodeSchema: z.ZodType<SnapshotTreeNode> = NodeSnapshotSchema.extend({
-  children: z.lazy(() => z.array(SnapshotTreeNodeSchema)),
-});
-
-export const TreeResultSchema = z.object({
-  root: SnapshotTreeNodeSchema,
-  nodeCount: z.number().int().positive(),
-  truncated: z.boolean(),
-});
-/** getTree 的根节点、计数和截断状态。 */
-export type TreeResult = z.infer<typeof TreeResultSchema>;
-
 /** 轻量树中的文本仅用于导航，不能作为实现时的完整文案来源。 */
 export const TreeTextPreviewSchema = z
   .object({ value: z.string().max(80), truncated: z.boolean() })
@@ -208,7 +194,7 @@ const LightweightTreeNodeFieldsSchema = z
     id: z.string(),
     parentId: z.string().optional(),
     order: z.number().int().nonnegative(),
-    name: z.string(),
+    name: z.string().max(200),
     type: z.string(),
     visible: z.boolean(),
     geometry: GeometrySchema,
@@ -303,7 +289,7 @@ export const TreeDeliverySchema = z.discriminatedUnion('mode', [
 ]);
 
 /** MCP 公开树结果将 Figma 覆盖状态和模型内联状态严格分开。 */
-export const DeliveredTreeResultSchema = z
+export const TreeResultSchema = z
   .object({
     schemaVersion: z.literal(2),
     scope: TreeScopeSchema,
@@ -312,7 +298,7 @@ export const DeliveredTreeResultSchema = z
     root: LightweightTreeNodeSchema,
   })
   .strict();
-export type DeliveredTreeResult = z.infer<typeof DeliveredTreeResultSchema>;
+export type TreeResult = z.infer<typeof TreeResultSchema>;
 
 /** 临时 JSONL 首行携带范围和覆盖状态，后续行才是扁平节点记录。 */
 export const TreeArtifactManifestSchema = z

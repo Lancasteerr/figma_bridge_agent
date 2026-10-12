@@ -9,10 +9,12 @@ import {
   GetNodeInputSchema,
   GetRawNodeInputSchema,
   GetTreeInputSchema,
+  GetTreeRpcInputSchema,
   NodeSnapshotSchema,
   RawNodeResultSchema,
   SelectionResultSchema,
   TreeResultSchema,
+  TreeRpcResultSchema,
   VariablesResultSchema,
   ListFontsInputSchema,
   GetDesignResourcesInputSchema,
@@ -21,10 +23,16 @@ import {
 import type { McpServer } from '@modelcontextprotocol/server';
 
 import type { BridgeTransport } from '../bridge/transport.js';
+import type { TemporaryArtifactStore } from '../temp/artifact-store.js';
 import { structuredResult, toolError } from './result.js';
+import { deliverTreeResult } from './tree-delivery.js';
 
 /** 注册节点、树、变量、CSS 和原始 JSON 等只读工具。 */
-export function registerReadTools(server: McpServer, broker: BridgeTransport): void {
+export function registerReadTools(
+  server: McpServer,
+  broker: BridgeTransport,
+  artifacts: TemporaryArtifactStore,
+): void {
   server.registerTool(
     'figma_get_design_resources',
     {
@@ -218,7 +226,7 @@ export function registerReadTools(server: McpServer, broker: BridgeTransport): v
     'figma_get_tree',
     {
       description:
-        'Return a bounded normalized subtree from the current Figma page. Use depth and node limits to control context size.',
+        'Return a bounded lightweight navigation tree. Large results are written to a temporary JSONL file; use get_node or semantic snapshots for implementation facts.',
       inputSchema: GetTreeInputSchema,
       outputSchema: TreeResultSchema,
       annotations: {
@@ -232,7 +240,14 @@ export function registerReadTools(server: McpServer, broker: BridgeTransport): v
     async (input) => {
       try {
         const parsed = GetTreeInputSchema.parse(input);
-        return structuredResult(TreeResultSchema.parse(await broker.request('getTree', parsed)));
+        const rpcInput = GetTreeRpcInputSchema.parse({
+          nodeId: parsed.nodeId,
+          depth: parsed.depth,
+          maxNodes: parsed.maxNodes,
+          maxTextLength: parsed.maxTextLength,
+        });
+        const tree = TreeRpcResultSchema.parse(await broker.request('getTree', rpcInput));
+        return structuredResult(await deliverTreeResult(tree, parsed.delivery, artifacts));
       } catch (error) {
         return toolError(error);
       }

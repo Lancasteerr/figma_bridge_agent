@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  DeliveredTreeResultSchema,
-  LightweightTreeNodeSchema,
-  TreeCoverageSchema,
-} from './node.js';
+import { LightweightTreeNodeSchema, TreeCoverageSchema, TreeResultSchema } from './node.js';
 
 const root = {
   id: '1:2',
@@ -61,13 +57,13 @@ describe('轻量树协议', () => {
       root,
     };
     expect(
-      DeliveredTreeResultSchema.safeParse({
+      TreeResultSchema.safeParse({
         ...base,
         delivery: { mode: 'INLINE', inlineComplete: true, inlineNodeCount: 1 },
       }).success,
     ).toBe(true);
     expect(
-      DeliveredTreeResultSchema.safeParse({
+      TreeResultSchema.safeParse({
         ...base,
         delivery: { mode: 'TEMP_FILE', inlineComplete: true, inlineNodeCount: 1 },
       }).success,
