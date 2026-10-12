@@ -188,6 +188,142 @@ export const TreeResultSchema = z.object({
 /** getTree 的根节点、计数和截断状态。 */
 export type TreeResult = z.infer<typeof TreeResultSchema>;
 
+/** 轻量树中的文本仅用于导航，不能作为实现时的完整文案来源。 */
+export const TreeTextPreviewSchema = z
+  .object({ value: z.string().max(80), truncated: z.boolean() })
+  .strict();
+
+/** 轻量素材提示只读取节点现成属性，不触发图片尺寸或组件异步查询。 */
+export const TreeAssetHintsSchema = z
+  .object({
+    imagePaintCount: z.number().int().nonnegative(),
+    exportSettingCount: z.number().int().nonnegative(),
+    hasVector: z.boolean(),
+    isMask: z.boolean(),
+  })
+  .strict();
+
+const LightweightTreeNodeFieldsSchema = z
+  .object({
+    id: z.string(),
+    parentId: z.string().optional(),
+    order: z.number().int().nonnegative(),
+    name: z.string(),
+    type: z.string(),
+    visible: z.boolean(),
+    geometry: GeometrySchema,
+    childCount: z.number().int().nonnegative(),
+    layoutMode: LayoutModeSchema.optional(),
+    positioning: PositioningSchema.optional(),
+    textPreview: TreeTextPreviewSchema.optional(),
+    componentHint: z
+      .object({ kind: z.enum(['INSTANCE', 'COMPONENT', 'COMPONENT_SET']) })
+      .strict()
+      .optional(),
+    assetHints: TreeAssetHintsSchema,
+  })
+  .strict();
+
+/** JSONL 中每个节点使用扁平记录，由 parentId 和 order 恢复层级。 */
+export const LightweightTreeNodeRecordSchema = LightweightTreeNodeFieldsSchema;
+export type LightweightTreeNodeRecord = z.infer<typeof LightweightTreeNodeRecordSchema>;
+
+/** MCP 内联树使用递归 children，字段仍保持导航级轻量。 */
+export type LightweightTreeNode = LightweightTreeNodeRecord & {
+  children: LightweightTreeNode[];
+};
+export const LightweightTreeNodeSchema: z.ZodType<LightweightTreeNode> =
+  LightweightTreeNodeFieldsSchema.extend({
+    children: z.lazy(() => z.array(LightweightTreeNodeSchema)),
+  });
+
+export const TreeScopeSchema = z
+  .object({
+    rootNodeId: z.string(),
+    requestedDepth: z.number().int().nonnegative(),
+    maxNodes: z.number().int().positive(),
+  })
+  .strict();
+
+export const TreeCoverageSchema = z
+  .object({
+    complete: z.boolean(),
+    nodeCount: z.number().int().positive(),
+    truncation: z
+      .object({
+        reasons: z.array(z.enum(['DEPTH_LIMIT', 'NODE_LIMIT'])).min(1),
+        frontierNodeIds: z.array(z.string()),
+        omittedChildCount: z.number().int().nonnegative(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict()
+  .superRefine((coverage, context) => {
+    if (coverage.complete === Boolean(coverage.truncation)) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Complete coverage must not include truncation, and incomplete coverage must.',
+      });
+    }
+  });
+
+/** 插件 RPC 只返回完整的轻量树，不参与本地文件交付决策。 */
+export const TreeRpcResultSchema = z
+  .object({
+    schemaVersion: z.literal(2),
+    scope: TreeScopeSchema,
+    coverage: TreeCoverageSchema,
+    root: LightweightTreeNodeSchema,
+  })
+  .strict();
+export type TreeRpcResult = z.infer<typeof TreeRpcResultSchema>;
+
+export const TreeDeliverySchema = z.discriminatedUnion('mode', [
+  z
+    .object({
+      mode: z.literal('INLINE'),
+      inlineComplete: z.literal(true),
+      inlineNodeCount: z.number().int().positive(),
+    })
+    .strict(),
+  z
+    .object({
+      mode: z.literal('TEMP_FILE'),
+      inlineComplete: z.literal(false),
+      inlineNodeCount: z.number().int().positive(),
+      artifactNodeCount: z.number().int().positive(),
+      localPath: z.string().min(1),
+      sha256: z.string().regex(/^[a-f0-9]{64}$/),
+      bytes: z.number().int().positive(),
+      createdAt: z.string().datetime(),
+      expiresAt: z.string().datetime(),
+    })
+    .strict(),
+]);
+
+/** MCP 公开树结果将 Figma 覆盖状态和模型内联状态严格分开。 */
+export const DeliveredTreeResultSchema = z
+  .object({
+    schemaVersion: z.literal(2),
+    scope: TreeScopeSchema,
+    coverage: TreeCoverageSchema,
+    delivery: TreeDeliverySchema,
+    root: LightweightTreeNodeSchema,
+  })
+  .strict();
+export type DeliveredTreeResult = z.infer<typeof DeliveredTreeResultSchema>;
+
+/** 临时 JSONL 首行携带范围和覆盖状态，后续行才是扁平节点记录。 */
+export const TreeArtifactManifestSchema = z
+  .object({
+    recordType: z.literal('manifest'),
+    schemaVersion: z.literal(2),
+    scope: TreeScopeSchema,
+    coverage: TreeCoverageSchema,
+  })
+  .strict();
+
 /** 当前页面和当前选区的只读结果。 */
 export const SelectionResultSchema = z.object({
   page: z.object({ id: z.string(), name: z.string() }),

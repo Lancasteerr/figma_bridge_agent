@@ -25,13 +25,17 @@ export const FingerprintResultSchema = z
   })
   .strict();
 export type FingerprintResult = z.infer<typeof FingerprintResultSchema>;
-export const GetTreeInputSchema = z.object({
-  nodeId: z.string().min(1),
-  depth: z.number().int().min(0).max(8).default(2),
-  maxNodes: z.number().int().min(1).max(1000).default(200),
-  maxTextLength: z.number().int().min(0).max(10_000).default(2_000),
-});
-// depth、maxNodes 和 maxTextLength 同时限制递归结果和单个文本字段，避免读取工具生成失控 payload。
+export const GetTreeInputSchema = z
+  .object({
+    nodeId: z.string().min(1),
+    depth: z.number().int().min(0).max(8).default(2),
+    maxNodes: z.number().int().min(1).max(1_000).default(200),
+    maxTextLength: z.number().int().min(0).max(80).default(80),
+    delivery: z.enum(['AUTO', 'TEMP_FILE']).default('AUTO'),
+  })
+  .strict();
+/** Figma 插件只接收遍历参数，交付策略由本地 MCP Server 决定。 */
+export const GetTreeRpcInputSchema = GetTreeInputSchema.omit({ delivery: true });
 export const RenderNodeInputSchema = z.object({
   nodeId: z.string().min(1),
   scale: z.number().positive().max(4).default(1),

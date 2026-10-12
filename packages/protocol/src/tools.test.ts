@@ -7,6 +7,8 @@ import {
   ExportAssetInputSchema,
   ExportAssetRpcInputSchema,
   GetFingerprintInputSchema,
+  GetTreeInputSchema,
+  GetTreeRpcInputSchema,
   RenderResultSchema,
   RenderRpcResultSchema,
 } from './tools.js';
@@ -86,6 +88,34 @@ describe('render result boundary', () => {
         expiresAt: '2026-10-13T00:30:00.000Z',
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('lightweight tree input', () => {
+  it('公开输入包含交付策略，插件 RPC 输入会移除该字段', () => {
+    const input = GetTreeInputSchema.parse({ nodeId: '1:2' });
+
+    expect(input).toEqual({
+      nodeId: '1:2',
+      depth: 2,
+      maxNodes: 200,
+      maxTextLength: 80,
+      delivery: 'AUTO',
+    });
+    expect(GetTreeRpcInputSchema.safeParse(input).success).toBe(false);
+    expect(
+      GetTreeRpcInputSchema.parse({
+        nodeId: input.nodeId,
+        depth: input.depth,
+        maxNodes: input.maxNodes,
+        maxTextLength: input.maxTextLength,
+      }),
+    ).not.toHaveProperty('delivery');
+  });
+
+  it('文本预览上限固定为八十字符且不允许无限内联模式', () => {
+    expect(GetTreeInputSchema.safeParse({ nodeId: '1:2', maxTextLength: 81 }).success).toBe(false);
+    expect(GetTreeInputSchema.safeParse({ nodeId: '1:2', delivery: 'INLINE' }).success).toBe(false);
   });
 });
 
