@@ -7,7 +7,9 @@ project asset delivery path.
 ## Planning phase
 
 1. Call `figma_status` and record whether `assetExport.delivery` is `WORKSPACE` or `STAGED`.
-2. Read the smallest useful node or subtree. Under each snapshot's `assets`:
+2. Use a shallow `figma_get_tree` only to find candidates from `assetHints`, then call
+   `figma_get_node` for each candidate whose exact treatment affects the result. Under that node
+   snapshot's `assets`:
    - `imagePaints` identifies `FILLS`/`STROKES`, zero-based paint indices, image hashes, original
      dimensions, crop/tile transforms, filters, opacity, blend mode, and visibility.
    - `exportSettings` reports the author-configured Figma export facts.
@@ -15,6 +17,10 @@ project asset delivery path.
 3. Inspect the implementation project before deciding that a new file is necessary.
 4. Choose code, `RAW`, or `RENDERED` using the decision criteria in `SKILL.md`.
 5. Record each chosen source and destination. Planning must not call `figma_export_asset`.
+
+Do not treat tree `assetHints` as export facts: counts and booleans intentionally omit image hashes,
+dimensions, transforms, filters, and exact export settings. If a temporary tree JSONL is returned,
+filter only the few candidate records needed for the decision instead of reading the whole file.
 
 ## Implementation phase
 

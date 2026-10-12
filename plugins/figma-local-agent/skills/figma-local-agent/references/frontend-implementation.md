@@ -23,7 +23,8 @@ the user asks to continue without choosing, use high fidelity and state the assu
 1. Follow [semantic snapshots](semantic-snapshots.md) when durable evidence is useful. Export a
    single component directly; for a large region or page, inspect `OUTLINE` before choosing bounded
    implementation scopes. Treat an optional render as appearance evidence, not a substitute for
-   node structure.
+   node structure. A render result is a 30-minute local PNG path; open it with the Agent's visual
+   tool only when inspection is necessary and regenerate it after expiry.
 2. Read only leaf nodes whose exact treatment affects the result, especially selected-state
    indicators, distinctive icons, text, image crops, masks, overlays, and effects. Also inspect any
    element that may be replaced by an existing project component or icon.

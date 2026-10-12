@@ -20,6 +20,10 @@ variant keeps different profiles, focus sets, render choices, and budgets immuta
 Figma source fingerprint is unchanged. The cache root contains its own `.gitignore`; do not add
 snapshot files to product source or copy their bodies into the conversation.
 
+A temporary JSONL returned by `figma_get_tree` is only a 30-minute navigation artifact. It is not a
+semantic snapshot, does not bind a workspace, and must not be used as durable implementation
+evidence or freshness state.
+
 ## Choose the smallest task-shaped scope
 
 For one node or component:

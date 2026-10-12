@@ -25,14 +25,23 @@ development plugin is open.
 ## Read workflow
 
 - Start from the current page and selection reported by `figma_status`. Read a shallow local tree,
-  normally depth 2–4, then use only the targeted node reads the task still needs.
+  normally depth 2–4, then use only the targeted node reads the task still needs. `figma_get_tree`
+  is a lightweight navigation result, not a complete implementation snapshot.
+- Distinguish `coverage.complete` from `delivery.inlineComplete`. Incomplete coverage means Figma
+  traversal hit a depth or node limit. Incomplete inline delivery means the complete lightweight
+  result is in the returned temporary JSONL file.
+- Never print an entire tree JSONL into the conversation. Filter a few records locally by exact
+  node ID, name, type, or parent ID, or issue a narrower `figma_get_tree` call rooted at the chosen
+  node. Temporary tree files expire after 30 minutes; repeat the read after expiry.
 - For implementation work that needs durable design evidence, read
   [semantic snapshots](references/semantic-snapshots.md). The bridge exports objective Figma facts;
   the Agent decides scope boundaries, code mappings, and unresolved differences.
-- Keep reads bounded and render only when visual evidence is necessary.
-- `figma_get_node` and `figma_get_tree` expose Image Paint locations, original image dimensions,
-  export settings, vector counts, and mask facts under `assets`. Treat these as Figma facts, not as
-  an automatic recommendation to export.
+- Keep reads bounded and render only when visual evidence is necessary. `figma_render_node` returns
+  a temporary local PNG path rather than image bytes. Open that path with the Agent's visual tool
+  only when a visual decision is required; re-render if `expiresAt` has passed.
+- `figma_get_tree.assetHints` only discovers possible image, export, vector, and mask candidates.
+  Re-read a candidate with `figma_get_node`; its `assets` field provides exact Image Paint hashes,
+  dimensions, transforms, export settings, vector counts, and mask facts needed for decisions.
 - Use `figma_get_fingerprint` for DesignPlan source fingerprints and Proposal concurrency checks.
   Snapshot fingerprints returned by bounded reads have a different scope and are not substitutes.
 - Request fonts and local design resources only when the task needs them. The bridge does not query
@@ -66,9 +75,10 @@ page, application screen, or reusable UI component from the current Figma docume
 
 Read [asset export](references/asset-export.md) before a task that may create front-end asset files.
 
-- During planning, inspect the bounded Figma scope, render only useful previews, and inspect the
-  front-end project for existing components, icons, and images. Do not call `figma_export_asset` in
-  this phase and do not create files merely to evaluate an option.
+- During planning, use a lightweight tree to discover candidates, inspect exact facts with targeted
+  node reads, render only useful previews, and inspect the front-end project for existing
+  components, icons, and images. Do not call `figma_export_asset` in this phase and do not create
+  project files merely to evaluate an option.
 - Prefer code for text, layout, interaction, and simple shapes. Prefer `RAW` for Image Paint source
   bytes when CSS can reproduce crop, radius, layout, and ordinary filters. Consider `RENDERED` for
   a standalone logo, complex vector, mask, or special compositing whose appearance must be baked.
