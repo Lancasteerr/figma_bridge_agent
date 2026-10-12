@@ -188,6 +188,6 @@ describe('figma_export_asset MCP 工具', () => {
       requiresCopy: true,
     });
     expect(response.structuredContent).not.toHaveProperty('data');
-    expect(response.content[0]?.text).not.toContain('<svg');
+    expect(response.content).toEqual([]);
   });
 });

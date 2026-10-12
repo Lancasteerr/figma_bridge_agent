@@ -1,9 +1,10 @@
 import { toBridgeError } from '@figma-agent/protocol';
 
-/** 同时返回 MCP 文本回退和结构化内容，兼容只理解 text 的客户端。 */
+/** 成功结果只保留一份结构化内容，避免同一 JSON 重复进入模型上下文。 */
 export function structuredResult<T extends Record<string, unknown>>(value: T) {
   return {
-    content: [{ type: 'text' as const, text: JSON.stringify(value) }],
+    // MCP SDK 当前要求 content 字段存在；空数组不会制造文本副本。
+    content: [],
     structuredContent: value,
   };
 }
