@@ -98,7 +98,7 @@ describe('语义快照 MCP 工具', () => {
       complete: true,
     });
     expect(response.structuredContent).not.toHaveProperty('outlineJsonl');
-    expect(response.content[0]?.text).not.toContain('outlineJsonl');
+    expect(response.content).toEqual([]);
   });
 
   it('会话不匹配时不请求插件', async () => {

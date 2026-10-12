@@ -116,6 +116,31 @@ describe('MCP tool contract', () => {
       },
     );
 
+    const render = tools.find((tool) => tool.name === 'figma_render_node');
+    expect(render?.outputSchema).toMatchObject({
+      properties: {
+        localPath: expect.any(Object),
+        sha256: expect.any(Object),
+        expiresAt: expect.any(Object),
+      },
+    });
+    expect(
+      (render?.outputSchema as { properties?: Record<string, unknown> }).properties,
+    ).not.toHaveProperty('data');
+
+    const tree = tools.find((tool) => tool.name === 'figma_get_tree');
+    expect(tree?.inputSchema).toMatchObject({
+      properties: { delivery: expect.any(Object), maxTextLength: expect.any(Object) },
+    });
+    expect(tree?.outputSchema).toMatchObject({
+      properties: {
+        scope: expect.any(Object),
+        coverage: expect.any(Object),
+        delivery: expect.any(Object),
+        root: expect.any(Object),
+      },
+    });
+
     const validatePlan = tools.find((tool) => tool.name === 'figma_validate_design_plan');
     const validateInput = validatePlan?.inputSchema as {
       properties?: {
