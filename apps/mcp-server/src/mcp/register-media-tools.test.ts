@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { BridgeTransport } from '../bridge/transport.js';
 import { ExportStore } from '../export/export-store.js';
-import type { TemporaryArtifactStore } from '../temp/artifact-store.js';
+import { TemporaryArtifactStore } from '../temp/artifact-store.js';
 import { registerMediaTools } from './register-media-tools.js';
 
 type ToolHandler = (input: Record<string, unknown>) => Promise<{
@@ -17,9 +17,11 @@ type ToolHandler = (input: Record<string, unknown>) => Promise<{
 }>;
 
 const cleanupPaths: string[] = [];
+const artifactStores: TemporaryArtifactStore[] = [];
 const SESSION_ID = '11111111-1111-4111-8111-111111111111';
 
 afterEach(async () => {
+  for (const store of artifactStores.splice(0).reverse()) await store.close();
   for (const path of cleanupPaths.splice(0).reverse()) {
     await rm(path, { recursive: true, force: true });
   }
@@ -31,6 +33,11 @@ async function setup(rpcResult: Record<string, unknown>, options: { bind?: boole
   cleanupPaths.push(workspace, home);
   const exports = new ExportStore({ homeDirectory: home, sessionId: SESSION_ID, pluginRoots: [] });
   await exports.initialize();
+  const artifacts = new TemporaryArtifactStore({
+    baseDirectory: join(home, 'temporary-artifacts'),
+  });
+  await artifacts.initialize();
+  artifactStores.push(artifacts);
   const handlers = new Map<string, ToolHandler>();
   const server = {
     registerTool: (name: string, _definition: unknown, handler: ToolHandler) => {
@@ -44,7 +51,7 @@ async function setup(rpcResult: Record<string, unknown>, options: { bind?: boole
     onEvent: vi.fn(() => () => undefined),
     close: vi.fn(async () => undefined),
   } as unknown as BridgeTransport;
-  registerMediaTools(server, broker, {} as TemporaryArtifactStore, exports);
+  registerMediaTools(server, broker, artifacts, exports);
   if (options.bind !== false) {
     const response = await handlers.get('figma_bind_export_root')!({
       rootPath: workspace,
@@ -189,5 +196,35 @@ describe('figma_export_asset MCP 工具', () => {
     });
     expect(response.structuredContent).not.toHaveProperty('data');
     expect(response.content).toEqual([]);
+  });
+});
+
+describe('figma_render_node MCP 工具', () => {
+  it('只返回临时 PNG 元数据，不回填 base64 或 image 内容块', async () => {
+    const bytes = rawSamples.png;
+    const { handlers } = await setup({
+      nodeId: 'node:1',
+      mimeType: 'image/png',
+      data: bytes.toString('base64'),
+      width: 100,
+      height: 80,
+      fingerprint: 'node-fingerprint',
+    });
+
+    const response = await handlers.get('figma_render_node')!({ nodeId: 'node:1' });
+
+    expect(response.content).toEqual([]);
+    expect(response.structuredContent).toMatchObject({
+      nodeId: 'node:1',
+      mimeType: 'image/png',
+      width: 100,
+      height: 80,
+      bytes: bytes.byteLength,
+    });
+    expect(response.structuredContent).not.toHaveProperty('data');
+    expect(JSON.stringify(response)).not.toContain(bytes.toString('base64'));
+    const localPath = response.structuredContent?.localPath;
+    expect(typeof localPath).toBe('string');
+    await expect(readFile(String(localPath))).resolves.toEqual(bytes);
   });
 });

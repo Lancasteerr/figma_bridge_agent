@@ -7,6 +7,8 @@ import {
   ExportAssetInputSchema,
   ExportAssetRpcInputSchema,
   GetFingerprintInputSchema,
+  RenderResultSchema,
+  RenderRpcResultSchema,
 } from './tools.js';
 
 describe('export root binding contract', () => {
@@ -59,6 +61,31 @@ describe('aggregate fingerprint input', () => {
   it('rejects empty and duplicate node IDs', () => {
     expect(GetFingerprintInputSchema.safeParse({ nodeIds: [] }).success).toBe(false);
     expect(GetFingerprintInputSchema.safeParse({ nodeIds: ['root', 'root'] }).success).toBe(false);
+  });
+});
+
+describe('render result boundary', () => {
+  const rpc = {
+    nodeId: 'node:1',
+    mimeType: 'image/png' as const,
+    data: 'base64-payload',
+    width: 100,
+    height: 80,
+    fingerprint: 'fingerprint',
+  };
+
+  it('内部 RPC 接受 base64，公开结果拒绝图片正文', () => {
+    expect(RenderRpcResultSchema.safeParse(rpc).success).toBe(true);
+    expect(
+      RenderResultSchema.safeParse({
+        ...rpc,
+        localPath: 'C:\\temp\\preview.png',
+        sha256: 'a'.repeat(64),
+        bytes: 100,
+        createdAt: '2026-10-13T00:00:00.000Z',
+        expiresAt: '2026-10-13T00:30:00.000Z',
+      }).success,
+    ).toBe(false);
   });
 });
 

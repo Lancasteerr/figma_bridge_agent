@@ -10,6 +10,7 @@ import {
   ExportAssetRpcInputSchema,
   ExportAssetRpcResultSchema,
   RenderNodeInputSchema,
+  RenderRpcResultSchema,
   RenderResultSchema,
   StageAssetInputSchema,
   StageAssetRpcInputSchema,
@@ -166,26 +167,33 @@ export function registerMediaTools(
     async (input) => {
       try {
         const parsed = RenderNodeInputSchema.parse(input);
-        const result = RenderResultSchema.parse(await broker.request('renderNode', parsed, 30_000));
-        const stored = await previews.write(
-          `${result.nodeId}.png`,
-          Buffer.from(result.data, 'base64'),
+        const result = RenderRpcResultSchema.parse(
+          await broker.request('renderNode', parsed, 30_000),
         );
-        const metadata = {
-          nodeId: result.nodeId,
-          mimeType: result.mimeType,
-          width: result.width,
-          height: result.height,
-          fingerprint: result.fingerprint,
-          ...stored,
-        };
-        return {
-          content: [
-            { type: 'text' as const, text: JSON.stringify(metadata) },
-            { type: 'image' as const, data: result.data, mimeType: result.mimeType },
-          ],
-          structuredContent: { ...result, ...stored },
-        };
+        const data = Buffer.from(result.data, 'base64');
+        if (data.byteLength > MAX_EXPORT_BYTES) {
+          throw new BridgeFault({
+            code: 'PAYLOAD_TOO_LARGE',
+            message: `Rendered PNG exceeds ${MAX_EXPORT_BYTES} bytes.`,
+            retryable: true,
+            nodeId: result.nodeId,
+          });
+        }
+        const detected = await fileTypeFromBuffer(data);
+        if (detected?.ext !== 'png') {
+          throw unsupported(result.nodeId, 'Rendered PNG magic bytes do not match.');
+        }
+        const stored = await previews.write(`${result.nodeId}.png`, data);
+        return structuredResult(
+          RenderResultSchema.parse({
+            nodeId: result.nodeId,
+            mimeType: result.mimeType,
+            width: result.width,
+            height: result.height,
+            fingerprint: result.fingerprint,
+            ...stored,
+          }),
+        );
       } catch (error) {
         return toolError(error);
       }

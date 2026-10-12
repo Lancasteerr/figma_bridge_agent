@@ -228,18 +228,33 @@ export const DiscardProposalInputSchema = z.object({
 export const ValidateDesignPlanInputSchema = z.object({ plan: DesignPlanSchema });
 export const ApplyDesignPlanInputSchema = z.object({ validationId: z.string().min(1) });
 
-/** PNG 渲染结果可附带本地临时文件信息，但 data 始终是插件返回的 base64。 */
-export const RenderResultSchema = z.object({
-  nodeId: z.string(),
-  mimeType: z.literal('image/png'),
-  data: z.string(),
-  width: z.number().positive(),
-  height: z.number().positive(),
-  fingerprint: z.string(),
-  localPath: z.string().optional(),
-  sha256: z.string().optional(),
-  bytes: z.number().int().nonnegative().optional(),
-});
+/** 插件内部渲染 RPC 携带 base64；该 schema 不得直接作为 MCP 工具输出。 */
+export const RenderRpcResultSchema = z
+  .object({
+    nodeId: z.string(),
+    mimeType: z.literal('image/png'),
+    data: z.string(),
+    width: z.number().positive(),
+    height: z.number().positive(),
+    fingerprint: z.string(),
+  })
+  .strict();
+
+/** MCP 公开渲染结果只暴露短期本地文件，不包含图片正文。 */
+export const RenderResultSchema = z
+  .object({
+    nodeId: z.string(),
+    mimeType: z.literal('image/png'),
+    width: z.number().positive(),
+    height: z.number().positive(),
+    fingerprint: z.string(),
+    localPath: z.string().min(1),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+    bytes: z.number().int().positive(),
+    createdAt: z.string().datetime(),
+    expiresAt: z.string().datetime(),
+  })
+  .strict();
 
 /** 插件内部导出结果携带受限数据，但不能直接作为 MCP 工具结果返回。 */
 export const ExportAssetRpcResultSchema = z.object({

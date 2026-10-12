@@ -3,7 +3,7 @@ import {
   ExportAssetRpcInputSchema,
   ExportAssetRpcResultSchema,
   RenderNodeInputSchema,
-  type RenderResultSchema,
+  type RenderRpcResultSchema,
 } from '@figma-agent/protocol';
 import type { z } from 'zod';
 
@@ -11,7 +11,7 @@ import { fingerprintNodeTree, serializeNode } from '../serialization/node-snapsh
 import { resolveCurrentPageNode } from '../serialization/resolve.js';
 import { encodeUtf8 } from '../serialization/utf8.js';
 
-type RenderResult = z.infer<typeof RenderResultSchema>;
+type RenderResult = z.infer<typeof RenderRpcResultSchema>;
 type ExportRpcResult = z.infer<typeof ExportAssetRpcResultSchema>;
 const MAX_RAW_ASSET_BYTES = 9 * 1024 * 1024;
 
