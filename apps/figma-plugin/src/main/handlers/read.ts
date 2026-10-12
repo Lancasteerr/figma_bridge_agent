@@ -1,20 +1,18 @@
 import {
   GetNodeInputSchema,
   GetFingerprintInputSchema,
-  GetTreeInputSchema,
+  GetTreeRpcInputSchema,
   type FingerprintResult,
+  type LightweightTreeNode,
   type SelectionResultSchema,
-  type SnapshotTreeNode,
-  type TreeResult,
+  TreeRpcResultSchema,
+  type TreeRpcResult,
 } from '@figma-agent/protocol';
 import type { z } from 'zod';
 
 import { serializeNodeSummary } from '../serialization/node-summary.js';
-import {
-  createSerializeContext,
-  fingerprintNodeTree,
-  serializeNode,
-} from '../serialization/node-snapshot.js';
+import { fingerprintNodeTree, serializeNode } from '../serialization/node-snapshot.js';
+import { serializeLightweightTreeNode } from '../serialization/lightweight-tree.js';
 import { resolveCurrentPageNode } from '../serialization/resolve.js';
 import { isSceneNode } from '../serialization/resolve.js';
 
@@ -41,37 +39,66 @@ export async function getFingerprint(params: unknown): Promise<FingerprintResult
   return { nodeIds, fingerprint: await fingerprintNodeTree(nodes) };
 }
 
-/** 按深度、节点数和文本长度上限递归读取当前页子树。 */
-export async function getTree(params: unknown): Promise<TreeResult> {
-  const input = GetTreeInputSchema.parse(params);
+/** 按深度和节点数上限读取轻量导航树，并独立报告真实遍历截断。 */
+export async function getTree(params: unknown): Promise<TreeRpcResult> {
+  const input = GetTreeRpcInputSchema.parse(params);
   const root = await resolveCurrentPageNode(input.nodeId);
   let nodeCount = 0;
-  let limitReached = false;
-  const context = createSerializeContext();
+  let omittedChildCount = 0;
+  const reasons = new Set<'DEPTH_LIMIT' | 'NODE_LIMIT'>();
+  const frontierNodeIds = new Set<string>();
 
-  const visit = async (node: SceneNode, depth: number): Promise<SnapshotTreeNode> => {
+  const visit = (node: SceneNode, depth: number, order: number): LightweightTreeNode => {
     nodeCount += 1;
-    const snapshot = await serializeNode(node, { maxTextLength: input.maxTextLength }, context);
     const childNodes = 'children' in node ? node.children.filter(isSceneNode) : [];
-    const expanded: SnapshotTreeNode[] = [];
-    if (depth > 0) {
-      for (const child of childNodes) {
-        // 计数在递归前检查，保证结果不会超过调用方声明的 maxNodes。
-        if (nodeCount >= input.maxNodes) {
-          limitReached = true;
-          break;
+    const children: LightweightTreeNode[] = [];
+    if (depth === 0 && childNodes.length > 0) {
+      reasons.add('DEPTH_LIMIT');
+      frontierNodeIds.add(node.id);
+      omittedChildCount += childNodes.length;
+    } else {
+      for (const [childOrder, child] of childNodes.entries()) {
+        if (nodeCount < input.maxNodes) {
+          children.push(visit(child, depth - 1, childOrder));
+          continue;
         }
-        expanded.push(await visit(child, depth - 1));
+        reasons.add('NODE_LIMIT');
+        frontierNodeIds.add(child.id);
+        omittedChildCount += 1;
       }
     }
-    const depthTruncated = depth === 0 && childNodes.length > 0;
     return {
-      ...snapshot,
-      children: expanded,
-      truncated: snapshot.truncated || depthTruncated || limitReached,
+      ...serializeLightweightTreeNode(node, order, input.maxTextLength),
+      children,
     };
   };
 
-  const tree = await visit(root, input.depth);
-  return { root: tree, nodeCount, truncated: tree.truncated };
+  const parentChildren =
+    root.parent && 'children' in root.parent
+      ? root.parent.children.filter(isSceneNode)
+      : ([] as SceneNode[]);
+  const rootOrder = Math.max(0, parentChildren.indexOf(root));
+  const tree = visit(root, input.depth, rootOrder);
+  const truncation =
+    reasons.size > 0
+      ? {
+          reasons: [...reasons],
+          frontierNodeIds: [...frontierNodeIds],
+          omittedChildCount,
+        }
+      : undefined;
+  return TreeRpcResultSchema.parse({
+    schemaVersion: 2,
+    scope: {
+      rootNodeId: root.id,
+      requestedDepth: input.depth,
+      maxNodes: input.maxNodes,
+    },
+    coverage: {
+      complete: reasons.size === 0,
+      nodeCount,
+      ...(truncation ? { truncation } : {}),
+    },
+    root: tree,
+  });
 }
