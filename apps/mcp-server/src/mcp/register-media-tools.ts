@@ -21,7 +21,7 @@ import { fileTypeFromBuffer } from 'file-type';
 import type { BridgeTransport } from '../bridge/transport.js';
 import type { ExportStore } from '../export/export-store.js';
 import { validateInboundAsset } from '../inbound/asset-validator.js';
-import type { TempAssetStore } from '../temp/asset-store.js';
+import type { TemporaryArtifactStore } from '../temp/artifact-store.js';
 import { structuredResult, toolError } from './result.js';
 
 const MAX_EXPORT_BYTES = 9 * 1024 * 1024;
@@ -30,7 +30,7 @@ const MAX_EXPORT_BYTES = 9 * 1024 * 1024;
 export function registerMediaTools(
   server: McpServer,
   broker: BridgeTransport,
-  previews: TempAssetStore,
+  previews: TemporaryArtifactStore,
   exports: ExportStore,
 ): void {
   server.registerTool(

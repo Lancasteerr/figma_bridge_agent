@@ -12,7 +12,7 @@ import { registerMutationTools } from './mcp/register-mutation-tools.js';
 import { registerStatusTool } from './mcp/register-status.js';
 import { registerSemanticTools } from './mcp/register-semantic-tools.js';
 import { SemanticSnapshotStore } from './semantic/semantic-snapshot-store.js';
-import { TempAssetStore } from './temp/asset-store.js';
+import { TemporaryArtifactStore } from './temp/artifact-store.js';
 import { SessionWorkspace } from './storage/session-workspace.js';
 
 /** MCP server 运行期间需要同时关闭 stdio、桥接和临时资源。 */
@@ -24,7 +24,7 @@ export interface RunningServer {
 /** 创建 MCP 工具集合；工具按读、媒体、Proposal 写入和布局计划分组注册。 */
 export function createMcpServer(
   broker: BridgeTransport,
-  assets: TempAssetStore,
+  assets: TemporaryArtifactStore,
   exports: ExportStore,
   snapshots = new SemanticSnapshotStore(exports.workspace, {
     pluginVersion: () => broker.pluginVersion,
@@ -43,7 +43,7 @@ export function createMcpServer(
 /** 初始化每任务资源并立即注册 MCP；Daemon 连接失败不会让工具集合消失。 */
 export async function startServer(config: ServerConfig): Promise<RunningServer> {
   const broker = new DaemonBridgeClient(config);
-  const assets = new TempAssetStore();
+  const assets = new TemporaryArtifactStore();
   const workspace = new SessionWorkspace();
   const exports = new ExportStore({ workspace });
   const snapshots = new SemanticSnapshotStore(workspace, {

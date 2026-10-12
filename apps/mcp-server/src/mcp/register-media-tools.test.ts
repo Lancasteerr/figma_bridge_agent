@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { BridgeTransport } from '../bridge/transport.js';
 import { ExportStore } from '../export/export-store.js';
-import type { TempAssetStore } from '../temp/asset-store.js';
+import type { TemporaryArtifactStore } from '../temp/artifact-store.js';
 import { registerMediaTools } from './register-media-tools.js';
 
 type ToolHandler = (input: Record<string, unknown>) => Promise<{
@@ -44,7 +44,7 @@ async function setup(rpcResult: Record<string, unknown>, options: { bind?: boole
     onEvent: vi.fn(() => () => undefined),
     close: vi.fn(async () => undefined),
   } as unknown as BridgeTransport;
-  registerMediaTools(server, broker, {} as TempAssetStore, exports);
+  registerMediaTools(server, broker, {} as TemporaryArtifactStore, exports);
   if (options.bind !== false) {
     const response = await handlers.get('figma_bind_export_root')!({
       rootPath: workspace,

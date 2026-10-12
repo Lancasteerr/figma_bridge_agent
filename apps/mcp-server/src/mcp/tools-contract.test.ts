@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { DaemonBridgeClient } from '../bridge/daemon-client.js';
 import { PluginConnectionBroker } from '../bridge/plugin-connection.js';
 import { ExportStore } from '../export/export-store.js';
-import { TempAssetStore } from '../temp/asset-store.js';
+import { TemporaryArtifactStore } from '../temp/artifact-store.js';
 import { createMcpServer } from '../server.js';
 
 const EXPECTED_TOOLS = [
@@ -59,7 +59,7 @@ describe('MCP tool contract', () => {
       daemonSecret: Buffer.alloc(32, 28).toString('base64url'),
       pairedClients: {},
     });
-    const mcp = createMcpServer(broker, new TempAssetStore(), new ExportStore());
+    const mcp = createMcpServer(broker, new TemporaryArtifactStore(), new ExportStore());
     servers.push(mcp);
     const snapshot = await inspectServer(mcp);
     const tools = snapshot.tools;
@@ -170,7 +170,7 @@ describe('MCP tool contract', () => {
           { autoStart: false, connectTimeoutMs: 20, spawnDaemon: () => undefined },
         );
         daemonClients.push(client);
-        const mcp = createMcpServer(client, new TempAssetStore(), new ExportStore());
+        const mcp = createMcpServer(client, new TemporaryArtifactStore(), new ExportStore());
         servers.push(mcp);
         return (await listTools(mcp)).map((tool) => tool.name).sort();
       }),
