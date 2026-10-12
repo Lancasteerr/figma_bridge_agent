@@ -76,6 +76,23 @@ describe('TemporaryArtifactStore', () => {
     await store.close();
   });
 
+  it('并发写入也不能突破会话配额', async () => {
+    const store = new TemporaryArtifactStore({
+      baseDirectory: testRoot(),
+      maxSessionBytes: 4,
+    });
+    await store.initialize();
+
+    const results = await Promise.allSettled([
+      store.write('first.bin', Buffer.from('123')),
+      store.write('second.bin', Buffer.from('456')),
+    ]);
+
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    await store.close();
+  });
+
   it('正常关闭时立即删除当前会话目录', async () => {
     const store = new TemporaryArtifactStore({ baseDirectory: testRoot() });
     await store.initialize();

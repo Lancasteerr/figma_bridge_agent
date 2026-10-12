@@ -73,11 +73,19 @@ function node(id: string, name = `Node ${id}`, children: Record<string, unknown>
 }
 
 function tree(children: Record<string, unknown>[]) {
+  const root = node('root', 'Root', children);
+  const queue: Record<string, unknown>[] = [root];
+  let nodeCount = 0;
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    nodeCount += 1;
+    queue.push(...(current.children as Record<string, unknown>[]));
+  }
   return {
     schemaVersion: 2,
     scope: { rootNodeId: 'root', requestedDepth: 2, maxNodes: 1_000 },
-    coverage: { complete: true, nodeCount: children.length + 1 },
-    root: node('root', 'Root', children),
+    coverage: { complete: true, nodeCount },
+    root,
   };
 }
 
@@ -138,5 +146,27 @@ describe('figma_get_tree MCP 交付', () => {
         artifactNodeCount: 1,
       },
     });
+  });
+
+  it('overview 在同一深度轮询各分支，不让首个分支独占预算', async () => {
+    const branches = Array.from({ length: 8 }, (_, branchIndex) => {
+      const leaves = Array.from({ length: 80 }, (_, leafIndex) =>
+        node(
+          `leaf-${branchIndex}-${leafIndex}`,
+          `Leaf ${branchIndex}-${leafIndex} ${'x'.repeat(170)}`,
+        ),
+      );
+      return node(`branch-${branchIndex}`, `Branch ${branchIndex}`, leaves);
+    });
+    const { handler } = await setup(tree(branches));
+
+    const response = await handler({ nodeId: 'root', maxNodes: 1_000 });
+    const root = response.structuredContent?.root as {
+      children: Array<{ children: unknown[] }>;
+    };
+    const includedPerBranch = root.children.map((branch) => branch.children.length);
+
+    expect(root.children).toHaveLength(8);
+    expect(Math.max(...includedPerBranch) - Math.min(...includedPerBranch)).toBeLessThanOrEqual(1);
   });
 });

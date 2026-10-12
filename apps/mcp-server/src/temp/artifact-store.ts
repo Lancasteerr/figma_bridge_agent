@@ -46,6 +46,7 @@ export class TemporaryArtifactStore {
   readonly #active = new Map<string, ActiveArtifact>();
   #usedBytes = 0;
   #timer: NodeJS.Timeout | undefined;
+  #sweepPromise: Promise<void> | undefined;
   #initialized = false;
 
   constructor(options: TemporaryArtifactStoreOptions = {}) {
@@ -62,7 +63,17 @@ export class TemporaryArtifactStore {
     await mkdir(this.baseDirectory, { recursive: true });
     await this.sweepExpired();
     await mkdir(this.root, { recursive: true });
-    this.#timer = setInterval(() => void this.sweepExpired(), this.#sweepIntervalMs);
+    this.#timer = setInterval(() => {
+      void this.sweepExpired().catch((error: unknown) => {
+        console.error(
+          JSON.stringify({
+            level: 'warn',
+            message: 'Temporary artifact cleanup failed.',
+            error: error instanceof Error ? error.message : String(error),
+          }),
+        );
+      });
+    }, this.#sweepIntervalMs);
     this.#timer.unref();
     this.#initialized = true;
   }
@@ -75,6 +86,8 @@ export class TemporaryArtifactStore {
     if (this.#usedBytes + bytes > this.#maxSessionBytes) {
       throw new Error(`Temporary artifact quota exceeded (${this.#maxSessionBytes} bytes).`);
     }
+    // 在第一次异步写入前预留容量，避免并发 write 同时通过配额检查。
+    this.#usedBytes += bytes;
 
     const safeName = sanitizeArtifactName(name);
     const target = join(this.root, `${randomUUID()}-${safeName}`);
@@ -85,11 +98,11 @@ export class TemporaryArtifactStore {
       await writeFile(temporary, data);
       await rename(temporary, target);
     } catch (error) {
+      this.#usedBytes = Math.max(0, this.#usedBytes - bytes);
       await rm(temporary, { force: true });
       throw error;
     }
 
-    this.#usedBytes += bytes;
     this.#active.set(target, { bytes, expiresAtMs });
     return {
       localPath: target,
@@ -102,6 +115,13 @@ export class TemporaryArtifactStore {
 
   /** 删除当前和历史会话中已经过期的文件，并回收当前会话配额。 */
   async sweepExpired(): Promise<void> {
+    this.#sweepPromise ??= this.#performSweep().finally(() => {
+      this.#sweepPromise = undefined;
+    });
+    await this.#sweepPromise;
+  }
+
+  async #performSweep(): Promise<void> {
     const now = this.#now();
     await mkdir(this.baseDirectory, { recursive: true });
     const sessions = await readdir(this.baseDirectory, { withFileTypes: true });
@@ -127,6 +147,7 @@ export class TemporaryArtifactStore {
   async close(): Promise<void> {
     if (this.#timer) clearInterval(this.#timer);
     this.#timer = undefined;
+    if (this.#sweepPromise) await this.#sweepPromise.catch(() => undefined);
     if (this.#initialized) await this.#removeDirectory(this.root);
     this.#active.clear();
     this.#usedBytes = 0;

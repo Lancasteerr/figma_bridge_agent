@@ -74,25 +74,38 @@ function createOverview(
   artifact: StoredArtifact,
 ): TreeResult {
   const root = cloneWithoutChildren(tree.root);
-  const queue: Array<{ source: LightweightTreeNode; target: LightweightTreeNode }> = [
+  let frontier: Array<{ source: LightweightTreeNode; target: LightweightTreeNode }> = [
     { source: tree.root, target: root },
   ];
   let inlineNodeCount = 1;
 
-  for (let index = 0; index < queue.length; index += 1) {
-    const { source, target } = queue[index]!;
-    for (const child of source.children) {
-      const cloned = cloneWithoutChildren(child);
-      target.children.push(cloned);
-      const candidateCount = inlineNodeCount + 1;
-      const candidate = resultWithArtifact(tree, root, candidateCount, artifactNodeCount, artifact);
-      if (publicResultBytes(candidate) <= TREE_PUBLIC_RESULT_BUDGET_BYTES) {
-        inlineNodeCount = candidateCount;
-        queue.push({ source: child, target: cloned });
-      } else {
-        target.children.pop();
+  while (frontier.length > 0) {
+    const next: Array<{ source: LightweightTreeNode; target: LightweightTreeNode }> = [];
+    const widestBranch = Math.max(...frontier.map(({ source }) => source.children.length));
+    // 同一深度按子节点序号轮询各父分支，避免首个大分支独占剩余预算。
+    for (let childIndex = 0; childIndex < widestBranch; childIndex += 1) {
+      for (const { source, target } of frontier) {
+        const child = source.children[childIndex];
+        if (!child) continue;
+        const cloned = cloneWithoutChildren(child);
+        target.children.push(cloned);
+        const candidateCount = inlineNodeCount + 1;
+        const candidate = resultWithArtifact(
+          tree,
+          root,
+          candidateCount,
+          artifactNodeCount,
+          artifact,
+        );
+        if (publicResultBytes(candidate) <= TREE_PUBLIC_RESULT_BUDGET_BYTES) {
+          inlineNodeCount = candidateCount;
+          next.push({ source: child, target: cloned });
+        } else {
+          target.children.pop();
+        }
       }
     }
+    frontier = next;
   }
 
   const result = resultWithArtifact(tree, root, inlineNodeCount, artifactNodeCount, artifact);
