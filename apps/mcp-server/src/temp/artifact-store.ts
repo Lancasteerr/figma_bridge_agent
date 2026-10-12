@@ -9,6 +9,8 @@ export const MAX_TEMP_SESSION_BYTES = 256 * 1024 * 1024;
 export const TEMP_ARTIFACT_TTL_MS = 30 * 60_000;
 /** 运行期间每分钟主动清理一次过期产物。 */
 export const TEMP_ARTIFACT_SWEEP_INTERVAL_MS = 60_000;
+/** 异常退出的 Adapter 会话目录最多保留二十四小时。 */
+export const TEMP_ORPHAN_SESSION_RETENTION_MS = 24 * 60 * 60_000;
 
 /** 临时产物的本地路径、摘要和生命周期信息。 */
 export interface StoredArtifact {
@@ -20,9 +22,11 @@ export interface StoredArtifact {
 }
 
 interface TemporaryArtifactStoreOptions {
+  sessionId: string;
   baseDirectory?: string;
   maxSessionBytes?: number;
   now?: () => number;
+  orphanRetentionMs?: number;
   sweepIntervalMs?: number;
   ttlMs?: number;
 }
@@ -33,14 +37,16 @@ interface ActiveArtifact {
 }
 
 /**
- * 为每次 MCP 服务运行创建隔离目录，并统一管理图片和 JSONL 等短期产物。
- * 历史会话按文件修改时间恢复过期时间，不依赖可能损坏的额外清单文件。
+ * 使用 MCP 工作区会话 ID 创建隔离目录，并统一管理图片和 JSONL 等短期产物。
+ * 当前会话按文件 TTL 清理，异常退出的其他会话按目录修改时间兜底清理。
  */
 export class TemporaryArtifactStore {
   readonly root: string;
   readonly baseDirectory: string;
+  readonly sessionId: string;
   readonly #maxSessionBytes: number;
   readonly #now: () => number;
+  readonly #orphanRetentionMs: number;
   readonly #sweepIntervalMs: number;
   readonly #ttlMs: number;
   readonly #active = new Map<string, ActiveArtifact>();
@@ -49,11 +55,14 @@ export class TemporaryArtifactStore {
   #sweepPromise: Promise<void> | undefined;
   #initialized = false;
 
-  constructor(options: TemporaryArtifactStoreOptions = {}) {
+  constructor(options: TemporaryArtifactStoreOptions) {
+    assertSafeSessionId(options.sessionId);
+    this.sessionId = options.sessionId;
     this.baseDirectory = options.baseDirectory ?? join(tmpdir(), 'figma-agent-mcp');
-    this.root = join(this.baseDirectory, randomUUID());
+    this.root = join(this.baseDirectory, this.sessionId);
     this.#maxSessionBytes = options.maxSessionBytes ?? MAX_TEMP_SESSION_BYTES;
     this.#now = options.now ?? Date.now;
+    this.#orphanRetentionMs = options.orphanRetentionMs ?? TEMP_ORPHAN_SESSION_RETENTION_MS;
     this.#sweepIntervalMs = options.sweepIntervalMs ?? TEMP_ARTIFACT_SWEEP_INTERVAL_MS;
     this.#ttlMs = options.ttlMs ?? TEMP_ARTIFACT_TTL_MS;
   }
@@ -95,8 +104,7 @@ export class TemporaryArtifactStore {
     const createdAtMs = this.#now();
     const expiresAtMs = createdAtMs + this.#ttlMs;
     try {
-      await writeFile(temporary, data);
-      await rename(temporary, target);
+      await this.#writeAtomically(temporary, target, data);
     } catch (error) {
       this.#usedBytes = Math.max(0, this.#usedBytes - bytes);
       await rm(temporary, { force: true });
@@ -113,7 +121,7 @@ export class TemporaryArtifactStore {
     };
   }
 
-  /** 删除当前和历史会话中已经过期的文件，并回收当前会话配额。 */
+  /** 清理当前会话过期文件，并兜底删除异常退出超过二十四小时的其他会话。 */
   async sweepExpired(): Promise<void> {
     this.#sweepPromise ??= this.#performSweep().finally(() => {
       this.#sweepPromise = undefined;
@@ -128,19 +136,49 @@ export class TemporaryArtifactStore {
     for (const session of sessions) {
       if (!session.isDirectory()) continue;
       const sessionPath = join(this.baseDirectory, session.name);
-      const entries = await readdir(sessionPath, { withFileTypes: true });
-      for (const entry of entries) {
-        if (!entry.isFile()) continue;
-        const path = join(sessionPath, entry.name);
-        const active = this.#active.get(path);
-        const expiresAtMs = active?.expiresAtMs ?? (await stat(path)).mtimeMs + this.#ttlMs;
-        if (expiresAtMs > now) continue;
-        await this.#removeFile(path, active?.bytes ?? 0);
+      if (sessionPath === this.root) {
+        await this.#sweepCurrentSession(now);
+        continue;
       }
-      if (sessionPath !== this.root && (await readdir(sessionPath)).length === 0) {
-        await this.#removeDirectory(sessionPath);
-      }
+      await this.#removeStaleSession(sessionPath, now);
     }
+  }
+
+  async #sweepCurrentSession(now: number): Promise<void> {
+    const entries = await readdir(this.root, { withFileTypes: true }).catch((error: unknown) => {
+      if (isFileSystemError(error, 'ENOENT')) return [];
+      throw error;
+    });
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      const path = join(this.root, entry.name);
+      const active = this.#active.get(path);
+      const info = await stat(path).catch((error: unknown) => {
+        if (isFileSystemError(error, 'ENOENT')) return undefined;
+        throw error;
+      });
+      if (!info) continue;
+      const expiresAtMs = active?.expiresAtMs ?? info.mtimeMs + this.#ttlMs;
+      if (expiresAtMs > now) continue;
+      await this.#removeFile(path, active?.bytes ?? 0);
+    }
+  }
+
+  async #removeStaleSession(sessionPath: string, now: number): Promise<void> {
+    const first = await stat(sessionPath).catch((error: unknown) => {
+      if (isFileSystemError(error, 'ENOENT')) return undefined;
+      throw error;
+    });
+    if (!first || first.mtimeMs + this.#orphanRetentionMs > now) return;
+
+    // 删除前重新读取目录时间，避免扫描期间恢复写入的会话被误清理。
+    const latest = await stat(sessionPath).catch((error: unknown) => {
+      if (isFileSystemError(error, 'ENOENT')) return undefined;
+      throw error;
+    });
+    if (!latest || latest.mtimeMs !== first.mtimeMs) return;
+    if (latest.mtimeMs + this.#orphanRetentionMs > this.#now()) return;
+    await this.#removeDirectory(sessionPath);
   }
 
   /** 正常关闭时立即清理本会话产物，避免短期文件滞留。 */
@@ -155,15 +193,60 @@ export class TemporaryArtifactStore {
   }
 
   async #removeFile(path: string, bytes: number): Promise<void> {
-    await assertWithinBase(path, this.baseDirectory);
+    try {
+      await assertWithinBase(path, this.baseDirectory);
+    } catch (error) {
+      if (isFileSystemError(error, 'ENOENT')) return;
+      throw error;
+    }
     await rm(path, { force: true });
     if (this.#active.delete(path)) this.#usedBytes = Math.max(0, this.#usedBytes - bytes);
   }
 
   async #removeDirectory(path: string): Promise<void> {
-    await assertWithinBase(path, this.baseDirectory);
+    try {
+      await assertWithinBase(path, this.baseDirectory);
+    } catch (error) {
+      if (isFileSystemError(error, 'ENOENT')) return;
+      throw error;
+    }
     await rm(path, { recursive: true, force: true });
   }
+
+  async #writeAtomically(
+    temporary: string,
+    target: string,
+    data: Uint8Array | string,
+  ): Promise<void> {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      // 其他 Adapter 可能按二十四小时兜底删除本目录，写入前必须主动恢复。
+      await mkdir(this.root, { recursive: true });
+      try {
+        await writeFile(temporary, data);
+        await rename(temporary, target);
+        return;
+      } catch (error) {
+        await rm(temporary, { force: true });
+        if (!isFileSystemError(error, 'ENOENT') || attempt === 1) throw error;
+      }
+    }
+  }
+}
+
+/** 会话 ID 只能作为单个目录名，不能携带路径语义。 */
+function assertSafeSessionId(sessionId: string): void {
+  if (
+    !sessionId ||
+    sessionId === '.' ||
+    sessionId === '..' ||
+    !/^[a-zA-Z0-9._-]+$/.test(sessionId)
+  ) {
+    throw new Error('Temporary artifact session ID must be a safe path segment.');
+  }
+}
+
+function isFileSystemError(error: unknown, code: string): error is NodeJS.ErrnoException {
+  return error instanceof Error && 'code' in error && error.code === code;
 }
 
 /** 将外部建议文件名限制为安全、短且不含路径分隔符的 basename。 */

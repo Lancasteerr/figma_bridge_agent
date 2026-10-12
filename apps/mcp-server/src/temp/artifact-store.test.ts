@@ -1,12 +1,14 @@
-import { access, mkdir, readFile, rm, utimes, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { TemporaryArtifactStore } from './artifact-store.js';
 
 const cleanupPaths: string[] = [];
+const SESSION_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const SESSION_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
 afterEach(async () => {
   for (const path of cleanupPaths.splice(0).reverse()) {
@@ -23,11 +25,17 @@ function testRoot(): string {
 describe('TemporaryArtifactStore', () => {
   it('返回摘要和三十分钟生命周期元数据', async () => {
     const now = Date.parse('2026-10-13T00:00:00.000Z');
-    const store = new TemporaryArtifactStore({ baseDirectory: testRoot(), now: () => now });
+    const baseDirectory = testRoot();
+    const store = new TemporaryArtifactStore({
+      baseDirectory,
+      sessionId: SESSION_A,
+      now: () => now,
+    });
     await store.initialize();
 
     const stored = await store.write('../preview.png', Buffer.from('png'));
 
+    expect(store.root).toBe(join(baseDirectory, SESSION_A));
     expect(stored.localPath.startsWith(store.root)).toBe(true);
     expect(stored.localPath).toMatch(/preview\.png$/);
     expect(stored).toMatchObject({
@@ -43,6 +51,7 @@ describe('TemporaryArtifactStore', () => {
     let now = 1_000;
     const store = new TemporaryArtifactStore({
       baseDirectory: testRoot(),
+      sessionId: SESSION_A,
       maxSessionBytes: 4,
       ttlMs: 100,
       now: () => now,
@@ -60,25 +69,88 @@ describe('TemporaryArtifactStore', () => {
     await store.close();
   });
 
-  it('启动时清理异常退出遗留的过期会话', async () => {
+  it('启动时只清理超过二十四小时的异常会话目录', async () => {
     const baseDirectory = testRoot();
-    const orphanDirectory = join(baseDirectory, 'orphan-session');
-    const orphan = join(orphanDirectory, 'tree.jsonl');
-    await mkdir(orphanDirectory, { recursive: true });
-    await writeFile(orphan, '{}\n');
-    const old = new Date(Date.now() - 31 * 60_000);
-    await utimes(orphan, old, old);
+    const staleDirectory = join(baseDirectory, 'stale-session');
+    const freshDirectory = join(baseDirectory, 'fresh-session');
+    const freshEmptyDirectory = join(baseDirectory, 'fresh-empty-session');
+    const oldFileInFreshDirectory = join(freshDirectory, 'old-tree.jsonl');
+    await mkdir(staleDirectory, { recursive: true });
+    await mkdir(freshDirectory, { recursive: true });
+    await mkdir(freshEmptyDirectory, { recursive: true });
+    await writeFile(oldFileInFreshDirectory, '{}\n');
+    const now = Date.parse('2026-10-13T00:00:00.000Z');
+    const stale = new Date(now - 24 * 60 * 60_000 - 1);
+    const fresh = new Date(now - 24 * 60 * 60_000 + 1);
+    await utimes(staleDirectory, stale, stale);
+    await utimes(oldFileInFreshDirectory, stale, stale);
+    await utimes(freshDirectory, fresh, fresh);
+    await utimes(freshEmptyDirectory, fresh, fresh);
 
-    const store = new TemporaryArtifactStore({ baseDirectory });
+    const store = new TemporaryArtifactStore({
+      baseDirectory,
+      sessionId: SESSION_A,
+      now: () => now,
+    });
     await store.initialize();
 
-    await expect(access(orphan)).rejects.toThrow();
+    await expect(access(staleDirectory)).rejects.toThrow();
+    await expect(access(freshDirectory)).resolves.toBeUndefined();
+    await expect(access(oldFileInFreshDirectory)).resolves.toBeUndefined();
+    await expect(access(freshEmptyDirectory)).resolves.toBeUndefined();
+    await store.close();
+  });
+
+  it('另一个 Adapter 初始化时保留新建空会话目录', async () => {
+    const baseDirectory = testRoot();
+    const first = new TemporaryArtifactStore({ baseDirectory, sessionId: SESSION_A });
+    const second = new TemporaryArtifactStore({ baseDirectory, sessionId: SESSION_B });
+    await first.initialize();
+    await second.initialize();
+
+    await expect(access(first.root)).resolves.toBeUndefined();
+    await expect(first.write('preview.png', Buffer.from('png'))).resolves.toMatchObject({
+      bytes: 3,
+    });
+
+    await second.close();
+    await first.close();
+  });
+
+  it('临时文件直接写入会话目录并更新目录修改时间', async () => {
+    const store = new TemporaryArtifactStore({
+      baseDirectory: testRoot(),
+      sessionId: SESSION_A,
+    });
+    await store.initialize();
+    const old = new Date('2000-01-01T00:00:00.000Z');
+    await utimes(store.root, old, old);
+
+    const stored = await store.write('tree.jsonl', '{}\n');
+
+    expect(dirname(stored.localPath)).toBe(store.root);
+    expect((await stat(store.root)).mtimeMs).toBeGreaterThan(old.getTime());
+    await store.close();
+  });
+
+  it('会话目录被外部删除后下一次写入会自动重建', async () => {
+    const store = new TemporaryArtifactStore({
+      baseDirectory: testRoot(),
+      sessionId: SESSION_A,
+    });
+    await store.initialize();
+    await rm(store.root, { recursive: true, force: true });
+
+    const stored = await store.write('preview.png', Buffer.from('png'));
+
+    await expect(readFile(stored.localPath, 'utf8')).resolves.toBe('png');
     await store.close();
   });
 
   it('并发写入也不能突破会话配额', async () => {
     const store = new TemporaryArtifactStore({
       baseDirectory: testRoot(),
+      sessionId: SESSION_A,
       maxSessionBytes: 4,
     });
     await store.initialize();
@@ -94,7 +166,10 @@ describe('TemporaryArtifactStore', () => {
   });
 
   it('正常关闭时立即删除当前会话目录', async () => {
-    const store = new TemporaryArtifactStore({ baseDirectory: testRoot() });
+    const store = new TemporaryArtifactStore({
+      baseDirectory: testRoot(),
+      sessionId: SESSION_A,
+    });
     await store.initialize();
     const stored = await store.write('tree.jsonl', '{}\n');
 

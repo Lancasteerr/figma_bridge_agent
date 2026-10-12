@@ -43,8 +43,8 @@ export function createMcpServer(
 /** 初始化每任务资源并立即注册 MCP；Daemon 连接失败不会让工具集合消失。 */
 export async function startServer(config: ServerConfig): Promise<RunningServer> {
   const broker = new DaemonBridgeClient(config);
-  const assets = new TemporaryArtifactStore();
   const workspace = new SessionWorkspace();
+  const assets = new TemporaryArtifactStore({ sessionId: workspace.sessionId });
   const exports = new ExportStore({ workspace });
   const snapshots = new SemanticSnapshotStore(workspace, {
     pluginVersion: () => broker.pluginVersion,

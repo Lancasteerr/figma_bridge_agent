@@ -1,6 +1,6 @@
 import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 
 import type { McpServer } from '@modelcontextprotocol/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -34,6 +34,7 @@ async function setup(rpcResult: Record<string, unknown>, options: { bind?: boole
   const exports = new ExportStore({ homeDirectory: home, sessionId: SESSION_ID, pluginRoots: [] });
   await exports.initialize();
   const artifacts = new TemporaryArtifactStore({
+    sessionId: SESSION_ID,
     baseDirectory: join(home, 'temporary-artifacts'),
   });
   await artifacts.initialize();
@@ -61,6 +62,7 @@ async function setup(rpcResult: Record<string, unknown>, options: { bind?: boole
   }
   return {
     workspace,
+    artifactRoot: artifacts.root,
     exports,
     broker,
     handlers,
@@ -202,7 +204,7 @@ describe('figma_export_asset MCP 工具', () => {
 describe('figma_render_node MCP 工具', () => {
   it('只返回临时 PNG 元数据，不回填 base64 或 image 内容块', async () => {
     const bytes = rawSamples.png;
-    const { handlers } = await setup({
+    const { artifactRoot, handlers } = await setup({
       nodeId: 'node:1',
       mimeType: 'image/png',
       data: bytes.toString('base64'),
@@ -225,6 +227,7 @@ describe('figma_render_node MCP 工具', () => {
     expect(JSON.stringify(response)).not.toContain(bytes.toString('base64'));
     const localPath = response.structuredContent?.localPath;
     expect(typeof localPath).toBe('string');
+    expect(String(localPath).startsWith(`${artifactRoot}${sep}`)).toBe(true);
     await expect(readFile(String(localPath))).resolves.toEqual(bytes);
   });
 });

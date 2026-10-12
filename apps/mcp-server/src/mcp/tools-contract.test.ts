@@ -39,6 +39,7 @@ const EXPECTED_TOOLS = [
   'figma_update_text',
   'figma_validate_design_plan',
 ];
+const CONTRACT_SESSION_ID = '33333333-3333-4333-8333-333333333333';
 
 // 该列表刻意形成 closed-world 契约：新增或误删工具都必须显式更新测试和文档。
 const servers: ReturnType<typeof createMcpServer>[] = [];
@@ -59,7 +60,11 @@ describe('MCP tool contract', () => {
       daemonSecret: Buffer.alloc(32, 28).toString('base64url'),
       pairedClients: {},
     });
-    const mcp = createMcpServer(broker, new TemporaryArtifactStore(), new ExportStore());
+    const mcp = createMcpServer(
+      broker,
+      new TemporaryArtifactStore({ sessionId: CONTRACT_SESSION_ID }),
+      new ExportStore(),
+    );
     servers.push(mcp);
     const snapshot = await inspectServer(mcp);
     const tools = snapshot.tools;
@@ -195,7 +200,11 @@ describe('MCP tool contract', () => {
           { autoStart: false, connectTimeoutMs: 20, spawnDaemon: () => undefined },
         );
         daemonClients.push(client);
-        const mcp = createMcpServer(client, new TemporaryArtifactStore(), new ExportStore());
+        const mcp = createMcpServer(
+          client,
+          new TemporaryArtifactStore({ sessionId: CONTRACT_SESSION_ID }),
+          new ExportStore(),
+        );
         servers.push(mcp);
         return (await listTools(mcp)).map((tool) => tool.name).sort();
       }),

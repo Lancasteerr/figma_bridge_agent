@@ -1,6 +1,6 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 
 import type { McpServer } from '@modelcontextprotocol/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -18,6 +18,7 @@ type ToolHandler = (input: Record<string, unknown>) => Promise<{
 
 const stores: TemporaryArtifactStore[] = [];
 const cleanupPaths: string[] = [];
+const SESSION_ID = '22222222-2222-4222-8222-222222222222';
 
 afterEach(async () => {
   for (const store of stores.splice(0).reverse()) await store.close();
@@ -29,7 +30,7 @@ afterEach(async () => {
 async function setup(tree: Record<string, unknown>) {
   const baseDirectory = await mkdtemp(join(tmpdir(), 'figma-tree-delivery-test-'));
   cleanupPaths.push(baseDirectory);
-  const artifacts = new TemporaryArtifactStore({ baseDirectory });
+  const artifacts = new TemporaryArtifactStore({ baseDirectory, sessionId: SESSION_ID });
   await artifacts.initialize();
   stores.push(artifacts);
   const handlers = new Map<string, ToolHandler>();
@@ -45,7 +46,7 @@ async function setup(tree: Record<string, unknown>) {
     close: vi.fn(async () => undefined),
   } as unknown as BridgeTransport;
   registerReadTools(server, broker, artifacts);
-  return { broker, handler: handlers.get('figma_get_tree')! };
+  return { artifactRoot: artifacts.root, broker, handler: handlers.get('figma_get_tree')! };
 }
 
 function node(id: string, name = `Node ${id}`, children: Record<string, unknown>[] = []) {
@@ -113,7 +114,7 @@ describe('figma_get_tree MCP 交付', () => {
     const children = Array.from({ length: 400 }, (_, index) =>
       node(`child-${index}`, `Branch ${index} ${'x'.repeat(180)}`),
     );
-    const { handler } = await setup(tree(children));
+    const { artifactRoot, handler } = await setup(tree(children));
 
     const response = await handler({ nodeId: 'root', maxNodes: 1_000 });
     const delivery = response.structuredContent?.delivery as Record<string, unknown>;
@@ -126,6 +127,7 @@ describe('figma_get_tree MCP 交付', () => {
     expect(Buffer.byteLength(JSON.stringify(response), 'utf8')).toBeLessThanOrEqual(
       TREE_PUBLIC_RESULT_BUDGET_BYTES,
     );
+    expect(String(delivery.localPath).startsWith(`${artifactRoot}${sep}`)).toBe(true);
     const lines = (await readFile(String(delivery.localPath), 'utf8')).trimEnd().split('\n');
     expect(JSON.parse(lines[0]!)).toMatchObject({ recordType: 'manifest', schemaVersion: 2 });
     expect(lines).toHaveLength(402);
