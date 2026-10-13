@@ -1,7 +1,7 @@
 import {
   BridgeFault,
-  CheckSemanticScopeResultSchema,
   CheckSemanticScopeRpcInputSchema,
+  CheckSemanticScopeRpcResultSchema,
   ExportSemanticScopeRpcInputSchema,
   ExportSemanticScopeRpcResultSchema,
 } from '@figma-agent/protocol';
@@ -79,7 +79,7 @@ export async function checkSemanticScope(params: unknown) {
   const input = CheckSemanticScopeRpcInputSchema.parse(params);
   const root = await resolveCurrentPageNode(input.rootNodeId);
   const currentFingerprint = await fingerprintNodeTree([root]);
-  return CheckSemanticScopeResultSchema.parse({
+  return CheckSemanticScopeRpcResultSchema.parse({
     status: currentFingerprint === input.storedFingerprint ? 'FRESH' : 'STALE',
     rootNodeId: root.id,
     storedFingerprint: input.storedFingerprint,

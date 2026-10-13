@@ -25,7 +25,7 @@ afterEach(async () => {
   }
 });
 
-async function setup() {
+async function setup(bind = true) {
   const home = await mkdtemp(join(tmpdir(), 'figma-semantic-tool-home-'));
   const project = await mkdtemp(join(tmpdir(), 'figma-semantic-tool-project-'));
   cleanupPaths.push(home, project);
@@ -35,7 +35,7 @@ async function setup() {
     pluginRoots: [],
   });
   await workspace.initialize();
-  await workspace.bindRoot(project, SESSION_ID);
+  if (bind) await workspace.bindRoot(project, SESSION_ID);
   const handlers = new Map<string, ToolHandler>();
   const server = {
     registerTool: (name: string, _definition: unknown, handler: ToolHandler) => {
@@ -92,9 +92,9 @@ describe('语义快照 MCP 工具', () => {
     });
 
     expect(response.isError).not.toBe(true);
-    expect(response.structuredContent).toMatchObject({
-      rootNodeId: '84:681',
-      delivery: 'WORKSPACE',
+    expect(response.structuredContent).toEqual({
+      manifestPath: expect.stringContaining('.figma_bridge_agent/sessions/'),
+      sourceFingerprint: '12345678abcdef00',
       complete: true,
     });
     expect(response.structuredContent).not.toHaveProperty('outlineJsonl');
@@ -114,6 +114,19 @@ describe('语义快照 MCP 工具', () => {
     expect(broker.request).not.toHaveBeenCalled();
   });
 
+  it('未绑定工作区时不请求插件并返回 EXPORT_ROOT_UNBOUND', async () => {
+    const { handlers, broker } = await setup(false);
+    const response = await handlers.get('figma_export_semantic_scope')!({
+      rootNodeId: '84:681',
+      profile: 'OUTLINE',
+      expectedSessionId: SESSION_ID,
+    });
+
+    expect(response.isError).toBe(true);
+    expect(response.content[0]?.text).toContain('EXPORT_ROOT_UNBOUND');
+    expect(broker.request).not.toHaveBeenCalled();
+  });
+
   it('新鲜度检查只返回指纹状态', async () => {
     const { handlers } = await setup();
     const response = await handlers.get('figma_check_semantic_scope')!({
@@ -121,11 +134,6 @@ describe('语义快照 MCP 工具', () => {
       storedFingerprint: '12345678abcdef00',
       expectedSessionId: SESSION_ID,
     });
-    expect(response.structuredContent).toEqual({
-      status: 'FRESH',
-      rootNodeId: '84:681',
-      storedFingerprint: '12345678abcdef00',
-      currentFingerprint: '12345678abcdef00',
-    });
+    expect(response.structuredContent).toEqual({ status: 'FRESH' });
   });
 });

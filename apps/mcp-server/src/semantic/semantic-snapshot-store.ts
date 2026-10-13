@@ -1,6 +1,4 @@
 import { createHash } from 'node:crypto';
-import { dirname } from 'node:path';
-
 import {
   BRIDGE_PROTOCOL_VERSION,
   SemanticSnapshotManifestSchema,
@@ -18,7 +16,7 @@ interface SemanticSnapshotStoreOptions {
   pluginVersion?: () => string | undefined;
 }
 
-/** 把插件返回的语义正文持久化为不可变会话快照，并仅返回可审查的路径和摘要。 */
+/** 把插件返回的语义正文持久化为不可变会话快照，并仅返回工作区相对入口。 */
 export class SemanticSnapshotStore {
   readonly #writer: SafeSessionWriter;
   readonly #createdAt: string;
@@ -35,6 +33,8 @@ export class SemanticSnapshotStore {
   }
 
   async write(result: ExportSemanticScopeRpcResult): Promise<ExportSemanticScopeResult> {
+    // 在缓存 session 写入 Promise 前校验绑定，避免一次未绑定失败永久污染该实例。
+    this.workspace.beginWrite();
     await this.#ensureSessionFiles(result);
     const scopeId = scopeKey(result.rootNodeId);
     const variant = snapshotVariant(result);
@@ -89,21 +89,11 @@ export class SemanticSnapshotStore {
       data: `${JSON.stringify(manifest, null, 2)}\n`,
       writePolicy: 'REUSE_OR_FAIL',
     });
-    const status = this.workspace.status;
     return {
-      sessionId: this.workspace.sessionId,
-      scopeId,
-      rootNodeId: result.rootNodeId,
+      manifestPath: manifestFile.projectRelativePath,
       sourceFingerprint: result.sourceFingerprint,
-      delivery: status.delivery,
-      projectRelativePath: directory,
-      absolutePath: dirname(manifestFile.absolutePath),
-      manifestPath: manifestFile.absolutePath,
-      requiresCopy: status.delivery === 'STAGED',
-      nodeCount: result.nodeCount,
       complete: result.complete,
-      sha256: manifestFile.sha256,
-      bytes: outline.bytes + facts.bytes + (render?.bytes ?? 0) + manifestFile.bytes,
+      ...(result.truncation ? { truncation: result.truncation } : {}),
     };
   }
 
@@ -118,14 +108,13 @@ export class SemanticSnapshotStore {
       data: '*\n',
       writePolicy: 'REUSE_OR_FAIL',
     });
-    const status = this.workspace.status;
+    const status = this.workspace.beginWrite();
     await this.#writer.write({
       relativePath: `${sessionRoot(this.workspace.sessionId)}/session.json`,
       data: `${JSON.stringify(
         {
           schemaVersion: 1,
           sessionId: this.workspace.sessionId,
-          delivery: status.delivery,
           workspaceRoot: status.rootPath,
           document: result.document,
           page: result.page,

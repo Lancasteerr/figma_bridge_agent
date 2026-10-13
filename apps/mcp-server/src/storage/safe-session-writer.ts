@@ -60,7 +60,6 @@ export class SafeSessionWriter {
       }
     }
 
-    this.workspace.reserveStagedBytes(bytes);
     const temporary = join(parent, `.${randomUUID()}.figma-export.tmp`);
     try {
       await writeFile(temporary, data, { flag: 'wx' });
@@ -81,7 +80,6 @@ export class SafeSessionWriter {
       }
       await rename(temporary, target);
     } catch (error) {
-      this.workspace.releaseStagedBytes(bytes);
       await rm(temporary, { force: true }).catch(() => undefined);
       throw error;
     }

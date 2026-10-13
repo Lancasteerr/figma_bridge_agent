@@ -123,22 +123,13 @@ export const ExportSemanticScopeRpcResultSchema = z
   .strict();
 export type ExportSemanticScopeRpcResult = z.infer<typeof ExportSemanticScopeRpcResultSchema>;
 
-/** 公开导出结果仅返回磁盘引用、摘要和完整性状态。 */
+/** 公开导出结果只返回继续消费快照所需的相对路径和来源状态。 */
 export const ExportSemanticScopeResultSchema = z
   .object({
-    sessionId: z.string().uuid(),
-    scopeId: z.string(),
-    rootNodeId: z.string(),
+    manifestPath: z.string().min(1),
     sourceFingerprint: z.string().min(8),
-    delivery: z.enum(['WORKSPACE', 'STAGED']),
-    projectRelativePath: z.string(),
-    absolutePath: z.string(),
-    manifestPath: z.string(),
-    requiresCopy: z.boolean(),
-    nodeCount: z.number().int().nonnegative(),
     complete: z.boolean(),
-    sha256: z.string().regex(/^[a-f0-9]{64}$/),
-    bytes: z.number().int().nonnegative(),
+    truncation: SemanticTruncationSchema.optional(),
   })
   .strict();
 export type ExportSemanticScopeResult = z.infer<typeof ExportSemanticScopeResultSchema>;
@@ -155,13 +146,17 @@ export const CheckSemanticScopeRpcInputSchema = CheckSemanticScopeInputSchema.om
   expectedSessionId: true,
 }).strict();
 
-export const CheckSemanticScopeResultSchema = z
+/** 插件内部检查结果保留对比事实，MCP 公共结果只暴露状态。 */
+export const CheckSemanticScopeRpcResultSchema = z
   .object({
     status: z.enum(['FRESH', 'STALE']),
     rootNodeId: z.string(),
     storedFingerprint: z.string().min(8),
     currentFingerprint: z.string().min(8),
   })
+  .strict();
+export const CheckSemanticScopeResultSchema = z
+  .object({ status: z.enum(['FRESH', 'STALE']) })
   .strict();
 export type CheckSemanticScopeResult = z.infer<typeof CheckSemanticScopeResultSchema>;
 

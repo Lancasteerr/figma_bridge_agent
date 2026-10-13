@@ -1,11 +1,15 @@
-import type { AssetExportStatus } from '@figma-agent/protocol';
+import type { WorkspaceStatus } from '@figma-agent/protocol';
 
 import {
   SafeSessionWriter,
   type SessionWriteRequest,
   type SessionWriteResult,
 } from '../storage/safe-session-writer.js';
-import { SessionWorkspace, type SessionWorkspaceOptions } from '../storage/session-workspace.js';
+import {
+  SessionWorkspace,
+  type BoundWorkspaceStatus,
+  type SessionWorkspaceOptions,
+} from '../storage/session-workspace.js';
 
 export type ExportWriteRequest = SessionWriteRequest;
 export type ExportWriteResult = SessionWriteResult;
@@ -25,7 +29,7 @@ export class ExportStore {
     return this.workspace.sessionId;
   }
 
-  get status(): AssetExportStatus {
+  get status(): WorkspaceStatus {
     return this.workspace.status;
   }
 
@@ -33,7 +37,7 @@ export class ExportStore {
     await this.workspace.initialize();
   }
 
-  async bindRoot(rootPath: string, expectedSessionId: string): Promise<AssetExportStatus> {
+  async bindRoot(rootPath: string, expectedSessionId: string): Promise<BoundWorkspaceStatus> {
     return await this.workspace.bindRoot(rootPath, expectedSessionId);
   }
 

@@ -269,29 +269,11 @@ export const ExportAssetRpcResultSchema = z.object({
     .strict(),
 });
 
-/** MCP 公开结果只包含落盘后的路径与摘要，不包含素材正文。 */
+/** MCP 公开素材结果只包含工作区相对路径和写入决策。 */
 export const ExportAssetResultSchema = z
   .object({
-    nodeId: z.string(),
-    mode: z.enum(['RAW', 'RENDERED']),
-    format: z.enum(['PNG', 'JPG', 'GIF', 'WEBP', 'SVG']),
-    mimeType: z.string(),
+    path: z.string().min(1),
     status: z.enum(['CREATED', 'REUSED', 'UPDATED']),
-    delivery: z.enum(['WORKSPACE', 'STAGED']),
-    projectRelativePath: z.string().min(1),
-    absolutePath: z.string().min(1),
-    requiresCopy: z.boolean(),
-    sha256: z.string().regex(/^[a-f0-9]{64}$/),
-    bytes: z.number().int().nonnegative(),
-    width: z.number().positive().optional(),
-    height: z.number().positive().optional(),
-    source: z
-      .object({
-        imageHash: z.string().optional(),
-        nodeFingerprint: z.string().optional(),
-        treeFingerprint: z.string().optional(),
-      })
-      .strict(),
   })
   .strict();
 export type ExportAssetResult = z.infer<typeof ExportAssetResultSchema>;

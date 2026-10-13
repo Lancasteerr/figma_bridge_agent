@@ -361,18 +361,6 @@ export const TreeArtifactManifestSchema = z
   })
   .strict();
 
-/** Adapter 会话级的素材导出交付状态。 */
-export const AssetExportStatusSchema = z
-  .object({
-    delivery: z.enum(['WORKSPACE', 'STAGED']),
-    rootPath: z.string().min(1),
-    sessionId: z.string().uuid(),
-    fallbackExpiresAt: z.string().datetime().optional(),
-  })
-  .strict();
-/** 素材导出交付状态类型。 */
-export type AssetExportStatus = z.infer<typeof AssetExportStatusSchema>;
-
 /** 插件内部 status RPC 保留连接诊断信息，不直接作为 MCP 工具结果。 */
 export const PluginStatusResultSchema = z.object({
   connected: z.boolean(),
@@ -402,6 +390,7 @@ export const WorkspaceStatusSchema = z.discriminatedUnion('state', [
     })
     .strict(),
 ]);
+export type WorkspaceStatus = z.infer<typeof WorkspaceStatusSchema>;
 
 /** status 工具只返回当前设计上下文和本次 Adapter 的工作区状态。 */
 export const StatusResultSchema = z

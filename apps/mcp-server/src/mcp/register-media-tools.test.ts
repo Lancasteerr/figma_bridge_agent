@@ -102,11 +102,9 @@ describe('figma_export_asset MCP 工具', () => {
     });
 
     expect(response.isError).not.toBe(true);
-    expect(response.structuredContent).toMatchObject({
+    expect(response.structuredContent).toEqual({
       status: 'CREATED',
-      delivery: 'WORKSPACE',
-      projectRelativePath: `src/assets/image.${ext}`,
-      requiresCopy: false,
+      path: `src/assets/image.${ext}`,
     });
     expect(response.structuredContent).not.toHaveProperty('data');
     await expect(readFile(join(workspace, `src/assets/image.${ext}`))).resolves.toEqual(bytes);
@@ -164,12 +162,12 @@ describe('figma_export_asset MCP 工具', () => {
     expect(response.structuredContent).toEqual({
       rootPath: await realpath(workspace),
     });
-    expect(exports.status.delivery).toBe('WORKSPACE');
+    expect(exports.status).toMatchObject({ state: 'BOUND', rootPath: await realpath(workspace) });
     expect(broker.request).not.toHaveBeenCalled();
   });
 
-  it('STAGED 返回 requiresCopy 与工程相对路径，且不泄漏正文', async () => {
-    const { handlers } = await setup(
+  it('未绑定时返回 EXPORT_ROOT_UNBOUND，且不请求插件或创建暂存文件', async () => {
+    const { handlers, broker, workspace } = await setup(
       {
         nodeId: 'node:1',
         mode: 'RENDERED',
@@ -189,27 +187,27 @@ describe('figma_export_asset MCP 工具', () => {
       expectedTreeFingerprint: 'tree-fingerprint',
       outputPath: 'public/logo.svg',
     });
-    expect(response.structuredContent).toMatchObject({
-      delivery: 'STAGED',
-      projectRelativePath: 'public/logo.svg',
-      requiresCopy: true,
-    });
-    expect(response.structuredContent).not.toHaveProperty('data');
-    expect(response.content).toEqual([]);
+    expect(response.isError).toBe(true);
+    expect(response.content[0]?.text).toContain('EXPORT_ROOT_UNBOUND');
+    expect(broker.request).not.toHaveBeenCalled();
+    await expect(readFile(join(workspace, 'public/logo.svg'))).rejects.toBeDefined();
   });
 });
 
 describe('figma_render_node MCP 工具', () => {
   it('只返回临时 PNG 元数据，不回填 base64 或 image 内容块', async () => {
     const bytes = rawSamples.png;
-    const { artifactRoot, handlers } = await setup({
-      nodeId: 'node:1',
-      mimeType: 'image/png',
-      data: bytes.toString('base64'),
-      width: 100,
-      height: 80,
-      fingerprint: 'node-fingerprint',
-    });
+    const { artifactRoot, handlers } = await setup(
+      {
+        nodeId: 'node:1',
+        mimeType: 'image/png',
+        data: bytes.toString('base64'),
+        width: 100,
+        height: 80,
+        fingerprint: 'node-fingerprint',
+      },
+      { bind: false },
+    );
 
     const response = await handlers.get('figma_render_node')!({ nodeId: 'node:1' });
 

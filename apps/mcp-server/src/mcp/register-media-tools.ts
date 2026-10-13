@@ -93,7 +93,7 @@ export function registerMediaTools(
     'figma_export_asset',
     {
       description:
-        'Export an exact Figma image paint or a strongly versioned node render to a relative path under the session-bound workspace, or to the staged session when no workspace is bound.',
+        'Export an exact Figma image paint or a strongly versioned node render to a relative path under the session-bound workspace. Bind the workspace first.',
       inputSchema: ExportAssetInputSchema,
       outputSchema: ExportAssetResultSchema,
       annotations: {
@@ -108,6 +108,8 @@ export function registerMediaTools(
       try {
         const parsed = ExportAssetInputSchema.parse(input);
         validateRequestedExtension(parsed);
+        // 持久素材在调用插件前检查绑定，未绑定时不会执行昂贵导出。
+        exports.workspace.beginWrite();
         const rpcInput = toRpcInput(parsed);
         const result = ExportAssetRpcResultSchema.parse(
           await broker.request('exportAsset', rpcInput, 60_000),
@@ -127,20 +129,8 @@ export function registerMediaTools(
         });
         return structuredResult(
           ExportAssetResultSchema.parse({
-            nodeId: result.nodeId,
-            mode: result.mode,
-            format: validated.format,
-            mimeType: validated.mimeType,
+            path: stored.projectRelativePath,
             status: stored.status,
-            delivery: exports.status.delivery,
-            projectRelativePath: stored.projectRelativePath,
-            absolutePath: stored.absolutePath,
-            requiresCopy: exports.status.delivery === 'STAGED',
-            sha256: stored.sha256,
-            bytes: stored.bytes,
-            width: result.width,
-            height: result.height,
-            source: result.source,
           }),
         );
       } catch (error) {

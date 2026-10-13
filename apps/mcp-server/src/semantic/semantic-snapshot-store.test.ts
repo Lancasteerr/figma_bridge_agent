@@ -69,20 +69,16 @@ afterEach(async () => {
 });
 
 describe('SemanticSnapshotStore', () => {
-  it('把正文写入会话目录并只返回路径和摘要', async () => {
+  it('把正文写入会话目录并只返回相对 manifest 路径与来源状态', async () => {
     const { project, store } = await setup();
     const stored = await store.write(result());
 
-    expect(stored).toMatchObject({
-      sessionId: SESSION_ID,
-      delivery: 'WORKSPACE',
-      requiresCopy: false,
+    expect(stored).toEqual({
+      manifestPath: expect.stringContaining(`.figma_bridge_agent/sessions/${SESSION_ID}/scopes/`),
+      sourceFingerprint: '12345678abcdef00',
       complete: true,
     });
-    expect(stored.projectRelativePath).toContain(
-      `.figma_bridge_agent/sessions/${SESSION_ID}/scopes/`,
-    );
-    const manifest = JSON.parse(await readFile(stored.manifestPath, 'utf8'));
+    const manifest = JSON.parse(await readFile(join(project, stored.manifestPath), 'utf8'));
     expect(manifest).toMatchObject({
       rootNodeId: '84:681',
       profile: 'IMPLEMENTATION',
@@ -99,16 +95,18 @@ describe('SemanticSnapshotStore', () => {
     const outline = await store.write(result('OUTLINE'));
     const implementation = await store.write(result('IMPLEMENTATION'));
 
-    expect(outline.projectRelativePath).not.toBe(implementation.projectRelativePath);
+    expect(outline.manifestPath).not.toBe(implementation.manifestPath);
     expect(outline.sourceFingerprint).toBe(implementation.sourceFingerprint);
   });
 
-  it('STAGED 语义写入会冻结共享根，禁止随后绑定工作区', async () => {
+  it('未绑定时拒绝语义写入，随后仍可正常绑定工作区', async () => {
     const { project, workspace, store } = await setup(false);
-    const stored = await store.write(result());
-    expect(stored).toMatchObject({ delivery: 'STAGED', requiresCopy: true });
-    await expect(workspace.bindRoot(project, SESSION_ID)).rejects.toMatchObject({
-      bridgeError: { code: 'EXPORT_ROOT_CONFLICT' },
+    await expect(store.write(result())).rejects.toMatchObject({
+      bridgeError: { code: 'EXPORT_ROOT_UNBOUND' },
     });
+    await expect(workspace.bindRoot(project, SESSION_ID)).resolves.toMatchObject({
+      state: 'BOUND',
+    });
+    await expect(store.write(result())).resolves.toMatchObject({ complete: true });
   });
 });

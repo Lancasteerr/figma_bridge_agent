@@ -16,7 +16,7 @@ export function registerStatusTool(
     'figma_status',
     {
       description:
-        'Return the authenticated local Figma plugin connection, active document, current page, current selection, and bridge capabilities.',
+        'Return the active Figma document, page, selection, and whether this MCP session is bound to a workspace.',
       inputSchema: z.object({}),
       outputSchema: StatusResultSchema,
       annotations: {
@@ -32,7 +32,7 @@ export function registerStatusTool(
         const pluginResult = PluginStatusResultSchema.parse(await broker.request('status'));
         const exportStatus = exports.status;
         const result = StatusResultSchema.parse({
-          document: pluginResult.document,
+          document: { name: pluginResult.document?.name },
           page: pluginResult.page,
           selection: pluginResult.selection.map(({ id, name, type, parentId }) => ({
             id,
@@ -40,14 +40,7 @@ export function registerStatusTool(
             type,
             ...(parentId ? { parentId } : {}),
           })),
-          workspace:
-            exportStatus.delivery === 'WORKSPACE'
-              ? {
-                  state: 'BOUND',
-                  sessionId: exportStatus.sessionId,
-                  rootPath: exportStatus.rootPath,
-                }
-              : { state: 'UNBOUND', sessionId: exportStatus.sessionId },
+          workspace: exportStatus,
         });
         return structuredResult(result);
       } catch (error) {

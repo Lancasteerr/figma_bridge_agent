@@ -1,6 +1,7 @@
 import {
   CheckSemanticScopeInputSchema,
   CheckSemanticScopeResultSchema,
+  CheckSemanticScopeRpcResultSchema,
   ExportSemanticScopeInputSchema,
   ExportSemanticScopeResultSchema,
   ExportSemanticScopeRpcInputSchema,
@@ -23,7 +24,7 @@ export function registerSemanticTools(
     'figma_export_semantic_scope',
     {
       description:
-        'Export a bounded Figma scope as session-persisted outline/facts JSONL. The public result contains paths and digests, never semantic file bodies.',
+        'Export a bounded Figma scope as workspace-persisted outline/facts JSONL. Bind the workspace first; the public result contains only the relative manifest path and source state.',
       inputSchema: ExportSemanticScopeInputSchema,
       outputSchema: ExportSemanticScopeResultSchema,
       annotations: {
@@ -38,6 +39,8 @@ export function registerSemanticTools(
       try {
         const parsed = ExportSemanticScopeInputSchema.parse(input);
         assertSession(parsed.expectedSessionId, snapshots);
+        // 持久快照在请求插件前检查绑定，避免生成无法落盘的大型正文。
+        snapshots.workspace.beginWrite();
         const rpcInput = ExportSemanticScopeRpcInputSchema.parse({
           rootNodeId: parsed.rootNodeId,
           profile: parsed.profile,
@@ -78,7 +81,7 @@ export function registerSemanticTools(
       try {
         const parsed = CheckSemanticScopeInputSchema.parse(input);
         assertSession(parsed.expectedSessionId, snapshots);
-        const result = CheckSemanticScopeResultSchema.parse(
+        const rpc = CheckSemanticScopeRpcResultSchema.parse(
           await broker.request(
             'checkSemanticScope',
             {
@@ -88,7 +91,7 @@ export function registerSemanticTools(
             30_000,
           ),
         );
-        return structuredResult(result);
+        return structuredResult(CheckSemanticScopeResultSchema.parse({ status: rpc.status }));
       } catch (error) {
         return toolError(error);
       }
