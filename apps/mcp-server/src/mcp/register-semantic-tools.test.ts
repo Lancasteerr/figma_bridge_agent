@@ -64,7 +64,7 @@ async function setup() {
   };
   const broker = {
     connected: true,
-    pluginVersion: '2.2.5',
+    pluginVersion: '2.2.6',
     request: vi.fn(async (method: string) =>
       method === 'checkSemanticScope'
         ? {
