@@ -77,6 +77,14 @@ describe('render result boundary', () => {
     expect(RenderRpcResultSchema.safeParse(rpc).success).toBe(true);
     expect(
       RenderResultSchema.safeParse({
+        localPath: 'C:\\temp\\preview.png',
+        width: 100,
+        height: 80,
+        expiresAt: '2026-10-13T00:30:00.000Z',
+      }).success,
+    ).toBe(true);
+    expect(
+      RenderResultSchema.safeParse({
         ...rpc,
         localPath: 'C:\\temp\\preview.png',
         sha256: 'a'.repeat(64),

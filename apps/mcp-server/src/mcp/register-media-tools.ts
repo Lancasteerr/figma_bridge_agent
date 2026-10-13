@@ -186,12 +186,10 @@ export function registerMediaTools(
         const stored = await previews.write(`${result.nodeId}.png`, data);
         return structuredResult(
           RenderResultSchema.parse({
-            nodeId: result.nodeId,
-            mimeType: result.mimeType,
+            localPath: stored.localPath,
             width: result.width,
             height: result.height,
-            fingerprint: result.fingerprint,
-            ...stored,
+            expiresAt: stored.expiresAt,
           }),
         );
       } catch (error) {

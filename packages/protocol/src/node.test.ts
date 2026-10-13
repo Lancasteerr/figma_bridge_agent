@@ -49,23 +49,29 @@ describe('轻量树协议', () => {
     ).toBe(true);
   });
 
-  it('临时文件交付不能伪装成完整内联', () => {
-    const base = {
-      schemaVersion: 2 as const,
-      scope: { rootNodeId: '1:2', requestedDepth: 2, maxNodes: 200 },
-      coverage: { complete: true, nodeCount: 1 },
-      root,
+  it('公开树只接受轻量边界，并以可选字段表达截断与临时文件', () => {
+    const publicRoot = {
+      id: '1:2',
+      name: 'Hero',
+      type: 'FRAME',
+      bounds: { x: 0, y: 0, width: 100, height: 80 },
+      childCount: 0,
+      layoutMode: 'VERTICAL' as const,
+      children: [],
     };
     expect(
       TreeResultSchema.safeParse({
-        ...base,
-        delivery: { mode: 'INLINE', inlineComplete: true, inlineNodeCount: 1 },
+        root: publicRoot,
       }).success,
     ).toBe(true);
     expect(
       TreeResultSchema.safeParse({
-        ...base,
-        delivery: { mode: 'TEMP_FILE', inlineComplete: true, inlineNodeCount: 1 },
+        root: publicRoot,
+        artifact: {
+          localPath: 'C:\\temp\\tree.jsonl',
+          expiresAt: '2026-10-13T00:30:00.000Z',
+          sha256: 'a'.repeat(64),
+        },
       }).success,
     ).toBe(false);
   });

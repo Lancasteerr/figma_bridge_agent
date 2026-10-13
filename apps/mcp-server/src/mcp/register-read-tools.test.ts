@@ -97,11 +97,13 @@ describe('figma_get_tree MCP 交付', () => {
     const response = await handler({ nodeId: 'root' });
 
     expect(response.content).toEqual([]);
-    expect(response.structuredContent?.delivery).toEqual({
-      mode: 'INLINE',
-      inlineComplete: true,
-      inlineNodeCount: 2,
+    expect(response.structuredContent).not.toHaveProperty('artifact');
+    expect(response.structuredContent?.root).toMatchObject({
+      id: 'root',
+      bounds: { x: 0, y: 0, width: 100, height: 80 },
+      children: [{ id: 'child' }],
     });
+    expect(response.structuredContent?.root).not.toHaveProperty('geometry');
     expect(broker.request).toHaveBeenCalledWith('getTree', {
       nodeId: 'root',
       depth: 2,
@@ -117,37 +119,32 @@ describe('figma_get_tree MCP 交付', () => {
     const { artifactRoot, handler } = await setup(tree(children));
 
     const response = await handler({ nodeId: 'root', maxNodes: 1_000 });
-    const delivery = response.structuredContent?.delivery as Record<string, unknown>;
+    const artifact = response.structuredContent?.artifact as Record<string, unknown>;
 
-    expect(delivery).toMatchObject({
-      mode: 'TEMP_FILE',
-      inlineComplete: false,
-      artifactNodeCount: 401,
+    expect(artifact).toEqual({
+      localPath: expect.any(String),
+      expiresAt: expect.any(String),
     });
     expect(Buffer.byteLength(JSON.stringify(response), 'utf8')).toBeLessThanOrEqual(
       TREE_PUBLIC_RESULT_BUDGET_BYTES,
     );
-    expect(String(delivery.localPath).startsWith(`${artifactRoot}${sep}`)).toBe(true);
-    const lines = (await readFile(String(delivery.localPath), 'utf8')).trimEnd().split('\n');
+    expect(String(artifact.localPath).startsWith(`${artifactRoot}${sep}`)).toBe(true);
+    const lines = (await readFile(String(artifact.localPath), 'utf8')).trimEnd().split('\n');
     expect(JSON.parse(lines[0]!)).toMatchObject({ recordType: 'manifest', schemaVersion: 2 });
     expect(lines).toHaveLength(402);
     expect(JSON.parse(lines[1]!)).not.toHaveProperty('children');
   });
 
-  it('显式 TEMP_FILE 会让小树落盘，但不会改变 coverage 完整性', async () => {
+  it('显式 TEMP_FILE 会让小树落盘，但公开结果不暴露内部覆盖计数', async () => {
     const { handler } = await setup(tree([]));
 
     const response = await handler({ nodeId: 'root', delivery: 'TEMP_FILE' });
 
     expect(response.structuredContent).toMatchObject({
-      coverage: { complete: true, nodeCount: 1 },
-      delivery: {
-        mode: 'TEMP_FILE',
-        inlineComplete: false,
-        inlineNodeCount: 1,
-        artifactNodeCount: 1,
-      },
+      root: { id: 'root', children: [] },
+      artifact: { localPath: expect.any(String), expiresAt: expect.any(String) },
     });
+    expect(response.structuredContent).not.toHaveProperty('coverage');
   });
 
   it('overview 在同一深度轮询各分支，不让首个分支独占预算', async () => {

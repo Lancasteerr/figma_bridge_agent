@@ -45,7 +45,7 @@ describe('design resources', () => {
 
     const result = await getDesignResources({ cursor: 0, limit: 100 });
 
-    expect(result.scannedNodeCount).toBe(2);
+    expect(result.componentScanComplete).toBe(true);
     expect(result.resources).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ kind: 'STYLE', id: 'style-1', usedOnCurrentPage: true }),

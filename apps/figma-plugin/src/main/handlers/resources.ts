@@ -75,6 +75,9 @@ export async function getDesignResources(params: unknown): Promise<DesignResourc
       resolvedType: variable.resolvedType,
       valuesByMode: toJsonValue(variable.valuesByMode),
       scopes: variable.scopes,
+      ...(Object.keys(variable.codeSyntax).length > 0
+        ? { codeSyntax: toJsonValue(variable.codeSyntax) }
+        : {}),
     });
   }
   for (const node of nodes) {
@@ -114,11 +117,8 @@ export async function getDesignResources(params: unknown): Promise<DesignResourc
   const page = resources.slice(cursor, cursor + limit);
   const nextCursor = cursor + page.length < resources.length ? cursor + page.length : undefined;
   return DesignResourcesResultSchema.parse({
-    cursor,
     ...(nextCursor === undefined ? {} : { nextCursor }),
-    total: resources.length,
-    scannedNodeCount: nodes.length,
-    scanTruncated: truncated,
+    componentScanComplete: !truncated,
     resources: page,
   });
 }

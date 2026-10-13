@@ -146,7 +146,7 @@ export const ComponentSnapshotSchema = z.object({
   componentPropertyDefinitions: z.json().optional(),
 });
 
-/** 树节点的轻量摘要，供 selection 和 children 列表复用。 */
+/** 树节点的轻量摘要，供插件内部状态和 children 列表复用。 */
 export const NodeSummarySchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -173,6 +173,36 @@ export const NodeSnapshotSchema = NodeSummarySchema.extend({
 });
 /** 完整节点快照类型。 */
 export type NodeSnapshot = z.infer<typeof NodeSnapshotSchema>;
+
+/** MCP 公开子节点摘要不重复当前根 ID，并保留后续定向读取所需的节点 ID。 */
+export const PublicNodeChildSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    type: z.string(),
+    geometry: GeometrySchema.optional(),
+  })
+  .strict();
+
+/** MCP 公开节点结果去除页面、输入 ID 和重复截断标志。 */
+export const NodeResultSchema = z
+  .object({
+    name: z.string(),
+    type: z.string(),
+    parentId: z.string().optional(),
+    geometry: GeometrySchema.optional(),
+    visible: z.boolean().optional(),
+    locked: z.boolean().optional(),
+    layout: LayoutSnapshotSchema.optional(),
+    text: TextSnapshotSchema.optional(),
+    visual: VisualSnapshotSchema.optional(),
+    assets: NodeAssetSnapshotSchema.optional(),
+    component: ComponentSnapshotSchema.optional(),
+    children: z.array(PublicNodeChildSchema),
+    snapshotFingerprint: z.string().min(8),
+  })
+  .strict();
+export type NodeResult = z.infer<typeof NodeResultSchema>;
 
 /** 轻量树中的文本仅用于导航，不能作为实现时的完整文案来源。 */
 export const TreeTextPreviewSchema = z
@@ -231,18 +261,19 @@ export const TreeScopeSchema = z
   })
   .strict();
 
+export const TreeTruncationSchema = z
+  .object({
+    reasons: z.array(z.enum(['DEPTH_LIMIT', 'NODE_LIMIT'])).min(1),
+    frontierNodeIds: z.array(z.string()),
+    omittedChildCount: z.number().int().nonnegative(),
+  })
+  .strict();
+
 export const TreeCoverageSchema = z
   .object({
     complete: z.boolean(),
     nodeCount: z.number().int().positive(),
-    truncation: z
-      .object({
-        reasons: z.array(z.enum(['DEPTH_LIMIT', 'NODE_LIMIT'])).min(1),
-        frontierNodeIds: z.array(z.string()),
-        omittedChildCount: z.number().int().nonnegative(),
-      })
-      .strict()
-      .optional(),
+    truncation: TreeTruncationSchema.optional(),
   })
   .strict()
   .superRefine((coverage, context) => {
@@ -265,37 +296,57 @@ export const TreeRpcResultSchema = z
   .strict();
 export type TreeRpcResult = z.infer<typeof TreeRpcResultSchema>;
 
-export const TreeDeliverySchema = z.discriminatedUnion('mode', [
-  z
-    .object({
-      mode: z.literal('INLINE'),
-      inlineComplete: z.literal(true),
-      inlineNodeCount: z.number().int().positive(),
-    })
-    .strict(),
-  z
-    .object({
-      mode: z.literal('TEMP_FILE'),
-      inlineComplete: z.literal(false),
-      inlineNodeCount: z.number().int().positive(),
-      artifactNodeCount: z.number().int().positive(),
-      localPath: z.string().min(1),
-      sha256: z.string().regex(/^[a-f0-9]{64}$/),
-      bytes: z.number().int().positive(),
-      createdAt: z.string().datetime(),
-      expiresAt: z.string().datetime(),
-    })
-    .strict(),
-]);
+/** MCP 公开树只保留导航所需的父坐标系边界和非默认提示。 */
+export type PublicTreeNode = {
+  id: string;
+  name: string;
+  type: string;
+  bounds: { x: number; y: number; width: number; height: number };
+  childCount: number;
+  visible?: false | undefined;
+  layoutMode?: z.infer<typeof LayoutModeSchema> | undefined;
+  positioning?: z.infer<typeof PositioningSchema> | undefined;
+  textPreview?: z.infer<typeof TreeTextPreviewSchema> | undefined;
+  componentKind?: 'INSTANCE' | 'COMPONENT' | 'COMPONENT_SET' | undefined;
+  assetHints?: z.infer<typeof TreeAssetHintsSchema> | undefined;
+  children: PublicTreeNode[];
+};
+export const PublicTreeNodeSchema: z.ZodType<PublicTreeNode> = z
+  .object({
+    id: z.string(),
+    name: z.string().max(200),
+    type: z.string(),
+    bounds: z
+      .object({
+        x: z.number(),
+        y: z.number(),
+        width: z.number().nonnegative(),
+        height: z.number().nonnegative(),
+      })
+      .strict(),
+    childCount: z.number().int().nonnegative(),
+    visible: z.literal(false).optional(),
+    layoutMode: LayoutModeSchema.optional(),
+    positioning: PositioningSchema.optional(),
+    textPreview: TreeTextPreviewSchema.optional(),
+    componentKind: z.enum(['INSTANCE', 'COMPONENT', 'COMPONENT_SET']).optional(),
+    assetHints: TreeAssetHintsSchema.optional(),
+    children: z.lazy(() => z.array(PublicTreeNodeSchema)),
+  })
+  .strict();
 
-/** MCP 公开树结果将 Figma 覆盖状态和模型内联状态严格分开。 */
+/** MCP 公开树结果用字段是否存在表达截断和临时交付。 */
 export const TreeResultSchema = z
   .object({
-    schemaVersion: z.literal(2),
-    scope: TreeScopeSchema,
-    coverage: TreeCoverageSchema,
-    delivery: TreeDeliverySchema,
-    root: LightweightTreeNodeSchema,
+    root: PublicTreeNodeSchema,
+    truncation: TreeTruncationSchema.optional(),
+    artifact: z
+      .object({
+        localPath: z.string().min(1),
+        expiresAt: z.string().datetime(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 export type TreeResult = z.infer<typeof TreeResultSchema>;
@@ -309,12 +360,6 @@ export const TreeArtifactManifestSchema = z
     coverage: TreeCoverageSchema,
   })
   .strict();
-
-/** 当前页面和当前选区的只读结果。 */
-export const SelectionResultSchema = z.object({
-  page: z.object({ id: z.string(), name: z.string() }),
-  selection: z.array(NodeSummarySchema),
-});
 
 /** Adapter 会话级的素材导出交付状态。 */
 export const AssetExportStatusSchema = z

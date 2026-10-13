@@ -8,16 +8,19 @@ export const ListFontsInputSchema = z
   })
   .strict();
 
-export const FontCatalogEntrySchema = z.object({
-  family: z.string(),
-  style: z.string(),
-  variationAxes: z.array(z.string()),
-});
+/** 字体按 family 聚合，避免每个 style 重复携带相同的可变轴。 */
+export const FontFamilyEntrySchema = z
+  .object({
+    name: z.string(),
+    styles: z.array(z.string()).min(1),
+    variationAxes: z.array(z.string()).min(1).optional(),
+  })
+  .strict();
 
-export const FontCatalogResultSchema = z.object({
-  cursor: z.number().int().nonnegative(),
-  nextCursor: z.number().int().nonnegative().optional(),
-  total: z.number().int().nonnegative(),
-  fonts: z.array(FontCatalogEntrySchema),
-});
+export const FontCatalogResultSchema = z
+  .object({
+    nextCursor: z.number().int().nonnegative().optional(),
+    families: z.array(FontFamilyEntrySchema),
+  })
+  .strict();
 export type FontCatalogResult = z.infer<typeof FontCatalogResultSchema>;

@@ -9,24 +9,29 @@ export async function listFonts(params: unknown): Promise<FontCatalogResult> {
   const input = ListFontsInputSchema.parse(params);
   const filter = input.familyFilter?.toLocaleLowerCase();
   const all = await figma.listAvailableFontsAsync();
-  const families = new Map<string, string[]>();
-  const unique = new Map<string, { family: string; style: string }>();
+  const families = new Map<string, Set<string>>();
   for (const font of all) {
     const { family, style } = font.fontName;
     if (filter && !family.toLocaleLowerCase().includes(filter)) continue;
-    unique.set(`${family}\u0000${style}`, { family, style });
-    if (!families.has(family)) families.set(family, figma.getFontFamilyVariationAxes(family) ?? []);
+    const styles = families.get(family) ?? new Set<string>();
+    styles.add(style);
+    families.set(family, styles);
   }
-  const fonts = [...unique.values()]
-    .sort((left, right) => compare(left.family, right.family) || compare(left.style, right.style))
-    .map((font) => ({ ...font, variationAxes: families.get(font.family) ?? [] }));
-  const page = fonts.slice(input.cursor, input.cursor + input.limit);
+  const entries = [...families.entries()]
+    .sort(([left], [right]) => compare(left, right))
+    .map(([name, styles]) => {
+      const variationAxes = figma.getFontFamilyVariationAxes(name) ?? [];
+      return {
+        name,
+        styles: [...styles].sort(compare),
+        ...(variationAxes.length > 0 ? { variationAxes } : {}),
+      };
+    });
+  const page = entries.slice(input.cursor, input.cursor + input.limit);
   const next = input.cursor + page.length;
   return FontCatalogResultSchema.parse({
-    cursor: input.cursor,
-    ...(next < fonts.length ? { nextCursor: next } : {}),
-    total: fonts.length,
-    fonts: page,
+    ...(next < entries.length ? { nextCursor: next } : {}),
+    families: page,
   });
 }
 

@@ -5,7 +5,7 @@ import { listFonts } from '../src/main/handlers/fonts.js';
 afterEach(() => vi.unstubAllGlobals());
 
 describe('available font catalog', () => {
-  it('filters, deduplicates, sorts, and paginates fonts with axes', async () => {
+  it('按字体族过滤、去重、排序和分页，并聚合样式与轴', async () => {
     vi.stubGlobal('figma', {
       listAvailableFontsAsync: vi
         .fn()
@@ -19,10 +19,7 @@ describe('available font catalog', () => {
     });
 
     await expect(listFonts({ familyFilter: 'int', cursor: 0, limit: 1 })).resolves.toEqual({
-      cursor: 0,
-      nextCursor: 1,
-      total: 2,
-      fonts: [{ family: 'Inter', style: 'Bold', variationAxes: ['wght'] }],
+      families: [{ name: 'Inter', styles: ['Bold', 'Regular'], variationAxes: ['wght'] }],
     });
   });
 });

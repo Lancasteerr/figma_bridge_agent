@@ -39,6 +39,7 @@ const VariableResourceSchema = z
     resolvedType: z.enum(['COLOR', 'FLOAT', 'STRING', 'BOOLEAN', 'EASING', 'TIMING']),
     valuesByMode: z.unknown(),
     scopes: z.array(z.string()),
+    codeSyntax: z.unknown().optional(),
   })
   .strict();
 
@@ -64,11 +65,8 @@ export type DesignResourceItem = z.infer<typeof DesignResourceItemSchema>;
 
 export const DesignResourcesResultSchema = z
   .object({
-    cursor: z.number().int().nonnegative(),
     nextCursor: z.number().int().nonnegative().optional(),
-    total: z.number().int().nonnegative(),
-    scannedNodeCount: z.number().int().nonnegative(),
-    scanTruncated: z.boolean(),
+    componentScanComplete: z.boolean(),
     resources: z.array(DesignResourceItemSchema),
   })
   .strict();

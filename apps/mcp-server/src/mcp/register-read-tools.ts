@@ -1,21 +1,21 @@
 import {
   CssResultSchema,
-  EmptyInputSchema,
+  CssRpcResultSchema,
   GetCssInputSchema,
-  GetVariablesInputSchema,
   FontCatalogResultSchema,
   FingerprintResultSchema,
+  FingerprintRpcResultSchema,
   GetFingerprintInputSchema,
   GetNodeInputSchema,
   GetRawNodeInputSchema,
   GetTreeInputSchema,
   GetTreeRpcInputSchema,
+  NodeResultSchema,
   NodeSnapshotSchema,
   RawNodeResultSchema,
-  SelectionResultSchema,
+  RawNodeRpcResultSchema,
   TreeResultSchema,
   TreeRpcResultSchema,
-  VariablesResultSchema,
   ListFontsInputSchema,
   GetDesignResourcesInputSchema,
   DesignResourcesResultSchema,
@@ -27,7 +27,7 @@ import type { TemporaryArtifactStore } from '../temp/artifact-store.js';
 import { structuredResult, toolError } from './result.js';
 import { deliverTreeResult } from './tree-delivery.js';
 
-/** 注册节点、树、变量、CSS 和原始 JSON 等只读工具。 */
+/** 注册节点、树、设计资源、CSS 和原始 JSON 等只读工具。 */
 export function registerReadTools(
   server: McpServer,
   broker: BridgeTransport,
@@ -107,36 +107,10 @@ export function registerReadTools(
     async (input) => {
       try {
         const parsed = GetRawNodeInputSchema.parse(input);
-        return structuredResult(
-          RawNodeResultSchema.parse(await broker.request('getRawNode', parsed, 30_000)),
+        const rpc = RawNodeRpcResultSchema.parse(
+          await broker.request('getRawNode', parsed, 30_000),
         );
-      } catch (error) {
-        return toolError(error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'figma_get_variables',
-    {
-      description:
-        'Return a page of local Figma variables plus their local collections. Team library crawling is intentionally excluded.',
-      inputSchema: GetVariablesInputSchema,
-      outputSchema: VariablesResultSchema,
-      annotations: {
-        title: 'Get Local Figma Variables',
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-    },
-    async (input) => {
-      try {
-        const parsed = GetVariablesInputSchema.parse(input);
-        return structuredResult(
-          VariablesResultSchema.parse(await broker.request('getVariables', parsed, 30_000)),
-        );
+        return structuredResult(RawNodeResultSchema.parse({ node: rpc.node }));
       } catch (error) {
         return toolError(error);
       }
@@ -161,33 +135,8 @@ export function registerReadTools(
     async (input) => {
       try {
         const parsed = GetCssInputSchema.parse(input);
-        return structuredResult(
-          CssResultSchema.parse(await broker.request('getCss', parsed, 15_000)),
-        );
-      } catch (error) {
-        return toolError(error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'figma_get_selection',
-    {
-      description:
-        'Return summaries for the nodes selected on the current page without traversing subtrees.',
-      inputSchema: EmptyInputSchema,
-      outputSchema: SelectionResultSchema,
-      annotations: {
-        title: 'Get Figma selection',
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-    },
-    async () => {
-      try {
-        return structuredResult(SelectionResultSchema.parse(await broker.request('getSelection')));
+        const rpc = CssRpcResultSchema.parse(await broker.request('getCss', parsed, 15_000));
+        return structuredResult(CssResultSchema.parse({ properties: rpc.properties }));
       } catch (error) {
         return toolError(error);
       }
@@ -200,7 +149,7 @@ export function registerReadTools(
       description:
         'Return a normalized snapshot of one node on the current Figma page, including geometry, layout, text, visual, component, and direct-child summaries.',
       inputSchema: GetNodeInputSchema,
-      outputSchema: NodeSnapshotSchema,
+      outputSchema: NodeResultSchema,
       annotations: {
         title: 'Get Figma node',
         readOnlyHint: true,
@@ -211,10 +160,39 @@ export function registerReadTools(
     },
     async (input) => {
       try {
+        const snapshot = NodeSnapshotSchema.parse(
+          await broker.request('getNode', GetNodeInputSchema.parse(input)),
+        );
+        const children = snapshot.children.map(({ id, name, type, geometry }) => ({
+          id,
+          name,
+          type,
+          ...(geometry ? { geometry } : {}),
+        }));
+        const assets =
+          snapshot.assets &&
+          (snapshot.assets.imagePaints.length > 0 ||
+            snapshot.assets.exportSettings.length > 0 ||
+            snapshot.assets.vector ||
+            snapshot.assets.mask)
+            ? snapshot.assets
+            : undefined;
         return structuredResult(
-          NodeSnapshotSchema.parse(
-            await broker.request('getNode', GetNodeInputSchema.parse(input)),
-          ),
+          NodeResultSchema.parse({
+            name: snapshot.name,
+            type: snapshot.type,
+            ...(snapshot.parentId ? { parentId: snapshot.parentId } : {}),
+            ...(snapshot.geometry ? { geometry: snapshot.geometry } : {}),
+            ...(snapshot.visible === undefined ? {} : { visible: snapshot.visible }),
+            ...(snapshot.locked === undefined ? {} : { locked: snapshot.locked }),
+            ...(snapshot.layout ? { layout: snapshot.layout } : {}),
+            ...(snapshot.text ? { text: snapshot.text } : {}),
+            ...(snapshot.visual ? { visual: snapshot.visual } : {}),
+            children,
+            ...(assets ? { assets } : {}),
+            ...(snapshot.component ? { component: snapshot.component } : {}),
+            snapshotFingerprint: snapshot.fingerprint,
+          }),
         );
       } catch (error) {
         return toolError(error);
@@ -272,8 +250,11 @@ export function registerReadTools(
     async (input) => {
       try {
         const parsed = GetFingerprintInputSchema.parse(input);
+        const rpc = FingerprintRpcResultSchema.parse(
+          await broker.request('getFingerprint', parsed, 30_000),
+        );
         return structuredResult(
-          FingerprintResultSchema.parse(await broker.request('getFingerprint', parsed, 30_000)),
+          FingerprintResultSchema.parse({ treeFingerprint: rpc.fingerprint }),
         );
       } catch (error) {
         return toolError(error);

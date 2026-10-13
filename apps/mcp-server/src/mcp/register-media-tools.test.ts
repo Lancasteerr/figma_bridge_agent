@@ -215,13 +215,14 @@ describe('figma_render_node MCP 工具', () => {
 
     expect(response.content).toEqual([]);
     expect(response.structuredContent).toMatchObject({
-      nodeId: 'node:1',
-      mimeType: 'image/png',
+      localPath: expect.any(String),
       width: 100,
       height: 80,
-      bytes: bytes.byteLength,
+      expiresAt: expect.any(String),
     });
     expect(response.structuredContent).not.toHaveProperty('data');
+    expect(response.structuredContent).not.toHaveProperty('sha256');
+    expect(response.structuredContent).not.toHaveProperty('bytes');
     expect(JSON.stringify(response)).not.toContain(bytes.toString('base64'));
     const localPath = response.structuredContent?.localPath;
     expect(typeof localPath).toBe('string');

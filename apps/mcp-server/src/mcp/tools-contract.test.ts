@@ -26,9 +26,7 @@ const EXPECTED_TOOLS = [
   'figma_get_fingerprint',
   'figma_get_node',
   'figma_get_raw_node',
-  'figma_get_selection',
   'figma_get_tree',
-  'figma_get_variables',
   'figma_list_fonts',
   'figma_render_node',
   'figma_reparent_nodes',
@@ -51,7 +49,7 @@ afterEach(async () => {
 });
 
 describe('MCP tool contract', () => {
-  it('advertises its package version and exactly 26 closed-world tools', async () => {
+  it('advertises its package version and exactly 24 closed-world tools', async () => {
     const broker = new PluginConnectionBroker({
       version: 2,
       serverId: '11111111-1111-4111-8111-111111111111',
@@ -73,7 +71,9 @@ describe('MCP tool contract', () => {
 
     // 除名称外还检查 schema 和注解，防止工具虽然注册成功但失去客户端元数据。
     expect(tools.map((tool) => tool.name).sort()).toEqual(EXPECTED_TOOLS);
-    expect(tools).toHaveLength(26);
+    expect(tools).toHaveLength(24);
+    expect(tools.map((tool) => tool.name)).not.toContain('figma_get_selection');
+    expect(tools.map((tool) => tool.name)).not.toContain('figma_get_variables');
     for (const tool of tools) {
       expect(tool.inputSchema).toMatchObject({ type: 'object' });
       expect(tool.outputSchema).toMatchObject({ type: 'object' });
@@ -101,7 +101,7 @@ describe('MCP tool contract', () => {
       properties: { nodeIds: expect.any(Object) },
     });
     expect(fingerprint?.outputSchema).toMatchObject({
-      properties: { nodeIds: expect.any(Object), fingerprint: expect.any(Object) },
+      properties: { treeFingerprint: expect.any(Object) },
     });
     expect(fingerprint?.annotations).toMatchObject({
       readOnlyHint: true,
@@ -125,7 +125,8 @@ describe('MCP tool contract', () => {
     expect(render?.outputSchema).toMatchObject({
       properties: {
         localPath: expect.any(Object),
-        sha256: expect.any(Object),
+        width: expect.any(Object),
+        height: expect.any(Object),
         expiresAt: expect.any(Object),
       },
     });
@@ -150,10 +151,9 @@ describe('MCP tool contract', () => {
     });
     expect(tree?.outputSchema).toMatchObject({
       properties: {
-        scope: expect.any(Object),
-        coverage: expect.any(Object),
-        delivery: expect.any(Object),
         root: expect.any(Object),
+        truncation: expect.any(Object),
+        artifact: expect.any(Object),
       },
     });
 

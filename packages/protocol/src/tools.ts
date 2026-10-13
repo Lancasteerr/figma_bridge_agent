@@ -18,13 +18,15 @@ export const GetFingerprintInputSchema = z
       }),
   })
   .strict();
-export const FingerprintResultSchema = z
+/** 插件内部保留输入顺序，MCP 公共结果只返回可复用的完整树指纹。 */
+export const FingerprintRpcResultSchema = z
   .object({
     nodeIds: z.array(z.string().min(1)).min(1),
     fingerprint: z.string().min(8),
   })
   .strict();
-export type FingerprintResult = z.infer<typeof FingerprintResultSchema>;
+export type FingerprintRpcResult = z.infer<typeof FingerprintRpcResultSchema>;
+export const FingerprintResultSchema = z.object({ treeFingerprint: z.string().min(8) }).strict();
 export const GetTreeInputSchema = z
   .object({
     nodeId: z.string().min(1),
@@ -49,10 +51,6 @@ export const GetRawNodeInputSchema = GetNodeInputSchema.extend({
     .min(1_024)
     .max(8 * 1024 * 1024)
     .default(2 * 1024 * 1024),
-});
-export const GetVariablesInputSchema = z.object({
-  cursor: z.number().int().nonnegative().default(0),
-  limit: z.number().int().min(1).max(1_000).default(200),
 });
 const RelativeExportPathSchema = z
   .string()
@@ -245,15 +243,9 @@ export const RenderRpcResultSchema = z
 /** MCP 公开渲染结果只暴露短期本地文件，不包含图片正文。 */
 export const RenderResultSchema = z
   .object({
-    nodeId: z.string(),
-    mimeType: z.literal('image/png'),
+    localPath: z.string().min(1),
     width: z.number().positive(),
     height: z.number().positive(),
-    fingerprint: z.string(),
-    localPath: z.string().min(1),
-    sha256: z.string().regex(/^[a-f0-9]{64}$/),
-    bytes: z.number().int().positive(),
-    createdAt: z.string().datetime(),
     expiresAt: z.string().datetime(),
   })
   .strict();
@@ -305,24 +297,25 @@ export const ExportAssetResultSchema = z
 export type ExportAssetResult = z.infer<typeof ExportAssetResultSchema>;
 
 /** CSS 结果是提示性映射，不承诺可直接还原为完整 Figma 样式。 */
-export const CssResultSchema = z.object({
-  nodeId: z.string(),
-  hintOnly: z.literal(true),
-  properties: z.record(z.string(), z.string()),
-});
+export const CssResultSchema = z
+  .object({
+    properties: z.record(z.string(), z.string()),
+  })
+  .strict();
 
-/** Variables 使用 cursor 分页，避免一次性返回过多变量定义。 */
-export const VariablesResultSchema = z.object({
-  cursor: z.number().int().nonnegative(),
-  nextCursor: z.number().int().nonnegative().optional(),
-  total: z.number().int().nonnegative(),
-  variables: z.array(z.unknown()),
-  collections: z.array(z.unknown()),
-});
+/** 插件内部 CSS RPC 保留节点归属，公开结果不回显输入。 */
+export const CssRpcResultSchema = z
+  .object({
+    nodeId: z.string(),
+    properties: z.record(z.string(), z.string()),
+  })
+  .strict();
 
-/** 原始节点 JSON 结果显式返回字节数，便于调用方处理 payload 限制。 */
-export const RawNodeResultSchema = z.object({
+/** 插件内部原始节点 RPC 保留归属与字节数，公开边界会再次投影。 */
+export const RawNodeRpcResultSchema = z.object({
   nodeId: z.string(),
-  json: z.string(),
+  node: z.json(),
   bytes: z.number().int().nonnegative(),
 });
+/** MCP 公开原始节点结果不重复 ID 和内部大小记账。 */
+export const RawNodeResultSchema = z.object({ node: z.json() }).strict();

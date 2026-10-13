@@ -2,29 +2,16 @@ import {
   GetNodeInputSchema,
   GetFingerprintInputSchema,
   GetTreeRpcInputSchema,
-  type FingerprintResult,
+  type FingerprintRpcResult,
   type LightweightTreeNode,
-  type SelectionResultSchema,
   TreeRpcResultSchema,
   type TreeRpcResult,
 } from '@figma-agent/protocol';
-import type { z } from 'zod';
 
-import { serializeNodeSummary } from '../serialization/node-summary.js';
 import { fingerprintNodeTree, serializeNode } from '../serialization/node-snapshot.js';
 import { serializeLightweightTreeNode } from '../serialization/lightweight-tree.js';
 import { resolveCurrentPageNode } from '../serialization/resolve.js';
 import { isSceneNode } from '../serialization/resolve.js';
-
-type SelectionResult = z.infer<typeof SelectionResultSchema>;
-
-/** 返回当前页面和选区摘要，不递归读取节点子树。 */
-export function getSelection(): SelectionResult {
-  return {
-    page: { id: figma.currentPage.id, name: figma.currentPage.name },
-    selection: figma.currentPage.selection.map(serializeNodeSummary),
-  };
-}
 
 /** 返回单节点完整规范化快照。 */
 export async function getNode(params: unknown) {
@@ -33,7 +20,7 @@ export async function getNode(params: unknown) {
 }
 
 /** 返回与 DesignPlan 和 Proposal 乐观并发校验完全相同的完整树聚合指纹。 */
-export async function getFingerprint(params: unknown): Promise<FingerprintResult> {
+export async function getFingerprint(params: unknown): Promise<FingerprintRpcResult> {
   const { nodeIds } = GetFingerprintInputSchema.parse(params);
   const nodes = await Promise.all(nodeIds.map(resolveCurrentPageNode));
   return { nodeIds, fingerprint: await fingerprintNodeTree(nodes) };
