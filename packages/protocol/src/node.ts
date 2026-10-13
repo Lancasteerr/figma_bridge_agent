@@ -328,8 +328,8 @@ export const AssetExportStatusSchema = z
 /** 素材导出交付状态类型。 */
 export type AssetExportStatus = z.infer<typeof AssetExportStatusSchema>;
 
-/** status 工具返回的连接、页面、选区和能力信息。 */
-export const StatusResultSchema = z.object({
+/** 插件内部 status RPC 保留连接诊断信息，不直接作为 MCP 工具结果。 */
+export const PluginStatusResultSchema = z.object({
   connected: z.boolean(),
   authenticated: z.boolean(),
   protocolVersion: z.number().int(),
@@ -338,7 +338,43 @@ export const StatusResultSchema = z.object({
   page: z.object({ id: z.string(), name: z.string() }).optional(),
   selection: z.array(NodeSummarySchema),
   capabilities: z.array(z.string()),
-  assetExport: AssetExportStatusSchema.optional(),
 });
+export type PluginStatusResult = z.infer<typeof PluginStatusResultSchema>;
+
+/** MCP 公开工作区状态只暴露 Agent 下一步绑定或写入所需的信息。 */
+export const WorkspaceStatusSchema = z.discriminatedUnion('state', [
+  z
+    .object({
+      state: z.literal('UNBOUND'),
+      sessionId: z.string().uuid(),
+    })
+    .strict(),
+  z
+    .object({
+      state: z.literal('BOUND'),
+      sessionId: z.string().uuid(),
+      rootPath: z.string().min(1),
+    })
+    .strict(),
+]);
+
+/** status 工具只返回当前设计上下文和本次 Adapter 的工作区状态。 */
+export const StatusResultSchema = z
+  .object({
+    document: z.object({ name: z.string() }).strict(),
+    page: z.object({ id: z.string(), name: z.string() }).strict(),
+    selection: z.array(
+      z
+        .object({
+          id: z.string(),
+          name: z.string(),
+          type: z.string(),
+          parentId: z.string().optional(),
+        })
+        .strict(),
+    ),
+    workspace: WorkspaceStatusSchema,
+  })
+  .strict();
 /** 插件状态结果类型。 */
 export type StatusResult = z.infer<typeof StatusResultSchema>;

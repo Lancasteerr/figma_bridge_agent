@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { BridgeFault } from '@figma-agent/protocol';
+
 import { structuredResult, toolError } from './result.js';
 
 describe('MCP 工具结果边界', () => {
@@ -16,5 +18,19 @@ describe('MCP 工具结果边界', () => {
     expect(result.content).toHaveLength(1);
     expect(result.content[0]?.text).toContain('failed');
     expect(result).not.toHaveProperty('structuredContent');
+  });
+
+  it('错误结果不会暴露摘要或内部路径', () => {
+    const result = toolError(
+      new BridgeFault({
+        code: 'EXPORT_TARGET_CONFLICT',
+        message: 'conflict',
+        retryable: true,
+        details: { existingSha256: 'a'.repeat(64), rootPath: 'C:\\secret' },
+      }),
+    );
+
+    expect(result.content[0]?.text).not.toContain('existingSha256');
+    expect(result.content[0]?.text).not.toContain('C:\\secret');
   });
 });

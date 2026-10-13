@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { DesignPlanSchema } from './design-plan.js';
 import { LayoutSpecSchema, SizingSpecSchema } from './layout.js';
-import { AssetExportStatusSchema, PositioningSchema } from './node.js';
+import { PositioningSchema } from './node.js';
 
 /** MCP 工具输入和输出 schema 集中定义，服务端与插件共享同一边界。 */
 export const EmptyInputSchema = z.object({});
@@ -87,10 +87,8 @@ export const BindExportRootInputSchema = z
   })
   .strict();
 
-/** 绑定成功后必须返回已冻结的 WORKSPACE 状态。 */
-export const BindExportRootResultSchema = AssetExportStatusSchema.extend({
-  delivery: z.literal('WORKSPACE'),
-}).omit({ fallbackExpiresAt: true });
+/** 绑定成功只返回规范化后的根路径；会话 ID 已由输入和 status 明确。 */
+export const BindExportRootResultSchema = z.object({ rootPath: z.string().min(1) }).strict();
 
 export const ExportRawAssetInputSchema = z
   .object({

@@ -26,17 +26,14 @@ describe('export root binding contract', () => {
     ).toBe(false);
   });
 
-  it('returns only a WORKSPACE status without fallback expiry', () => {
+  it('只返回规范化后的工作区根路径', () => {
     expect(
       BindExportRootResultSchema.safeParse({
-        delivery: 'WORKSPACE',
         rootPath: 'E:\\workspace\\project',
-        sessionId: '11111111-1111-4111-8111-111111111111',
       }).success,
     ).toBe(true);
     expect(
       BindExportRootResultSchema.safeParse({
-        delivery: 'STAGED',
         rootPath: 'E:\\workspace\\project',
         sessionId: '11111111-1111-4111-8111-111111111111',
       }).success,

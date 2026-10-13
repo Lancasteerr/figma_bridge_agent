@@ -162,9 +162,7 @@ describe('figma_export_asset MCP 工具', () => {
     const response = await handler({ rootPath: workspace, expectedSessionId: SESSION_ID });
     expect(response.isError).not.toBe(true);
     expect(response.structuredContent).toEqual({
-      delivery: 'WORKSPACE',
       rootPath: await realpath(workspace),
-      sessionId: SESSION_ID,
     });
     expect(exports.status.delivery).toBe('WORKSPACE');
     expect(broker.request).not.toHaveBeenCalled();

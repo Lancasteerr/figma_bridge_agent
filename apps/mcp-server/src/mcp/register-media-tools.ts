@@ -53,7 +53,7 @@ export function registerMediaTools(
       try {
         const parsed = BindExportRootInputSchema.parse(input);
         const status = await exports.bindRoot(parsed.rootPath, parsed.expectedSessionId);
-        return structuredResult(BindExportRootResultSchema.parse(status));
+        return structuredResult(BindExportRootResultSchema.parse({ rootPath: status.rootPath }));
       } catch (error) {
         return toolError(error);
       }

@@ -1,4 +1,4 @@
-import { StatusResultSchema } from '@figma-agent/protocol';
+import { PluginStatusResultSchema, StatusResultSchema } from '@figma-agent/protocol';
 import type { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 
@@ -29,10 +29,25 @@ export function registerStatusTool(
     },
     async () => {
       try {
-        const pluginResult = await broker.request('status');
+        const pluginResult = PluginStatusResultSchema.parse(await broker.request('status'));
+        const exportStatus = exports.status;
         const result = StatusResultSchema.parse({
-          ...(pluginResult as Record<string, unknown>),
-          assetExport: exports.status,
+          document: pluginResult.document,
+          page: pluginResult.page,
+          selection: pluginResult.selection.map(({ id, name, type, parentId }) => ({
+            id,
+            name,
+            type,
+            ...(parentId ? { parentId } : {}),
+          })),
+          workspace:
+            exportStatus.delivery === 'WORKSPACE'
+              ? {
+                  state: 'BOUND',
+                  sessionId: exportStatus.sessionId,
+                  rootPath: exportStatus.rootPath,
+                }
+              : { state: 'UNBOUND', sessionId: exportStatus.sessionId },
         });
         return structuredResult(result);
       } catch (error) {
