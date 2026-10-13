@@ -32,7 +32,7 @@ async function setup(bind = true) {
     workspace,
     store: new SemanticSnapshotStore(workspace, {
       now: () => new Date('2026-10-11T00:00:00.000Z'),
-      pluginVersion: () => '2.2.7',
+      pluginVersion: () => '2.9.0',
     }),
   };
 }

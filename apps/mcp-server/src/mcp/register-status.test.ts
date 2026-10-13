@@ -40,7 +40,7 @@ async function setup() {
       connected: true,
       authenticated: true,
       protocolVersion: 8,
-      pluginVersion: '2.2.7',
+      pluginVersion: '2.9.0',
       document: { id: 'document:1', name: 'Community' },
       page: { id: 'page:1', name: 'Home' },
       selection: [{ id: 'node:1', name: 'Hero', type: 'FRAME', parentId: 'page:1' }],
