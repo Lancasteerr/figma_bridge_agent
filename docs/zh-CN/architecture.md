@@ -22,7 +22,7 @@ Figma 插件主进程
 
 显式 CLI 配对会话会临时启用 `ws://127.0.0.1:3900/pair`；正常运行时该路径保持关闭。
 
-`packages/protocol` 负责与传输无关的 Zod schema。每个 MCP Adapter 负责一个 stdio 会话、默认暂存导出根、可选的 Agent 工作区绑定和独立导出 session ID。自动管理的 Bridge Daemon 独占回环监听，只转发数据并把任意数量的已认证 MCP Adapter 复用到一个插件连接；它永远不写前端工程。插件 UI 负责插件侧身份验证和重连行为。插件主进程是唯一允许持有 Figma 对象的进程。
+`packages/protocol` 负责与传输无关的 Zod schema，并分别定义插件 RPC 与公共 MCP 结果契约。每个 MCP Adapter 负责一个 stdio 会话、初始未绑定的 Agent 工作区和独立导出 session ID。自动管理的 Bridge Daemon 独占回环监听，只转发数据并把任意数量的已认证 MCP Adapter 复用到一个插件连接；它永远不写前端工程。插件 UI 负责插件侧身份验证和重连行为。插件主进程是唯一允许持有 Figma 对象的进程。
 
 首个 Adapter 会在需要时启动 Daemon。关闭某个主机只会关闭自己的 Adapter。当最后一个 Adapter 和插件都断开 30 秒后，Daemon 自动退出。
 
@@ -34,24 +34,24 @@ Figma 插件主进程
 - Adapter 日志写入 stderr。后台 Daemon 在用户配置目录写入有界 `bridge.log`，并只保留一个轮转文件。日志仅包含请求 ID、RPC 方法、耗时和结果，排除密钥、图像 base64 和原始节点 JSON。
 - `figma_render_node` 的视觉预览和 `figma_get_tree` 的大型 JSONL 写入 `%TEMP%/figma-agent-mcp/<session-id>/`；该目录复用 Adapter 的导出 session ID，不会再生成第二套临时会话 ID。
 - 当前 Adapter 的临时文件保留三十分钟并在关闭时立即删除。其他 Adapter 不会清理其中的单个文件或空目录；异常退出的会话目录在 `mtime` 超过二十四小时后由存活 Adapter 兜底删除。若运行中的旧会话目录因此被删除，该 Adapter 会在下次写入时自动重建。
-- 素材和语义快照由 Adapter 写文件，共享同一个会话根绑定、路径校验、原子写入和暂存配额。会话启动时固定使用 `~/figma_bridge_agent_export/<session-id>/`，保留 24 小时并清理过期会话。Agent 在首次写入前可用最新 session ID 把自身任务执行环境的绝对 cwd 一次性绑定为工作区根；Adapter 不再信任它自身的 `process.cwd()`。任一类写入开始后都不能改绑。
+- 素材和语义快照由 Adapter 写文件，共享同一个不可变会话根绑定、路径校验和原子写入。会话初始为 `UNBOUND`，不创建暂存导出根，也不维护暂存配额。Agent 必须在首次持久写入前用最新 session ID 把自身任务执行环境的绝对 cwd 绑定为工作区根；Adapter 不信任自身的 `process.cwd()`。临时树和渲染使用独立临时存储，因此未绑定时仍可用。
 
 ## 素材读取与导出生命周期
 
 1. 插件在节点快照中枚举 Image Paint、导出设置、矢量和蒙版事实；同一次树读取按 image hash 缓存尺寸查询。素材属性参与快照指纹。
 2. RAW 请求在插件中重新解析指定 paint，并同时核对 image hash 与节点快照指纹；RENDERED 请求重新计算完整节点子树指纹。来源变化会在读取字节或调用 `exportAsync()` 前尽早拒绝。
-3. 插件通过 v6 RPC 返回单项不超过 9 MiB 的原始字节、渲染字节或 SVG 字符串。公共 MCP 结果不会透出这些正文。
+3. 插件通过协议 8 RPC 返回单项不超过 9 MiB 的原始字节、渲染字节或 SVG 字符串。公共 MCP 结果不会透出这些正文。
 4. Adapter 对 RAW 再做 PNG/JPEG/GIF/WebP 魔数识别，对 RENDERED 核对格式、扩展名和载荷上限。
 5. Adapter 校验相对路径与已有路径的 realpath，阻止 symlink/junction 越界；随后在目标目录写随机临时文件并通过 rename 提交。
 6. 同路径同 hash 返回 `REUSED`；不同 hash 默认返回 `EXPORT_TARGET_CONFLICT`。显式覆盖要求现有 SHA-256，并在 rename 前再次核对以防并发修改。
-7. 绑定必须在任何导出写入前完成，相同规范根可幂等重试，会话内不得切换到其他根。`WORKSPACE` 结果可直接由工程引用；`STAGED` 结果要求调用方复制到 `projectRelativePath` 并复核 SHA-256。
+7. 绑定必须在任何导出写入前完成，相同规范根可幂等重试，会话内不得切换到其他根。未绑定请求返回 `EXPORT_ROOT_UNBOUND`；成功结果只包含工作区相对 `path` 以及 `CREATED`、`REUSED` 或 `UPDATED` 状态。
 
 ## 语义快照生命周期
 
 1. 插件对请求根计算完整树指纹，然后按稳定次序生成扁平 `outline.jsonl`。`IMPLEMENTATION` 另生成不嵌套子节点的 `facts.jsonl`；`focusNodeIds` 只限制详细事实。
 2. 序列化后再计算指纹。来源改变返回 `SEMANTIC_SOURCE_CHANGED`；正文超过 12 MiB 返回 `PAYLOAD_TOO_LARGE`，两者都不写文件。
 3. Adapter 以 node ID 短哈希作为 scope ID，并在来源指纹下使用请求变体哈希，因此同一设计状态的 OUTLINE、焦点集、渲染和预算不会相互覆盖。
-4. Adapter 经共享安全写入层依次提交 JSONL、可选 PNG，最后写 `manifest.json` 作为完整修订标记。公开 MCP 结果只返回路径和摘要。
+4. Adapter 经共享安全写入层依次提交 JSONL、可选 PNG，最后写 `manifest.json` 作为完整修订标记。公开 MCP 结果只返回工作区相对 manifest 路径、来源指纹、完整性和可选截断信息。
 5. Agent 用普通文件编辑创建轻量 `work-units/<scopeId>.json`，只引用 manifest 并保存代码映射、状态和未解决差异；工具不会生成主观角色或页面状态机。
 6. 完成范围前，Agent 通过 `figma_check_semantic_scope` 比较已存指纹与当前完整子树，不重新导出正文。
 
@@ -59,7 +59,7 @@ Figma 插件主进程
 
 写入处理器只接受位于带有 `figma-agent-mcp:proposal` 插件数据标记的根节点内的节点。v3 标记增加 `GENERATED`/`CLONED` 来源、构建状态和 operation ID，同时继续读写 v2 Proposal。请求目标只描述意图；Proposal 根仍是写入边界，其中复制进来的全部上下文节点均可写。
 
-`figma_duplicate_as_proposal` 接收编辑目标并自动解析复制根。Auto Layout 流式子节点包含其直接父级，普通叶节点包含最近的结构容器，Page 和 Section 会停止上探；Component Set 变体和绝对定位子节点不会扩张。解析范围最多包含 1000 个场景节点：推导出的上下文超限时会退回目标并返回警告，目标自身或合并请求超限时直接拒绝。单根副本直接移动到 Page，多根副本进入 Page 级透明包装器，因此 Proposal 不会留在原布局上下文。返回值包含复制根、目标映射、解析原因、警告和完整源到副本 ID 映射。
+`figma_duplicate_as_proposal` 接收编辑目标并自动解析复制根。Auto Layout 流式子节点包含其直接父级，普通叶节点包含最近的结构容器，Page 和 Section 会停止上探；Component Set 变体和绝对定位子节点不会扩张。解析范围最多包含 1000 个场景节点：推导出的上下文超限时会退回目标并返回警告，目标自身或合并请求超限时直接拒绝。单根副本直接移动到 Page，多根副本进入 Page 级透明包装器，因此 Proposal 不会留在原布局上下文。公共返回只映射请求的编辑目标及其解析原因；复制根和完整内部 ID 映射不对 Agent 暴露。
 
 克隆前，插件会对源根、直接布局父级和兄弟几何生成指纹；副本脱离后再次验证，任何漂移都会返回 `SOURCE_CHANGED_DURING_CLONE` 并回滚。副本会递归解锁，而源节点的可见性、锁定、层级和几何不会改变。修改操作会串行执行，并拆分为只读预检阶段和写入阶段。预检失败绝不会触碰 undo 历史。由于空的 `commitUndo()` 和 Page plugin data 都不能建立 Figma undo 边界，写入阶段会创建一个不可见的临时节点作为 undo 锚点。失败时，桥接器先把锚点和可能存在的部分写入提交为当前单元，再立即撤销该单元。因此即使第一个业务写入前就失败，也只会回滚当前修改，不会撤销前一个成功操作。锚点会在成功提交前删除，在失败时随当前修改一起回滚；若插件崩溃遗留了不可见锚点，下一次成功修改会将其清理。公开的 undo 是有意不提供的，因为它可能撤销之后的手动编辑。
 
@@ -67,11 +67,11 @@ Figma 插件主进程
 
 ## DesignPlan 生命周期
 
-1. Agent 检查规范化树和渲染结果，调用 `figma_list_fonts`、`figma_get_design_resources`，并按需逐个暂存 Base64 素材。
+1. Agent 检查规范化树和渲染结果，调用 `figma_list_fonts`、`figma_get_design_resources`，并按需逐个暂存 Base64 素材。公共素材句柄只包含 `assetId`、可选尺寸与过期时间；内部摘要不公开。
 2. 对于带来源的计划，Agent 使用有序来源根 ID 调用 `figma_get_fingerprint`，并将相同顺序和返回的聚合指纹分别写入 `source.rootNodeIds` 与 `source.fingerprint`。
-3. `figma_validate_design_plan` 检查 1000 节点/32 层上限、全局唯一 ref、当前页源节点和组件、显式字体、素材摘要、样式/变量兼容性、资源命名冲突和可选源指纹。
+3. `figma_validate_design_plan` 检查 1000 节点/32 层上限、全局唯一 ref、当前页源节点和组件、显式字体、素材可用性、样式/变量兼容性、资源命名冲突和可选源指纹。验证请求外层可通过 `returnRefs` 选择最多 200 个不重复的节点或资源 ref；这些 ref 随验证缓存，但不参与 plan digest。
 4. 有效计划会获得一个五分钟后过期且只能使用一次的验证 ID。
-5. `figma_apply_design_plan` 消费该 ID，并在打开写入边界前重新检查所有可变依赖。
+5. `figma_apply_design_plan` 消费该 ID，并在打开写入边界前重新检查所有可变依赖。公共 `refMap` 默认省略；请求后也只包含所选节点和资源 ref。
 6. 插件创建带 v3 标记的隐藏根，创建或复用命名隔离的本地资源，构建节点树并绑定资源，提交 operation 标记后才显示 Proposal。
 7. 预检失败不产生写入；写入失败会显式删除本次新资源并触发带锚点的回滚。插件崩溃后，下一次写操作会删除孤立的 `BUILDING` 根/资源；若 Proposal 已提交，则补全对应资源标记。
 
@@ -81,7 +81,7 @@ DesignPlan v1 支持 Frame、Text、Rectangle、Ellipse、Line、Image、SVG、C
 
 - 输入只接受 Base64；MCP Server 不抓取 URL，也不读取调用方提供的本地路径。
 - 位图校验魔数并限制为 8 MiB/4096 px；SVG 经解析、清理和重新序列化，限制为 2 MiB/16384 单位。
-- 插件缓存上限 32 MiB、TTL 十分钟，断线清空；`assetId` 始终与 SHA-256 配对。
+- 插件缓存上限 32 MiB、TTL 十分钟，断线清空；内部仍把 `assetId` 与 SHA-256 配对以校验完整性和去重，公共结果与 DesignPlan 只使用 `assetId`。
 - 新资源命名为 `Agent/<Proposal>/<name>`；同名同结构复用，不同内容返回 `RESOURCE_CONFLICT`。成功资源不会随 Proposal 丢弃而删除。
 - 变量只有一个 `Default` 模式，仅创建 COLOR/FLOAT/STRING/BOOLEAN。不会调用 Team Library 或 import-by-key API。
 
@@ -92,6 +92,6 @@ DesignPlan v1 支持 Frame、Text、Rectangle、Ellipse、Line、Image、SVG、C
 - 渲染：请求的最大尺寸为 2048 px，原始 PNG 限制为 9 MiB（使编码后的 RPC 载荷保持在桥接限制以内）。
 - 原始 REST JSON：默认 2 MiB，请求硬限制为 8 MiB。
 - 语义 RPC 正文：12 MiB；超限要求缩小根范围或拆分子范围。
-- 暂存导出：每个服务器会话 256 MiB，保留 24 小时；工作区导出不使用暂存配额。
+- 持久素材与语义写入必须先绑定工作区；临时树/渲染存储继续使用独立 TTL 与配额控制。
 
 `getCSSAsync()` 返回的 CSS 会标记为代码生成提示。规范化快照仍然是结构事实来源。

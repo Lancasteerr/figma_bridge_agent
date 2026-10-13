@@ -15,14 +15,14 @@ This unofficial developer tool is distributed through GitHub. It is not affiliat
 | Design-to-code         | Give the agent bounded design semantics, assets, and freshness evidence for repository-aware coding |
 | Local reads            | Read the current file, selection, node tree, asset facts, styles, variables, fonts, and Inspect CSS |
 | Semantic snapshots     | Persist scoped outline/facts data without loading a whole page of design facts into conversation    |
-| Asset delivery         | Extract original images or render nodes into a session-bound root or 24-hour staging directory      |
+| Asset delivery         | Extract original images or render nodes into an explicitly bound Agent workspace                    |
 | Safe edits             | Clone targets and required layout context, then edit only inside an isolated Proposal               |
 | Declarative generation | Validate a complete DesignPlan before atomically creating a new Proposal                            |
 | Multi-client reuse     | Share one managed Bridge Daemon across multiple local MCP Adapters                                  |
 
 The Bridge is not a framework-specific code generator. It gives the coding agent structured design evidence, safe asset delivery, and source-freshness checks; the agent writes code using the target repository's stack, component library, and conventions.
 
-The MCP Server currently exposes 26 bounded tools. See the [MCP tool reference](docs/en-US/tools.md) for the complete list and recommended call sequences.
+The MCP Server currently exposes 24 bounded tools. See the [MCP tool reference](docs/en-US/tools.md) for the complete list and recommended call sequences.
 
 ## Interface preview
 
@@ -58,7 +58,7 @@ Regular users do not need Git, pnpm, or a source checkout. Open the [latest GitH
 
 ### 1. Choose one installation method
 
-Both methods expose the same 26 MCP tools. Choose exactly one:
+Both methods expose the same 24 MCP tools. Choose exactly one:
 
 - **Install the Agent Plugin**: for Codex, Cursor, and GitHub Copilot, which currently have entry points maintained by this project. It automatically supplies the MCP configuration plus design-to-code and safe Proposal workflow guidance. Follow the [Agent Plugin installation guide](docs/en-US/install-plugin.md).
 - **Configure the MCP Server directly**: for Claude Code, Claude Desktop, and other local stdio hosts. You add the MCP configuration manually, and the Skill is not installed automatically. Follow the [direct MCP installation guide](docs/en-US/install-mcp-server.md).
@@ -87,7 +87,7 @@ Click **Codes match** only when the six-digit codes in the terminal and plugin a
 
 ### 4. Verify the connection
 
-Restart the MCP client or open a new agent session, then ask the agent to call `figma_status`. A healthy result includes protocol v6, the current Figma file, page, selection, asset-export root status, and Bridge capabilities.
+Restart the MCP client or open a new agent session, then ask the agent to call `figma_status`. A healthy result contains the current Figma file, page, selection, and an `UNBOUND` or `BOUND` workspace. Protocol 8 compatibility is checked internally during the authenticated connection.
 
 For Development builds, source builds, and direct MCP troubleshooting, see the [direct MCP installation guide](docs/en-US/install-mcp-server.md).
 
@@ -152,7 +152,7 @@ See the [architecture and safety model](docs/en-US/architecture.md) for implemen
 - Input assets accept Base64 only. The Server does not fetch URLs or read caller-provided local files.
 - Team Library is never queried. Place an external Instance on the current page before reusing it.
 - Semantic snapshot bodies are written only to the session directory. Public results contain paths, summaries, fingerprints, and completeness information rather than injecting complete design facts into conversation.
-- Semantic snapshots and asset exports share one immutable workspace binding. Every MCP Adapter starts in an independent 24-hour staging session; during implementation, the agent submits the exact cwd from its own task execution environment with the latest session ID before direct project writes begin.
+- Semantic snapshots and asset exports share one immutable workspace binding. Every MCP Adapter starts `UNBOUND`; during implementation, the agent submits the exact cwd from its own task execution environment with the latest session ID before either persistent write begins. Temporary tree and render artifacts remain available while unbound.
 - The Bridge does not decide component responsibilities, code mappings, or framework patterns. The agent makes those implementation decisions from the user's request and target repository.
 - Only one Figma plugin window can be active at a time. Remote-only agents cannot reach the local Bridge.
 
@@ -166,7 +166,7 @@ See [security notes](docs/en-US/security.md) for complete boundaries and operati
 | [Choose an installation method](docs/en-US/configuration.md) | Users                      | Compare the Agent Plugin and direct MCP routes           |
 | [Install the Agent Plugin](docs/en-US/install-plugin.md)     | Plugin client users        | Stable Codex, Cursor, and Copilot installation           |
 | [Configure MCP directly](docs/en-US/install-mcp-server.md)   | stdio host users           | Claude, generic hosts, Development, and source builds    |
-| [MCP tool reference](docs/en-US/tools.md)                    | Users and agent developers | 26 tools, write boundaries, and call sequences           |
+| [MCP tool reference](docs/en-US/tools.md)                    | Users and agent developers | 24 tools, write boundaries, and call sequences           |
 | [Architecture and safety model](docs/en-US/architecture.md)  | Developers                 | Processes, protocol, Proposal, and DesignPlan lifecycles |
 | [Development guide](docs/en-US/development.md)               | Contributors               | Monorepo, commands, tests, and builds                    |
 | [End-to-end acceptance](docs/en-US/acceptance.md)            | Contributors               | Distribution and Figma scenario validation               |

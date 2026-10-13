@@ -15,14 +15,14 @@
 | 设计稿生成代码 | 向 Agent 提供有界设计语义、素材和新鲜度证据，由 Agent 按目标工程规范实现 |
 | 本地读取       | 读取当前文件、选区、节点树、素材事实、样式、变量、字体和 Inspect CSS     |
 | 语义快照       | 持久化范围化 outline/facts，避免把整页设计事实塞入对话上下文             |
-| 素材交付       | 提取原始图片或渲染节点，安全写入会话绑定根或 24 小时暂存目录             |
+| 素材交付       | 提取原始图片或渲染节点，安全写入明确绑定的工作区                         |
 | 安全编辑       | 先复制目标和必要布局上下文，再仅在隔离 Proposal 内修改                   |
 | 声明式生成     | 验证完整 DesignPlan 后，原子创建新的 Proposal                            |
 | 多客户端复用   | 多个本地 MCP Adapter 共用一个自动管理的 Bridge Daemon                    |
 
 Bridge 本身不是特定框架的代码生成器。它为 Coding Agent 提供结构化设计证据、安全素材交付和来源新鲜度校验；Agent 再结合目标仓库的技术栈、组件库和工程约定编写代码。
 
-MCP Server 当前公开 26 个受限工具。完整列表和推荐调用顺序见 [MCP 工具参考](docs/zh-CN/tools.md)。
+MCP Server 当前公开 24 个受限工具。完整列表和推荐调用顺序见 [MCP 工具参考](docs/zh-CN/tools.md)。
 
 ## 界面预览
 
@@ -58,7 +58,7 @@ Agent 的修改会出现在 Figma 画布上的隔离 Proposal 中，便于与源
 
 ### 1. 选择一种安装方式
 
-两种方式公开相同的 26 个 MCP 工具，只需选择其中一种：
+两种方式公开相同的 24 个 MCP 工具，只需选择其中一种：
 
 - **安装 Agent Plugin**：适用于本项目当前已适配的 Codex、Cursor 和 GitHub Copilot；自动提供 MCP 配置，以及设计稿实现代码与安全 Proposal 工作流 Skill。请按[插件安装指南](docs/zh-CN/install-plugin.md)操作。
 - **直接配置 MCP Server**：适用于 Claude Code、Claude Desktop及其他本地 stdio 主机；需要手工添加 MCP 配置，且不会自动安装 Skill。请按[直接 MCP 安装指南](docs/zh-CN/install-mcp-server.md)操作。
@@ -87,7 +87,7 @@ npx -y figma-local-agent-mcp@<VERSION> pair
 
 ### 4. 验证连接
 
-重启 MCP 客户端或新建 Agent 会话，然后让 Agent 调用 `figma_status`。正常结果会包含协议 v6、当前 Figma 文件、页面、选区、素材导出根状态和 Bridge 能力。
+重启 MCP 客户端或新建 Agent 会话，然后让 Agent 调用 `figma_status`。正常结果会包含当前 Figma 文件、页面、选区，以及 `UNBOUND` 或 `BOUND` 工作区状态。插件与 Server 内部使用 Bridge 协议 8。
 
 Development build、源码构建和直接 MCP 故障排查见[直接 MCP 安装指南](docs/zh-CN/install-mcp-server.md)。
 
@@ -151,8 +151,8 @@ Coding Agent
 - 公开写工具只能新建 Proposal，或修改带 Bridge 标记的 Proposal 根内部节点。
 - 输入素材只接受 Base64；Server 不抓取 URL，也不读取调用方指定的本地文件。
 - Team Library 不会被查询；需要复用的外部 Instance 必须先放到当前页面。
-- 语义快照正文只写入会话目录；公开结果只包含路径、摘要、指纹和完整性信息，不把完整设计事实注入对话。
-- 语义快照与素材导出共享一次性工作区绑定。每个 MCP Adapter 默认进入独立的 24 小时暂存会话；实施阶段由 Agent 提交自身任务执行环境的准确 cwd 与最新 session ID，绑定成功后才直接写入工程。
+- 语义快照正文只写入会话目录；公开结果只包含相对 manifest 路径、来源指纹和完整性信息，不把完整设计事实注入对话。
+- 语义快照与素材导出共享一次性工作区绑定。每个 MCP Adapter 初始为 `UNBOUND`；实施阶段由 Agent 提交自身任务执行环境的准确 cwd 与最新 session ID，绑定成功后才允许持久写入。
 - Bridge 不决定组件职责、代码映射或框架写法；这些实现决策由 Agent 根据用户要求和目标仓库作出。
 - 同一时间只支持一个活动 Figma 插件窗口；纯远程 Agent 无法访问本机 Bridge。
 
@@ -166,7 +166,7 @@ Coding Agent
 | [选择安装方式](docs/zh-CN/configuration.md)       | 使用者               | 对比插件与直接 MCP 两条路线                 |
 | [安装 Agent Plugin](docs/zh-CN/install-plugin.md) | 插件客户端用户       | Codex、Cursor、Copilot 稳定版安装           |
 | [直接配置 MCP](docs/zh-CN/install-mcp-server.md)  | stdio 主机用户       | Claude、通用主机、Development 与源码构建    |
-| [MCP 工具参考](docs/zh-CN/tools.md)               | 使用者、Agent 开发者 | 26 个工具、写入边界和调用流程               |
+| [MCP 工具参考](docs/zh-CN/tools.md)               | 使用者、Agent 开发者 | 24 个工具、写入边界和调用流程               |
 | [架构与安全模型](docs/zh-CN/architecture.md)      | 开发者               | 进程、协议、Proposal 和 DesignPlan 生命周期 |
 | [开发指南](docs/zh-CN/development.md)             | 贡献者               | Monorepo、常用命令、测试和构建              |
 | [端到端验收](docs/zh-CN/acceptance.md)            | 贡献者               | 发行产物和 Figma 场景验收                   |

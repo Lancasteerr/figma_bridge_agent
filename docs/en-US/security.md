@@ -14,9 +14,9 @@ This project is a local development tool, not a remote service.
 - A captured authentication proof cannot be reused because each connection receives a fresh server nonce and supplies a fresh plugin nonce.
 - Pairing is disabled by default. An explicit `pair` command opens one 120-second session, and the user must compare a six-digit SAS before the device credential is stored.
 - X25519 and HKDF-SHA-256 derive a unique token for every paired plugin. The token is never transmitted over WebSocket and is separate from the Daemon credential used by MCP adapters.
-- Long-running file output is bounded to 9 MiB per item and 256 MiB per staged session.
-- Every MCP Adapter initially writes only to its independent `~/figma_bridge_agent_export/<session-id>/`. Before the first export, the Agent may submit the absolute cwd from its own task execution environment together with the latest session ID. The Adapter validates realpath, directory type, writability, and dangerous locations, then freezes the canonical root for that session.
-- Binding rejects filesystem roots, the user home itself, plugin roots, plugin data directories, and staging directories or their descendants. A session cannot bind after writing starts or switch to another root. Unbound sessions remain for 24 hours so interrupted work can recover. The shared Daemon never writes project files.
+- Persistent file output is bounded to 9 MiB per item and requires an explicit workspace binding. An unbound Adapter never creates a staging export directory.
+- Before the first asset or semantic write, the Agent submits the absolute cwd from its own task execution environment together with the latest session ID. The Adapter validates realpath, directory type, writability, and dangerous locations, then freezes the canonical root for that session.
+- Binding rejects filesystem roots, the user home itself, plugin roots, and plugin data directories. Repeating the same canonical root is idempotent; a session cannot switch to another root. The shared Daemon never writes project files.
 - Exports reject traversal, drive/UNC/absolute paths, NUL, symlink/junction escapes, and non-regular targets. Missing ordinary directories may be created only inside the frozen root.
 - Files are committed through a same-directory temporary file and rename. Identical content is reused; different content is rejected by default. Overwrite requires the existing SHA-256 just inspected by the caller and rechecks it before commit.
 - Inbound design assets are accepted only as Base64, validated and bounded before reaching the plugin, and never trigger an external network request.
@@ -29,7 +29,7 @@ This project is a local development tool, not a remote service.
 - Do not expose port 3900 through a proxy or port-forward.
 - Keep the Figma plugin status window open only while using the bridge.
 - Review a Proposal visually before copying it into production artwork.
-- Check `figma_status` for `WORKSPACE` versus `STAGED`. During implementation, call `figma_bind_export_root` with the latest session ID. If binding is unavailable or fails, copy staged results to the returned project-relative path and verify SHA-256; never put a staging path into generated code.
+- Check `figma_status` for `UNBOUND` versus `BOUND`. During implementation, call `figma_bind_export_root` with the latest session ID before a persistent asset or semantic write. Temporary tree and render artifacts remain available while unbound, but persistent writes fail with `EXPORT_ROOT_UNBOUND`.
 - Use Figma native Undo for user-directed history changes. The bridge uses undo only inside an anchored write boundary for the operation that has just failed; read-only validation failures never trigger undo.
 
 ## Explicit non-goals

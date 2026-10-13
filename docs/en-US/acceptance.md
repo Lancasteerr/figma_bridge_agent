@@ -14,10 +14,10 @@ This runbook is for contributors validating candidate distribution artifacts. Ru
 6. Restart Figma and the MCP host; confirm the plugin reconnects without another pairing.
 7. Run `devices list`, revoke the connected device, and confirm the plugin immediately returns to the pairing screen.
 8. Run `pnpm check:agent-marketplaces`. Confirm the three canonical indexes and the generated Codex, Cursor, and Copilot entry points are synchronized.
-9. After npm `<VERSION>` and GitHub tag `v<VERSION>` are public, run `codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v<VERSION>`, install **Local Figma Agent** through `/plugins`, start a new session, and confirm exactly 26 tools and the bundled Skill are discovered without manual MCP configuration.
-10. In Copilot CLI, run `copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v<VERSION>` and `copilot plugin install figma-local-agent@figma-local-agent`; start a new session and confirm the same 26 tools and Skill are available.
-11. In a Cursor team, import `https://github.com/Lancasteerr/figma_bridge_agent` through **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo**. Install **Local Figma Agent** from **Customize** and confirm the same 26 tools and Skill are available.
-12. In a clean Claude Code configuration without the Agent Plugin, register the stable npm release using the [direct MCP guide](install-mcp-server.md#claude-code). Confirm the same 26 tools are available but the **Local Figma Agent** Skill is not installed automatically.
+9. After npm `<VERSION>` and GitHub tag `v<VERSION>` are public, run `codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v<VERSION>`, install **Local Figma Agent** through `/plugins`, start a new session, and confirm exactly 24 tools and the bundled Skill are discovered without manual MCP configuration.
+10. In Copilot CLI, run `copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v<VERSION>` and `copilot plugin install figma-local-agent@figma-local-agent`; start a new session and confirm the same 24 tools and Skill are available.
+11. In a Cursor team, import `https://github.com/Lancasteerr/figma_bridge_agent` through **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo**. Install **Local Figma Agent** from **Customize** and confirm the same 24 tools and Skill are available.
+12. In a clean Claude Code configuration without the Agent Plugin, register the stable npm release using the [direct MCP guide](install-mcp-server.md#claude-code). Confirm the same 24 tools are available but the **Local Figma Agent** Skill is not installed automatically.
 13. Inspect the Agent Plugin ZIP and confirm it contains `skills/figma-local-agent/references/design-plan-v1.md`, `skills/figma-local-agent/references/asset-export.md`, `skills/figma-local-agent/references/frontend-implementation.md`, and `skills/figma-local-agent/references/semantic-snapshots.md`, but none of the repository-level marketplace files.
 
 Do not continue acceptance if this gate fails.
@@ -25,12 +25,12 @@ Do not continue acceptance if this gate fails.
 ## 2. Connection and read path
 
 1. Start Codex with the installed Agent Plugin. Then repeat the essential connection check in a separate Claude Code configuration without that plugin, following the [direct MCP guide](install-mcp-server.md). Each client must load exactly one `figma-local-agent` Server.
-2. Call `figma_status`; confirm authenticated protocol v6, file/page metadata, selection summary, `assetExport` `WORKSPACE`/`STAGED` status, and the `asset-inspection-v1`, `asset-export-v2`, `design-plan-v1`, `asset-staging-v1`, `font-catalog-v1`, `design-resources-v1`, and `semantic-snapshot-v1` capabilities.
+2. Call `figma_status`; confirm protocol 8 was accepted internally and the public result contains only document/page metadata, selection summary, and an `UNBOUND` workspace with its session ID.
 3. Close the plugin and call it again; confirm `PLUGIN_NOT_CONNECTED` returns in about one second rather than hanging.
 4. Reopen the plugin and confirm automatic reconnection.
-5. Open two additional Codex tasks. Confirm all three tasks discover the same 26 tools and can call `figma_status` through the same plugin.
+5. Open two additional Codex tasks. Confirm all three tasks discover the same 24 tools and can call `figma_status` through the same plugin.
 6. Close one task and confirm the other two remain connected. Run `bridge status` and confirm the client count changes without disconnecting the plugin.
-7. Select the rough ArticleCard and call selection, node, tree, and render tools.
+7. Select the rough ArticleCard, use the selection returned by `figma_status`, and call node, tree, and render tools. Confirm `figma_get_selection` and `figma_get_variables` are absent.
 8. Confirm the normalized tree plus image identifies row/column relationships and the overlay. Asset snapshots should include multiple Image Paints across fills/strokes, dimensions for repeated hashes, CROP/TILE/transform/filters/opacity, export settings, vector segments, and masks.
 9. Simulate an empty image hash, missing image, and dimension-query failure. Confirm paint location plus error state remain and the node read succeeds. Change image, crop, vector, mask, or export-setting facts and confirm the snapshot fingerprint changes.
 
@@ -40,7 +40,7 @@ Do not continue acceptance if this gate fails.
 2. Call `figma_duplicate_as_proposal` with the middle card in `editTargetNodeIds`. Confirm the response resolves the list as an `AUTO_LAYOUT_PARENT`, maps the requested card, and places the Proposal as a Page child rather than inside the source list.
 3. Confirm the source list and all cards retain their original fingerprints, order, geometry, visibility, and locks. Confirm the Proposal copy is recursively unlocked.
 4. Modify both the requested card and a cloned sibling/context node. Confirm both succeed because the whole Proposal is writable, while a write using the original card ID returns `NODE_NOT_IN_PROPOSAL`.
-5. Repeat with a direct Page Rectangle, an absolute child, a Component Set variant, a leaf inside a Group, and two targets sharing one Auto Layout parent. Confirm non-Frame targets remain supported, the reported roots and resolution reasons match the documented rules, and no root is cloned twice.
+5. Repeat with a direct Page Rectangle, an absolute child, a Component Set variant, a leaf inside a Group, and two targets sharing one Auto Layout parent. Confirm non-Frame targets remain supported, `targetMap` contains only requested targets and their resolution reasons, and internal clone roots/full ID mappings are not returned.
 6. Use a generated context above 1000 nodes. Confirm inferred context falls back to the requested target with `CLONE_CONTEXT_TRUNCATED`; confirm a target whose own subtree exceeds the limit returns `LIMIT_EXCEEDED` without creating nodes.
 7. Create a Content Frame inside the Proposal, reparent intended children with explicit `FLOW` or `ABSOLUTE`, and apply two or three Auto Layout levels.
 8. Edit the Proposal manually, then attempt discard with its old fingerprint; confirm `PROPOSAL_CHANGED`. Call `figma_get_fingerprint` for the Proposal root, then discard the whole Proposal with the returned complete-tree fingerprint.
@@ -54,27 +54,27 @@ Do not continue acceptance if this gate fails.
 4. Validate and apply the card once, render it, obtain its latest complete-tree fingerprint, and discard it. Confirm no source artwork changed.
 5. For a source-backed plan, call `figma_get_fingerprint` with ordered roots that include a non-Frame Clone source and a reusable component/instance. Copy the same IDs and returned fingerprint into the source declaration; confirm reversing multiple roots changes the fingerprint.
 6. Change one source, then apply the validated plan; confirm `PLAN_STALE` and no temporary Frame remains. Undo the manual source change.
-7. Fetch a fresh aggregate fingerprint, validate the revised candidate once, and apply it; confirm a complete hidden-then-revealed Proposal appears to the right and `refMap` covers every planned node.
+7. Fetch a fresh aggregate fingerprint, validate the revised candidate once with a selected node ref and resource ref in `returnRefs`, and apply it. Confirm a complete hidden-then-revealed Proposal appears to the right and `refMap` contains only those selected refs. Repeat without `returnRefs` and confirm `refMap` is omitted; reject unknown, duplicate, and more than 200 refs.
 8. Reuse the same ID; confirm `VALIDATION_EXPIRED` because IDs are single-use.
 9. Repeat with a larger design containing nested Auto Layout, shapes, fixed-width/auto-height text, gradients, strokes, corners, effects, and an absolute overlay. Confirm overlays remain correctly placed. Verify exactly 1000 nodes/depth 32, then confirm one additional node/level is rejected.
 
 ## 5. Semantic and asset path
 
 1. List fonts and validate mixed-font text under STRICT and ALLOW_FALLBACK policies. Confirm only explicitly listed fallbacks are used and missing fonts create no partial result.
-2. Stage valid PNG/JPEG/GIF/SVG assets, use every image scale mode, and confirm the applied digest. Reject forged MIME, damaged/oversized files, malicious SVG, expired IDs, and digest mismatch.
+2. Stage valid PNG/JPEG/GIF/SVG assets, use every image scale mode, and confirm the public handle and DesignPlan reference use only `assetId` (plus optional dimensions and expiry in the staging result). Reject forged MIME, damaged/oversized files, malicious SVG, expired IDs, and missing assets; confirm internal digest checks and deduplication still work.
 3. Call `figma_get_design_resources`; confirm local styles/variables and current-page Component/Component Set/Instance entries are paginated. Confirm no other page or Team Library item is returned.
-4. Create Paint/Text/Effect/Grid styles and one-mode COLOR/FLOAT/STRING/BOOLEAN variables. Confirm `Agent/<Proposal>/...` names, identical-resource reuse, different-content conflict, bindings, and `resourceMap`.
+4. Create Paint/Text/Effect/Grid styles and one-mode COLOR/FLOAT/STRING/BOOLEAN variables. Confirm `Agent/<Proposal>/...` names, identical-resource reuse, different-content conflict, bindings, and that only requested resource refs appear in the merged `refMap`.
 5. Create an Instance from a current-page Component and clone an imported Instance already on the current page. Set exposed text/boolean/variant/instance-swap values; reject non-current-page sources and never detach an Instance.
 6. Force a mid-build exception and confirm node/resource cleanup. Simulate a `BUILDING` marker and confirm the next write recovers it. Discard a successful Proposal and confirm committed resources remain.
-7. In planning mode, inspect a cropped avatar, background, multiple Image Fills, image stroke, multi-vector logo, mask, and blend effects. Record implementation choices, paint locations, formats, relative paths, and fingerprints. Confirm neither the project nor staging directory gains a file.
-8. After starting the Agent Plugin, call `figma_status` and confirm the initial state is an independent `STAGED` session and no export appears under the plugin cache. Have the Agent obtain the exact absolute cwd from its own task execution environment and call `figma_bind_export_root` with the latest `assetExport.sessionId`; confirm the state changes to `WORKSPACE` at the real project. Then export avatar/background originals using RAW and confirm PNG/JPEG/GIF/WebP use their magic-detected extension without crop, filter composition, or transcoding.
+7. In planning mode, inspect a cropped avatar, background, multiple Image Fills, image stroke, multi-vector logo, mask, and blend effects. Record implementation choices, paint locations, formats, relative paths, and fingerprints. Confirm the project gains no file.
+8. After starting the Agent Plugin, call `figma_status` and confirm the initial state is an independent `UNBOUND` session and no staging export directory exists. Have the Agent obtain the exact absolute cwd from its own task execution environment and call `figma_bind_export_root` with the latest `workspace.sessionId`; confirm the state changes to `BOUND` at the real project. Then export avatar/background originals using RAW and confirm PNG/JPEG/GIF/WebP use their magic-detected extension without crop, filter composition, or transcoding.
 9. Export the logo as SVG with a freshly fetched complete-tree fingerprint and reference its returned project-relative path. PNG/JPG scale must be 1–4; reject SVG scale and mismatched extensions.
-10. In a new unbound MCP Adapter, confirm `figma_status` reports an independent `STAGED` session, 24-hour expiry, and preserved project-relative hierarchy. Binding with a wrong session ID, relative path, filesystem root, user home, plugin directory, or staging directory must return stable errors; repeated binding to the same root is idempotent, while rebinding or binding after the first export returns `EXPORT_ROOT_CONFLICT`. Keep this Adapter unbound, export to staging, copy the file to `projectRelativePath`, verify SHA-256, and never reference the staging path in code.
+10. In a new unbound MCP Adapter, confirm `figma_status` reports an independent `UNBOUND` session. Binding with a wrong session ID, relative path, filesystem root, user home, or plugin directory must return stable errors; repeated binding to the same root is idempotent, while rebinding returns `EXPORT_ROOT_CONFLICT`. Keep this Adapter unbound and confirm asset/semantic writes return `EXPORT_ROOT_UNBOUND`, while tree artifacts and renders still work from their temporary store.
 11. Change the Figma image hash, crop parameters, or a Logo descendant and export with the old fingerprint. Confirm `ASSET_SOURCE_CHANGED` and no output file.
 12. Repeat identical output and confirm `REUSED`. Change the local target and use the default policy; confirm `EXPORT_TARGET_CONFLICT` without modification.
 13. Inspect the existing SHA-256, then pass `OVERWRITE` with that digest and confirm `UPDATED`. Reject wrong or stale digests. A mid-write failure must leave neither a partial target nor `.tmp` file.
 14. Try an absolute path, drive path, UNC path, `..`, NUL, symlink/junction escape, directory, and other non-regular target. Reject each before writing. Confirm public MCP results contain no Base64 or SVG body.
-15. Create a fallback session older than 24 hours and restart the Adapter; confirm stale cleanup. Exceed 256 MiB in one staged session and confirm the quota error.
+15. Expire temporary tree/render artifacts and confirm cleanup; exceed the temporary store quota and confirm its bounded behavior is unchanged. Confirm no staged persistent-export quota or cleanup path exists.
 
 ## 6. Natural-language Codex scenario
 
@@ -82,7 +82,7 @@ Use this acceptance prompt:
 
 > Inspect the selected rough ArticleCard and a reference web page. Read the bounded tree, render, fonts, and current-page design resources. Before constructing a DesignPlan, read the bundled DesignPlan v1 reference. Fetch the ordered complete-tree fingerprint for all source roots. Provide any required image/SVG as Base64, build one complete candidate without querying Team Library, validate it once, apply it as an isolated Proposal, re-read and render the result. Stop on stale dependencies, asset errors, resource conflicts, or unavailable explicit fonts instead of bypassing validation.
 
-Pass criteria: source screenshot/fingerprint/hierarchy remain unchanged; the Proposal has expected Auto Layout; no Instance is detached; cancellation/failure leaves no temporary node; the plugin recognizes the Proposal after restart; implementation assets are safely delivered under the current Adapter's session-bound root or a verifiable staging session, and public results contain no asset body.
+Pass criteria: source screenshot/fingerprint/hierarchy remain unchanged; the Proposal has expected Auto Layout; no Instance is detached; cancellation/failure leaves no temporary node; the plugin recognizes the Proposal after restart; implementation assets are safely delivered under the current Adapter's bound workspace, and public results contain no asset body, digest, internal path, or input echo.
 
 ### High-fidelity front-end implementation scenario
 

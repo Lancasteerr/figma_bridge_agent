@@ -7,10 +7,11 @@ boundaries, or code mappings.
 
 ## Bind the session workspace
 
-1. Call `figma_status` and record the current `assetExport.sessionId`.
+1. Call `figma_status` and record the current `workspace.sessionId`.
 2. Obtain the exact absolute `process.cwd()` from the Agent's local task execution environment.
 3. Before any asset or semantic write, call `figma_bind_export_root` with that cwd and the recorded
-   session ID. Asset and semantic writes share one immutable session binding.
+   session ID. Asset and semantic writes share one immutable session binding; an unbound write
+   returns `EXPORT_ROOT_UNBOUND` rather than falling back to staging.
 4. Pass the same session ID as `expectedSessionId` to semantic tools. Never reuse an ID from a
    previous Adapter process.
 

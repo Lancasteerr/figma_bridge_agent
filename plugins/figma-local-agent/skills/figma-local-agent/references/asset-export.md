@@ -6,7 +6,7 @@ project asset delivery path.
 
 ## Planning phase
 
-1. Call `figma_status` and record whether `assetExport.delivery` is `WORKSPACE` or `STAGED`.
+1. Call `figma_status` and record `workspace.state` plus `workspace.sessionId`.
 2. Use a shallow `figma_get_tree` only to find candidates from `assetHints`, then call
    `figma_get_node` for each candidate whose exact treatment affects the result. Under that node
    snapshot's `assets`:
@@ -26,13 +26,14 @@ filter only the few candidate records needed for the decision instead of reading
 
 Before the first asset export or semantic snapshot write:
 
-1. Call `figma_status` again and record the current `assetExport.sessionId`.
+1. Call `figma_status` again and record the current `workspace.sessionId`.
 2. Obtain the exact absolute `process.cwd()` from the Agent's own local task execution environment.
    Do not infer a root from the plugin process, plugin cache, Git metadata, or user-provided prose.
 3. Call `figma_bind_export_root` with that path and `expectedSessionId`. Asset and semantic writes
-   share one immutable Adapter-session binding, so binding must happen before either starts. If local
-   execution is unavailable or binding fails, keep the session `STAGED` and use the copy-and-hash
-   workflow below.
+   share one immutable Adapter-session binding, so binding must happen before either starts. The
+   same canonical root is idempotent; rebinding to another root is rejected. If local execution is
+   unavailable or binding fails, do not attempt a persistent write: it returns
+   `EXPORT_ROOT_UNBOUND`.
 
 For `RAW`, re-read the node and call `figma_export_asset` with:
 
@@ -52,17 +53,18 @@ then call `figma_export_asset` with:
 - `PNG` or `JPG` with optional scale from 1 through 4, or `SVG` without scale;
 - a matching relative extension: `.png`, `.jpg`/`.jpeg`, or `.svg`.
 
-Both modes return only paths, hashes, dimensions, and source identifiers—never Base64 or SVG text.
-Handle results as follows:
+Both modes return only a workspace-relative `path` and write `status`—never Base64, SVG text,
+absolute paths, hashes, dimensions, or source identifiers. Handle status as follows:
 
 - `CREATED`: use the new file.
 - `REUSED`: the existing file already has identical bytes.
 - `UPDATED`: an explicitly authorized hash-checked overwrite succeeded.
-- `WORKSPACE`: `absolutePath` is already the requested `projectRelativePath` below the session-bound
-  Agent workspace root.
-- `STAGED`: copy from `absolutePath` to `projectRelativePath` and verify SHA-256. Staged sessions are
-  retained for 24 hours but are not project asset directories.
+
+Resolve `path` below the root returned by `figma_bind_export_root`. The bridge still computes and
+compares digests internally, but does not expose them in successful results.
 
 If Figma changes, the tool returns `ASSET_SOURCE_CHANGED` before writing. Re-inspect and revise the
 implementation instead of retrying with stale identifiers. If a destination differs, the default
-policy returns `EXPORT_TARGET_CONFLICT`; inspect it before considering a hash-checked overwrite.
+policy returns `EXPORT_TARGET_CONFLICT`; inspect the existing project file and calculate its
+SHA-256 locally before considering `OVERWRITE` with `expectedExistingSha256`. Conflict errors do
+not reveal the existing or incoming digest.

@@ -12,7 +12,7 @@ development plugin is open.
 ## Connection preflight
 
 1. Call `figma_status` before other Figma tools.
-   Record `assetExport.delivery`, `rootPath`, and `sessionId` before planning any file delivery.
+   Record `workspace.state` and `workspace.sessionId`; when bound, also record `workspace.rootPath`.
 2. If it returns `PLUGIN_NOT_CONNECTED`, ask the user to open **Local Figma Agent Bridge** in Figma
    Desktop and keep its window open.
 3. If this is the first connection, ask the user to open the repository's latest GitHub Release,
@@ -27,9 +27,9 @@ development plugin is open.
 - Start from the current page and selection reported by `figma_status`. Read a shallow local tree,
   normally depth 2–4, then use only the targeted node reads the task still needs. `figma_get_tree`
   is a lightweight navigation result, not a complete implementation snapshot.
-- Distinguish `coverage.complete` from `delivery.inlineComplete`. Incomplete coverage means Figma
-  traversal hit a depth or node limit. Incomplete inline delivery means the complete lightweight
-  result is in the returned temporary JSONL file.
+- Treat `truncation` and `artifact` independently. `truncation` means Figma traversal hit a depth or
+  node limit; `artifact` means the lightweight tree was delivered in a temporary JSONL file instead
+  of entirely inline. Either field may appear without the other.
 - Never print an entire tree JSONL into the conversation. Filter a few records locally by exact
   node ID, name, type, or parent ID, or issue a narrower `figma_get_tree` call rooted at the chosen
   node. Temporary tree files expire after 30 minutes; repeat the read after expiry.
@@ -89,13 +89,13 @@ Read [asset export](references/asset-export.md) before a task that may create fr
   `RENDERED`.
 - Before the first implementation-phase asset or semantic write, obtain the exact current working
   directory from the Agent's own local task execution environment and call
-  `figma_bind_export_root` with that absolute path and the latest `assetExport.sessionId`. Never
+  `figma_bind_export_root` with that absolute path and the latest `workspace.sessionId`. Never
   derive the root from the plugin process, plugin cache, Git metadata, or user-provided prose.
   Binding is session-local and must happen before either write class starts. If local execution or
-  binding is unavailable, remain `STAGED`.
-- Pass workspace-relative paths only. A `WORKSPACE` result is ready to reference. For `STAGED`, copy
-  `absolutePath` to `projectRelativePath` with local file tools and verify the copied SHA-256; never
-  reference the staging path from generated code.
+  binding is unavailable, do not attempt a persistent write; it will return `EXPORT_ROOT_UNBOUND`.
+- Pass workspace-relative paths only. `figma_export_asset` returns the workspace-relative `path`
+  and `CREATED`, `REUSED`, or `UPDATED` status; resolve the path below the bound root when editing
+  project files.
 - On `EXPORT_TARGET_CONFLICT`, inspect the existing project file. Never switch to `OVERWRITE`
   automatically; use it only after intentionally checking the existing SHA-256 and pass that value
   as `expectedExistingSha256`.
@@ -107,16 +107,18 @@ Read [asset export](references/asset-export.md) before a task that may create fr
 - Never modify source artwork directly. Public writes must create a Proposal or target a node inside
   an existing bridge-created Proposal.
 - For edits based on existing artwork, including non-Frame Page children, use
-  `figma_duplicate_as_proposal`. Continue only with its `proposalRootId`, `targetMap`, and `idMap`;
-  never reuse source IDs for Proposal writes.
-- Pass each mutation's returned fingerprint as the next mutation's `expectedFingerprint`, and adopt
-  replacement IDs returned by operations such as component conversion.
+  `figma_duplicate_as_proposal`. Continue only with its `proposalRootId` and requested `targetMap`;
+  never reuse source IDs for Proposal writes or assume unrequested clone mappings exist.
+- Pass each mutation's returned `proposalFingerprint` as the next mutation's
+  `expectedFingerprint`, and adopt `newProposalRootId` when root component conversion returns it.
 - Change an Instance through exposed properties. Do not reparent or structurally edit its internals.
 - For complex declarative generation, first read [DesignPlan v1](references/design-plan-v1.md). Its
   Frame root is an isolated Proposal container and may represent a local design rather than a page.
 - Validate each complete DesignPlan candidate once. If validation fails, correct the reported issue
   and treat the revision as a new candidate; never probe the schema through repeated calls. Apply a
-  successful validation ID before it expires because IDs are single-use.
+  successful validation ID before it expires because IDs are single-use. Put up to 200 unique refs
+  needed after apply in validation-request `returnRefs`; do not add them to the DesignPlan body.
+  Apply omits `refMap` when no refs were requested.
 - Re-read or render the affected scope after writing; add an overall preview for layout-wide changes.
 - Before discarding a Proposal, obtain its latest complete-tree fingerprint with
   `figma_get_fingerprint`. If the bridge returns `PROPOSAL_CHANGED`, stop and ask the user whether to

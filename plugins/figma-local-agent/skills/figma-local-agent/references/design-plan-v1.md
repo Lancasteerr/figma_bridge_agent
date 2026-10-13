@@ -107,7 +107,11 @@ the plan. A Clone source may be a supported non-Frame SceneNode, but it cannot b
 `CREATE_INSTANCE` requires a current-page Component or an Instance with an accessible main
 component. `CLONE_INSTANCE` requires a current-page Instance. Request exact fonts with
 `figma_list_fonts` before validation and use resources or staged assets only when the plan needs
-them.
+them. A staged asset reference carries only its `assetId`; its internal digest is not part of the
+DesignPlan.
 
 Validate each complete candidate once. If validation reports a specific error, correct it and treat
-the changed plan as a new candidate; do not probe the schema with repeated validation calls.
+the changed plan as a new candidate; do not probe the schema with repeated validation calls. Put up
+to 200 unique node or resource refs needed after apply in the validation request's `returnRefs`, not
+inside the plan. Validation checks that every requested ref exists, and apply returns only those refs
+in the optional merged `refMap`.

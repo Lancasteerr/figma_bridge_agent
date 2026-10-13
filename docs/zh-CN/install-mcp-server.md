@@ -2,7 +2,7 @@
 
 [English](../en-US/install-mcp-server.md) · [选择安装方式](configuration.md) · [文档首页](README.md)
 
-本指南面向 Claude Code、Claude Desktop及其他能够在 Windows 本机启动 stdio MCP Server 的客户端。直接配置会提供与 Agent Plugin 相同的 26 个 MCP 工具，但不会自动安装 `plugins/figma-local-agent/skills/` 中的工作流 Skill。
+本指南面向 Claude Code、Claude Desktop及其他能够在 Windows 本机启动 stdio MCP Server 的客户端。直接配置会提供与 Agent Plugin 相同的 24 个 MCP 工具，但不会自动安装 `plugins/figma-local-agent/skills/` 中的工作流 Skill。
 
 Claude Code 自身支持插件，但本项目当前没有发布与其插件 marketplace 结构匹配的入口，因此推荐使用本页的直接 stdio 配置。这是正式安装方式，不是降级路径。
 
@@ -127,8 +127,8 @@ enabled = true
 保存配置后重启 MCP 客户端或新建会话，然后：
 
 1. 确认客户端只加载一个 `figma-local-agent` Server。
-2. 确认能发现 `figma_status`、`figma_bind_export_root` 等 26 个工具。
-3. 调用 `figma_status`，检查协议 v6、当前 Figma 文件、页面、选区、素材导出根状态和 Bridge 能力。
+2. 确认能发现 `figma_status`、`figma_bind_export_root` 等 24 个工具。
+3. 调用 `figma_status`，检查当前 Figma 文件、页面、选区以及 `UNBOUND` 或 `BOUND` 工作区。协议 8 兼容性由连接建立阶段在内部校验。
 
 直接配置不会自动加载 Agent Plugin Skill。需要了解安全写入顺序时，请阅读 [MCP 工具参考](tools.md)，尤其是 Proposal 与 DesignPlan 流程。
 

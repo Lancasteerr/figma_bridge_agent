@@ -22,7 +22,7 @@ current Design page
 
 An explicit CLI pairing session temporarily enables `ws://127.0.0.1:3900/pair`; normal operation leaves that path closed.
 
-`packages/protocol` owns transport-independent Zod schemas. Each MCP adapter owns one stdio session, a default staged export root, an optional Agent workspace binding, and an independent export session ID. The automatically managed Bridge Daemon owns the loopback listener, forwards data only, and multiplexes any number of authenticated MCP adapters onto one plugin connection; it never writes a front-end project. Plugin UI owns plugin-side authentication and reconnect behavior. Plugin main is the only process allowed to hold Figma objects.
+`packages/protocol` owns transport-independent Zod schemas, including separate plugin RPC and public MCP result contracts. Each MCP adapter owns one stdio session, an initially unbound Agent workspace, and an independent export session ID. The automatically managed Bridge Daemon owns the loopback listener, forwards data only, and multiplexes any number of authenticated MCP adapters onto one plugin connection; it never writes a front-end project. Plugin UI owns plugin-side authentication and reconnect behavior. Plugin main is the only process allowed to hold Figma objects.
 
 The first adapter starts the Daemon when needed. Closing one host only closes its adapter. The Daemon exits after both the last adapter and the plugin have been disconnected for 30 seconds.
 
@@ -34,17 +34,17 @@ The first adapter starts the Daemon when needed. Closing one host only closes it
 - Adapter logs go to stderr. The detached Daemon writes a bounded `bridge.log` in the user configuration directory and retains one rotated file. Logs contain only request ID, RPC method, duration, and outcome; secrets, image base64, and raw node JSON are excluded.
 - Visual previews from `figma_render_node` and large JSONL results from `figma_get_tree` go to `%TEMP%/figma-agent-mcp/<session-id>/`. This directory reuses the Adapter export session ID instead of creating a second temporary-session identity.
 - The current Adapter retains temporary files for thirty minutes and removes them immediately on close. Other Adapters do not clean individual files or empty directories in that session. A live Adapter removes crashed-session directories after their `mtime` has remained stale for twenty-four hours. If this removes an old but still-running session directory, its Adapter recreates the directory on its next write.
-- Assets and semantic snapshots are written by the Adapter and share one session-root binding, path validation, atomic writer, and staged quota. Every session starts under `~/figma_bridge_agent_export/<session-id>/`, retained for 24 hours with stale sessions removed at startup. Before the first write, the Agent may bind the exact absolute cwd from its own task execution environment with the latest session ID. The Adapter no longer trusts its own `process.cwd()`, and neither write class may rebind after the other starts.
+- Assets and semantic snapshots are written by the Adapter and share one immutable session-root binding, path validation, and atomic writer. Every session starts `UNBOUND`; no staging export root or staging quota exists. Before the first persistent write, the Agent must bind the exact absolute cwd from its own task execution environment with the latest session ID. The Adapter does not trust its own `process.cwd()`. Temporary tree and render files use the separate temporary store and remain available while unbound.
 
 ## Asset read and export lifecycle
 
 1. Node snapshots enumerate Image Paint, export-setting, vector, and mask facts. One tree read caches dimension lookup by image hash. Asset properties participate in snapshot fingerprints.
 2. A RAW request resolves the exact paint again and verifies both image hash and node snapshot fingerprint. A RENDERED request recalculates the complete node-subtree fingerprint. Source drift is rejected before reading bytes or calling `exportAsync()` where possible.
-3. The plugin returns original bytes, rendered bytes, or an SVG string through v6 RPC, with a 9 MiB per-item limit. Public MCP results never expose those bodies.
+3. The plugin returns original bytes, rendered bytes, or an SVG string through protocol 8 RPC, with a 9 MiB per-item limit. Public MCP results never expose those bodies.
 4. The Adapter rechecks RAW PNG/JPEG/GIF/WebP magic bytes and checks RENDERED format, extension, and payload size.
 5. The Adapter validates relative paths and realpaths of existing parents to block symlink/junction escapes, then writes a random temporary file in the destination directory and commits it by rename.
 6. Identical content at the same path returns `REUSED`; different content returns `EXPORT_TARGET_CONFLICT` by default. Explicit overwrite requires the existing SHA-256 and rechecks it just before rename to block concurrent modification.
-7. Binding must happen before any export write. The same canonical root is idempotent, and a session cannot switch to another root. A `WORKSPACE` result is ready for project use. A `STAGED` result must be copied to `projectRelativePath` and verified against SHA-256.
+7. Binding must happen before any export write. The same canonical root is idempotent, and a session cannot switch to another root. An unbound request fails with `EXPORT_ROOT_UNBOUND`; a successful result contains only a workspace-relative `path` and `CREATED`, `REUSED`, or `UPDATED` status.
 
 ## Semantic snapshot lifecycle
 
@@ -56,7 +56,8 @@ The first adapter starts the Daemon when needed. Closing one host only closes it
    source fingerprint. OUTLINE, focus sets, render choices, and budgets therefore never overwrite
    each other for the same design revision.
 4. The shared safe writer commits JSONL and optional PNG first, then writes `manifest.json` as the
-   completed-revision marker. Public MCP results contain paths and digests only.
+   completed-revision marker. Public MCP results contain the workspace-relative manifest path,
+   source fingerprint, completeness, and optional truncation only.
 5. The Agent creates lightweight `work-units/<scopeId>.json` with ordinary file editing. It references
    the manifest and records code mappings, status, and unresolved differences; the tool generates no
    subjective roles or page state machine.
@@ -67,7 +68,7 @@ The first adapter starts the Daemon when needed. Closing one host only closes it
 
 Write handlers accept only nodes inside a root carrying the `figma-agent-mcp:proposal` plugin-data marker. Marker v3 adds `GENERATED`/`CLONED` origin, build state, and operation ID while marker v2 remains readable and writable. Requested targets describe intent; the Proposal root remains the write boundary and every cloned context node inside it is writable.
 
-`figma_duplicate_as_proposal` accepts edit targets and resolves clone roots automatically. Flow children include their direct Auto Layout parent; ordinary leaves include their nearest structural container; Page and Section stop the search. Component Set variants and absolute Auto Layout children do not expand. The resolved scope is capped at 1000 scene nodes: an oversized inferred context falls back to the target with a warning, while an oversized target or aggregate request is rejected. Single roots are moved directly to the Page and multiple roots enter a transparent Page-level wrapper, so no Proposal remains in the original layout context. The response returns clone roots, requested-target mappings, resolution reasons, warnings, and the complete original-to-clone ID map.
+`figma_duplicate_as_proposal` accepts edit targets and resolves clone roots automatically. Flow children include their direct Auto Layout parent; ordinary leaves include their nearest structural container; Page and Section stop the search. Component Set variants and absolute Auto Layout children do not expand. The resolved scope is capped at 1000 scene nodes: an oversized inferred context falls back to the target with a warning, while an oversized target or aggregate request is rejected. Single roots are moved directly to the Page and multiple roots enter a transparent Page-level wrapper, so no Proposal remains in the original layout context. The public response maps only the requested edit targets to Proposal node IDs and resolution reasons; clone roots and the complete internal ID map remain private.
 
 Before cloning, the plugin fingerprints each source root plus its immediate layout parent and sibling geometry. It verifies the same context after detaching the clones; any drift returns `SOURCE_CHANGED_DURING_CLONE` and rolls back. Cloned nodes are unlocked recursively, while source visibility, locks, hierarchy, and geometry are never changed. Mutations are serialized and split into a read-only preparation phase and a write phase. Preparation failures never touch undo history. Because empty `commitUndo()` calls and Page plugin data do not establish a Figma undo boundary, the write phase creates an invisible temporary node as its undo anchor. On failure, the bridge first commits the anchor and any partial writes as the current unit, then immediately triggers undo for that unit. Even a failure before the first business write can therefore roll back only the current mutation instead of the previous successful action. The anchor is removed before a successful commit and reverted with the mutation on failure. A later successful mutation cleans any invisible anchor left by a plugin crash. Public undo is intentionally absent because it could undo later manual edits.
 
@@ -75,11 +76,11 @@ Discard requires the last inspected Proposal fingerprint. A user edit after insp
 
 ## DesignPlan lifecycle
 
-1. The agent inspects normalized trees/renders, calls `figma_list_fonts` and `figma_get_design_resources`, and optionally stages one Base64 asset at a time.
+1. The agent inspects normalized trees/renders, calls `figma_list_fonts` and `figma_get_design_resources`, and optionally stages one Base64 asset at a time. The public asset handle contains only `assetId`, optional dimensions, and expiry; internal digests remain private.
 2. For source-backed plans, the agent calls `figma_get_fingerprint` with the ordered source root IDs and copies both that order and the returned aggregate fingerprint into `source.rootNodeIds` and `source.fingerprint`.
-3. `figma_validate_design_plan` checks the 1000-node/32-depth limits, globally unique refs, current-page sources/components, explicit fonts, staged-asset digests, style/variable compatibility, resource-name conflicts, and the optional source fingerprint.
+3. `figma_validate_design_plan` checks the 1000-node/32-depth limits, globally unique refs, current-page sources/components, explicit fonts, staged-asset availability, style/variable compatibility, resource-name conflicts, and the optional source fingerprint. Its outer request may select up to 200 unique node or resource refs in `returnRefs`; these refs are cached with validation but do not participate in the plan digest.
 4. A valid plan receives a single-use validation ID that expires after five minutes.
-5. `figma_apply_design_plan` consumes the ID and repeats every mutable check before opening the write boundary.
+5. `figma_apply_design_plan` consumes the ID and repeats every mutable check before opening the write boundary. The public `refMap` is omitted by default and, when requested, contains only the selected node and resource refs.
 6. The plugin creates a hidden marker-v3 root, creates or reuses namespaced local resources, builds the node tree, binds resources, commits operation markers, then reveals the Proposal.
 7. Preparation failures create nothing. Write failures explicitly remove newly created resources and use the anchored rollback. The next write removes orphan `BUILDING` roots/resources after a plugin crash; resources associated with a committed Proposal are completed instead.
 
@@ -89,7 +90,7 @@ DesignPlan v1 supports Frame, Text, Rectangle, Ellipse, Line, Image, SVG, Clone,
 
 - Inputs are Base64 only. The MCP server never fetches URLs or reads caller-supplied local paths.
 - Raster assets are magic-checked and limited to 8 MiB/4096 px. SVG is parsed, sanitized, limited to 2 MiB/16384 units, then reserialized before hashing.
-- The plugin cache is 32 MiB with a ten-minute TTL and is cleared on disconnect. `assetId` is always paired with SHA-256.
+- The plugin cache is 32 MiB with a ten-minute TTL and is cleared on disconnect. Internally, `assetId` remains paired with SHA-256 for integrity and deduplication; public results and DesignPlans use only `assetId`.
 - Created resources use `Agent/<Proposal>/<name>`. Identical same-name resources are reused; different content returns `RESOURCE_CONFLICT`. Successful resources persist when a Proposal is discarded.
 - Variables have one `Default` mode and only COLOR/FLOAT/STRING/BOOLEAN are created. Team Library APIs and import-by-key APIs are not called.
 
@@ -100,6 +101,6 @@ DesignPlan v1 supports Frame, Text, Rectangle, Ellipse, Line, Image, SVG, Clone,
 - Render: maximum requested dimension 2048 px and raw PNG limit 9 MiB (keeps encoded RPC payload below the bridge limit).
 - Raw REST JSON: default 2 MiB, hard request limit 8 MiB.
 - Semantic RPC body: 12 MiB; a larger scope must be narrowed or split.
-- Staged exports: 256 MiB per server session and retained for 24 hours. Workspace exports do not consume the staging quota.
+- Persistent asset and semantic writes require a bound workspace. Temporary tree/render storage retains its independent TTL and quota controls.
 
 CSS from `getCSSAsync()` is labeled as a code-generation hint. Normalized snapshots remain the structural truth.

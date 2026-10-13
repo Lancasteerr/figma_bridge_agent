@@ -2,7 +2,7 @@
 
 [中文版](../zh-CN/configuration.md) · [Documentation home](README.md)
 
-Local Figma Agent has two first-class installation methods. Both connect the same local stdio MCP Server, expose the same 26 tools, and require the matching Figma development plugin to be imported and paired once. They differ only in how the MCP host receives the Server configuration and workflow guidance.
+Local Figma Agent has two first-class installation methods. Both connect the same local stdio MCP Server, expose the same 24 tools, and require the matching Figma development plugin to be imported and paired once. They differ only in how the MCP host receives the Server configuration and workflow guidance.
 
 | Installation method                                        | Intended clients                                         | MCP configuration      | Workflow Skill              | Supported channels                     |
 | ---------------------------------------------------------- | -------------------------------------------------------- | ---------------------- | --------------------------- | -------------------------------------- |

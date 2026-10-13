@@ -39,7 +39,7 @@ async function setup() {
     request: vi.fn(async () => ({
       connected: true,
       authenticated: true,
-      protocolVersion: 7,
+      protocolVersion: 8,
       pluginVersion: '2.2.7',
       document: { id: 'document:1', name: 'Community' },
       page: { id: 'page:1', name: 'Home' },
