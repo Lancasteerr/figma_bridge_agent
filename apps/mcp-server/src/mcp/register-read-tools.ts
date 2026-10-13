@@ -226,7 +226,7 @@ export function registerReadTools(
     'figma_get_tree',
     {
       description:
-        'Return a bounded lightweight navigation tree. Large results are written to a temporary JSONL file; use get_node or semantic snapshots for implementation facts.',
+        'Return a bounded lightweight navigation tree. maxTextLength must be an integer from 0 to 80 and defaults to 80. Large results are written to a temporary JSONL file; use get_node or semantic snapshots for implementation facts.',
       inputSchema: GetTreeInputSchema,
       outputSchema: TreeResultSchema,
       annotations: {

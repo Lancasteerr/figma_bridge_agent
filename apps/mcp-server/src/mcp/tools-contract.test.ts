@@ -134,8 +134,19 @@ describe('MCP tool contract', () => {
     ).not.toHaveProperty('data');
 
     const tree = tools.find((tool) => tool.name === 'figma_get_tree');
+    expect(tree?.description).toContain(
+      'maxTextLength must be an integer from 0 to 80 and defaults to 80.',
+    );
     expect(tree?.inputSchema).toMatchObject({
-      properties: { delivery: expect.any(Object), maxTextLength: expect.any(Object) },
+      properties: {
+        delivery: expect.any(Object),
+        maxTextLength: {
+          type: 'integer',
+          minimum: 0,
+          maximum: 80,
+          default: 80,
+        },
+      },
     });
     expect(tree?.outputSchema).toMatchObject({
       properties: {
@@ -216,6 +227,7 @@ describe('MCP tool contract', () => {
 
 interface ListedTool {
   name: string;
+  description?: string;
   inputSchema: unknown;
   outputSchema: unknown;
   annotations?: Record<string, unknown>;
