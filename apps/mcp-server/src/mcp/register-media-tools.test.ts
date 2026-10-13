@@ -19,6 +19,8 @@ type ToolHandler = (input: Record<string, unknown>) => Promise<{
 const cleanupPaths: string[] = [];
 const artifactStores: TemporaryArtifactStore[] = [];
 const SESSION_ID = '11111111-1111-4111-8111-111111111111';
+const PNG_1X1 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 
 afterEach(async () => {
   for (const store of artifactStores.splice(0).reverse()) await store.close();
@@ -191,6 +193,39 @@ describe('figma_export_asset MCP 工具', () => {
     expect(response.content[0]?.text).toContain('EXPORT_ROOT_UNBOUND');
     expect(broker.request).not.toHaveBeenCalled();
     await expect(readFile(join(workspace, 'public/logo.svg'))).rejects.toBeDefined();
+  });
+});
+
+describe('figma_stage_asset MCP 工具', () => {
+  it('公开结果只返回 assetId、尺寸和过期时间，摘要仅留在内部 RPC', async () => {
+    const expiresAt = '2026-10-14T00:10:00.000Z';
+    const { handlers, broker } = await setup(
+      {
+        assetId: '22222222-2222-4222-8222-222222222222',
+        width: 1,
+        height: 1,
+        expiresAt,
+      },
+      { bind: false },
+    );
+
+    const response = await handlers.get('figma_stage_asset')!({
+      name: 'pixel.png',
+      mimeType: 'image/png',
+      dataBase64: PNG_1X1,
+    });
+
+    expect(response.structuredContent).toEqual({
+      assetId: '22222222-2222-4222-8222-222222222222',
+      width: 1,
+      height: 1,
+      expiresAt,
+    });
+    expect(broker.request).toHaveBeenCalledWith(
+      'stageAsset',
+      expect.objectContaining({ sha256: expect.stringMatching(/^[a-f0-9]{64}$/), bytes: 68 }),
+      30_000,
+    );
   });
 });
 

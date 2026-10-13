@@ -55,20 +55,16 @@ describe('adaptive Proposal duplication', () => {
     expect(fixture.sourceRoot.locked).toBe(true);
     expect(fixture.sourceTarget.locked).toBe(true);
     expect(mocks.markProposal).toHaveBeenCalledWith(fixture.cloneRoot, ['source-root'], ['target']);
-    expect(result).toMatchObject({
+    expect(result).toEqual({
       proposalRootId: 'clone-root',
-      requestedTargetIds: ['target'],
-      cloneRoots: [{ sourceNodeId: 'source-root', proposalNodeId: 'clone-root', nodeCount: 2 }],
       targetMap: [
         {
           sourceNodeId: 'target',
           proposalNodeId: 'clone-target',
-          cloneRootSourceNodeId: 'source-root',
           resolution: 'NEAREST_CONTAINER',
         },
       ],
-      warnings: [],
-      fingerprint: 'proposal-fingerprint',
+      proposalFingerprint: 'proposal-fingerprint',
     });
   });
 

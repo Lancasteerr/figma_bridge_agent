@@ -47,7 +47,7 @@ export class AssetCache {
     return this.result(entry);
   }
 
-  get(assetId: string, sha256: string): StagedAssetEntry {
+  get(assetId: string): StagedAssetEntry {
     const entry = this.#entries.get(assetId);
     if (!entry) {
       throw new BridgeFault({
@@ -64,7 +64,6 @@ export class AssetCache {
         retryable: true,
       });
     }
-    if (entry.sha256 !== sha256) throw invalid(`Staged asset ${assetId} digest does not match.`);
     return entry;
   }
 
@@ -90,10 +89,6 @@ export class AssetCache {
   private result(entry: StagedAssetEntry): StagedAssetResult {
     return {
       assetId: entry.assetId,
-      kind: entry.kind,
-      mimeType: entry.mimeType,
-      sha256: entry.sha256,
-      bytes: entry.bytes,
       ...(entry.width ? { width: entry.width } : {}),
       ...(entry.height ? { height: entry.height } : {}),
       expiresAt: new Date(entry.expiresAtMs).toISOString(),

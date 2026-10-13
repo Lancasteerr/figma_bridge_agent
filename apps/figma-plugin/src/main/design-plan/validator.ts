@@ -27,7 +27,10 @@ export interface ValidatedDesignSource {
 }
 
 /** 只读解析计划引用，所有文档写入必须留到 atomicMutation 的 mutate 阶段。 */
-export async function validateDesignPlan(plan: DesignPlan): Promise<ValidatedDesignSource> {
+export async function validateDesignPlan(
+  plan: DesignPlan,
+  returnRefs: readonly string[] = [],
+): Promise<ValidatedDesignSource> {
   const roots = plan.source
     ? await Promise.all(plan.source.rootNodeIds.map(resolveCurrentPageNode))
     : [];
@@ -105,7 +108,7 @@ export async function validateDesignPlan(plan: DesignPlan): Promise<ValidatedDes
     }
 
     if (node.kind === 'IMAGE' || node.kind === 'SVG') {
-      const asset = assetCache.get(node.asset.assetId, node.asset.sha256);
+      const asset = assetCache.get(node.asset.assetId);
       if (node.kind === 'IMAGE' && asset.kind !== 'RASTER') {
         throw invalid(`IMAGE ${node.ref} requires a raster asset.`, node.ref);
       }
@@ -141,6 +144,9 @@ export async function validateDesignPlan(plan: DesignPlan): Promise<ValidatedDes
   const existingVariables = new Map<string, Variable>();
   for (const node of nodes) {
     await validateBindings(node, resources, existingStyles, existingVariables);
+  }
+  for (const ref of returnRefs) {
+    if (!refs.has(ref)) throw invalid(`Unknown return ref: ${ref}.`, ref);
   }
   return {
     roots,

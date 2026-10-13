@@ -4,21 +4,30 @@ const VALIDATION_TTL_MS = 5 * 60_000;
 
 interface Entry {
   plan: DesignPlan;
+  returnRefs: string[];
   expiresAt: number;
+}
+
+export interface CachedDesignValidation {
+  plan: DesignPlan;
+  returnRefs: string[];
 }
 
 export class DesignValidationCache {
   readonly #entries = new Map<string, Entry>();
 
-  put(plan: DesignPlan): { validationId: string; expiresAt: string } {
+  put(
+    plan: DesignPlan,
+    returnRefs: readonly string[],
+  ): { validationId: string; expiresAt: string } {
     this.prune();
     const validationId = createId();
     const expiresAt = Date.now() + VALIDATION_TTL_MS;
-    this.#entries.set(validationId, { plan, expiresAt });
+    this.#entries.set(validationId, { plan, returnRefs: [...returnRefs], expiresAt });
     return { validationId, expiresAt: new Date(expiresAt).toISOString() };
   }
 
-  take(validationId: string): DesignPlan {
+  take(validationId: string): CachedDesignValidation {
     const entry = this.#entries.get(validationId);
     this.#entries.delete(validationId);
     if (!entry || entry.expiresAt <= Date.now()) {
@@ -28,7 +37,7 @@ export class DesignValidationCache {
         retryable: true,
       });
     }
-    return entry.plan;
+    return { plan: entry.plan, returnRefs: [...entry.returnRefs] };
   }
 
   invalidate(): void {

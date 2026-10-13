@@ -546,26 +546,39 @@ export const DesignPlanSchema = z
   .strict();
 export type DesignPlan = z.infer<typeof DesignPlanSchema>;
 
-export const DesignPlanWarningSchema = z.object({
-  code: z.string(),
-  message: z.string(),
-  ref: z.string().optional(),
-  nodeId: z.string().optional(),
-});
+export const DesignPlanWarningSchema = z
+  .object({
+    code: z.string(),
+    message: z.string(),
+    ref: z.string().optional(),
+    nodeId: z.string().optional(),
+  })
+  .strict();
 export type DesignPlanWarning = z.infer<typeof DesignPlanWarningSchema>;
 
-export const DesignPlanValidationResultSchema = z.object({
-  valid: z.boolean(),
-  validationId: z.string().optional(),
-  expiresAt: z.string().datetime().optional(),
-  warnings: z.array(DesignPlanWarningSchema),
-});
+export const DesignPlanValidationResultSchema = z.discriminatedUnion('status', [
+  z
+    .object({
+      status: z.literal('VALID'),
+      validationId: z.string().min(1),
+      expiresAt: z.string().datetime(),
+      warnings: z.array(DesignPlanWarningSchema).min(1).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal('INVALID'),
+      issues: z.array(DesignPlanWarningSchema).min(1),
+    })
+    .strict(),
+]);
 export type DesignPlanValidationResult = z.infer<typeof DesignPlanValidationResultSchema>;
 
-export const DesignPlanApplyResultSchema = z.object({
-  proposalRootId: z.string(),
-  refMap: z.record(z.string(), z.string()),
-  resourceMap: z.record(z.string(), z.string()),
-  fingerprint: z.string(),
-});
+export const DesignPlanApplyResultSchema = z
+  .object({
+    proposalRootId: z.string(),
+    refMap: z.record(z.string(), z.string()).optional(),
+    proposalFingerprint: z.string().min(8),
+  })
+  .strict();
 export type DesignPlanApplyResult = z.infer<typeof DesignPlanApplyResultSchema>;

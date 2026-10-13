@@ -15,7 +15,7 @@ export function registerDesignTools(server: McpServer, broker: BridgeTransport):
     'figma_validate_design_plan',
     {
       description:
-        'Validate a complete declarative DesignPlan without modifying Figma. The root is an isolated Proposal Frame, not a Figma Page. TEXT uses text.font.requested, CLONE uses sourceNodeId, and INSTANCE uses source { mode, nodeId }. A valid result contains a single-use ID that expires after five minutes.',
+        'Validate a complete declarative DesignPlan without modifying Figma. Optional returnRefs selects up to 200 node or resource mappings for apply; it is not part of the plan digest. A valid result contains a single-use ID that expires after five minutes.',
       inputSchema: ValidateDesignPlanInputSchema,
       outputSchema: DesignPlanValidationResultSchema,
       annotations: {
@@ -44,7 +44,7 @@ export function registerDesignTools(server: McpServer, broker: BridgeTransport):
     'figma_apply_design_plan',
     {
       description:
-        'Atomically create a complete isolated Proposal from a previously validated DesignPlan.',
+        'Atomically create a complete isolated Proposal from a previously validated DesignPlan. refMap is omitted unless returnRefs were requested during validation.',
       inputSchema: ApplyDesignPlanInputSchema,
       outputSchema: DesignPlanApplyResultSchema,
       annotations: {

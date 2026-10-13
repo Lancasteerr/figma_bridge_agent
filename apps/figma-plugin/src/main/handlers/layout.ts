@@ -41,9 +41,7 @@ export async function setLayout(params: unknown): Promise<MutationResult> {
         node.y = input.absolute.y;
       }
       return {
-        proposalRootId: root.id,
-        affectedNodeIds: [node.id],
-        fingerprint: await fingerprintNodeTree([root]),
+        proposalFingerprint: await fingerprintNodeTree([root]),
       };
     },
   });

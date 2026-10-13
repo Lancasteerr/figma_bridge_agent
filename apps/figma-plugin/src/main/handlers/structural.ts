@@ -2,6 +2,7 @@ import {
   BridgeFault,
   CreateFrameInputSchema,
   ReparentNodesInputSchema,
+  type CreateFrameResult,
   type MutationResult,
 } from '@figma-agent/protocol';
 
@@ -10,7 +11,7 @@ import { assertProposalTargets, isInside } from '../proposal/marker.js';
 import { fingerprintNodeTree } from '../serialization/node-snapshot.js';
 
 /** 在 Proposal 内创建普通 Frame，不允许把原稿节点作为父级。 */
-export async function createFrame(params: unknown): Promise<MutationResult> {
+export async function createFrame(params: unknown): Promise<CreateFrameResult> {
   const input = CreateFrameInputSchema.parse(params);
   return await atomicMutation({
     prepare: async () => {
@@ -39,9 +40,8 @@ export async function createFrame(params: unknown): Promise<MutationResult> {
       frame.x = input.x;
       frame.y = input.y;
       return {
-        proposalRootId: root.id,
-        affectedNodeIds: [frame.id],
-        fingerprint: await fingerprintNodeTree([root]),
+        nodeId: frame.id,
+        proposalFingerprint: await fingerprintNodeTree([root]),
       };
     },
   });
@@ -105,9 +105,7 @@ export async function reparentNodes(params: unknown): Promise<MutationResult> {
         }
       }
       return {
-        proposalRootId: root.id,
-        affectedNodeIds: nodes.map((node) => node.id),
-        fingerprint: await fingerprintNodeTree([root]),
+        proposalFingerprint: await fingerprintNodeTree([root]),
       };
     },
   });

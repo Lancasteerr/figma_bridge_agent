@@ -225,7 +225,18 @@ export const DiscardProposalInputSchema = z.object({
   proposalRootId: z.string().min(1),
   expectedFingerprint: z.string().min(8),
 });
-export const ValidateDesignPlanInputSchema = z.object({ plan: DesignPlanSchema });
+export const ValidateDesignPlanInputSchema = z
+  .object({
+    plan: DesignPlanSchema,
+    returnRefs: z
+      .array(z.string().min(1).max(200))
+      .max(200)
+      .refine((refs) => new Set(refs).size === refs.length, {
+        message: 'returnRefs must be unique.',
+      })
+      .optional(),
+  })
+  .strict();
 export const ApplyDesignPlanInputSchema = z.object({ validationId: z.string().min(1) });
 
 /** 插件内部渲染 RPC 携带 base64；该 schema 不得直接作为 MCP 工具输出。 */

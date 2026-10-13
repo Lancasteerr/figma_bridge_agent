@@ -34,9 +34,7 @@ export async function updateText(params: unknown): Promise<MutationResult> {
         node.lineHeight = { value: input.lineHeight, unit: 'PIXELS' };
       }
       return {
-        proposalRootId: root.id,
-        affectedNodeIds: [node.id],
-        fingerprint: await fingerprintNodeTree([root]),
+        proposalFingerprint: await fingerprintNodeTree([root]),
       };
     },
   });

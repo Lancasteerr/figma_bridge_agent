@@ -192,7 +192,6 @@ describe('DesignPlan v1 schema', () => {
   it('accepts staged raster and SVG references', () => {
     const asset = {
       assetId: '11111111-1111-4111-8111-111111111111',
-      sha256: 'a'.repeat(64),
     };
     expect(
       DesignPlanSchema.parse({
@@ -219,6 +218,23 @@ describe('DesignPlan v1 schema', () => {
         },
       }),
     ).toMatchObject({ root: { children: [{ kind: 'IMAGE' }, { kind: 'SVG' }] } });
+    expect(
+      DesignPlanSchema.safeParse({
+        ...plan,
+        root: {
+          ...plan.root,
+          children: [
+            {
+              kind: 'SVG',
+              ref: 'icon',
+              name: 'Icon',
+              geometry: { width: 24, height: 24 },
+              asset: { ...asset, sha256: 'a'.repeat(64) },
+            },
+          ],
+        },
+      }).success,
+    ).toBe(false);
   });
 
   it('accepts namespaced resources, bindings, and current-page instance reuse', () => {

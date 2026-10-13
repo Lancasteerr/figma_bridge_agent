@@ -2,9 +2,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { DesignPlanSchema } from '@figma-agent/protocol';
 
+import { assetCache } from '../src/main/assets/asset-cache.js';
 import { validateDesignPlan } from '../src/main/design-plan/validator.js';
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  assetCache.clear();
+  vi.unstubAllGlobals();
+});
 
 describe('DesignPlan font and text validation', () => {
   it('uses only an explicitly declared fallback', async () => {
@@ -31,6 +35,81 @@ describe('DesignPlan font and text validation', () => {
     expect(result.warnings).toEqual([
       expect.objectContaining({ code: 'FONT_FALLBACK', ref: 'title' }),
     ]);
+  });
+
+  it('接受节点与资源 returnRefs，并拒绝未知引用', async () => {
+    vi.stubGlobal('figma', {
+      listAvailableFontsAsync: vi
+        .fn()
+        .mockResolvedValue([{ fontName: { family: 'Inter', style: 'Regular' } }]),
+      getLocalPaintStylesAsync: vi.fn().mockResolvedValue([]),
+      getLocalTextStylesAsync: vi.fn().mockResolvedValue([]),
+      getLocalEffectStylesAsync: vi.fn().mockResolvedValue([]),
+      getLocalGridStylesAsync: vi.fn().mockResolvedValue([]),
+      variables: {
+        getLocalVariableCollectionsAsync: vi.fn().mockResolvedValue([]),
+        getLocalVariablesAsync: vi.fn().mockResolvedValue([]),
+      },
+    });
+    const plan = DesignPlanSchema.parse({
+      ...textPlan(),
+      resources: [{ kind: 'PAINT_STYLE', ref: 'brand', name: 'Brand', paints: [] }],
+    });
+
+    await expect(validateDesignPlan(plan, ['page', 'title', 'brand'])).resolves.toBeDefined();
+    await expect(validateDesignPlan(plan, ['missing'])).rejects.toMatchObject({
+      bridgeError: { code: 'PLAN_INVALID' },
+    });
+  });
+
+  it('DesignPlan 仅凭 assetId 解析插件内存中的素材', async () => {
+    vi.stubGlobal('figma', {
+      base64Decode: (value: string) => new Uint8Array(Buffer.from(value, 'base64')),
+      listAvailableFontsAsync: vi.fn().mockResolvedValue([]),
+      getLocalPaintStylesAsync: vi.fn().mockResolvedValue([]),
+      getLocalTextStylesAsync: vi.fn().mockResolvedValue([]),
+      getLocalEffectStylesAsync: vi.fn().mockResolvedValue([]),
+      getLocalGridStylesAsync: vi.fn().mockResolvedValue([]),
+      variables: {
+        getLocalVariableCollectionsAsync: vi.fn().mockResolvedValue([]),
+        getLocalVariablesAsync: vi.fn().mockResolvedValue([]),
+      },
+    });
+    const assetId = '11111111-1111-4111-8111-111111111111';
+    assetCache.put({
+      assetId,
+      name: 'pixel.png',
+      kind: 'RASTER',
+      mimeType: 'image/png',
+      sha256: 'a'.repeat(64),
+      bytes: 1,
+      width: 1,
+      height: 1,
+      dataBase64: 'AA==',
+    });
+    const plan = DesignPlanSchema.parse({
+      version: 1,
+      proposal: { name: 'Asset proposal' },
+      root: {
+        kind: 'FRAME',
+        ref: 'root',
+        name: 'Root',
+        geometry: { width: 100, height: 100 },
+        children: [
+          {
+            kind: 'IMAGE',
+            ref: 'image',
+            name: 'Image',
+            geometry: { width: 1, height: 1 },
+            asset: { assetId },
+          },
+        ],
+      },
+    });
+
+    const result = await validateDesignPlan(plan, ['image']);
+
+    expect(result.assets.get('image')).toMatchObject({ assetId, sha256: 'a'.repeat(64) });
   });
 
   it('rejects text ranges beyond the character count', async () => {

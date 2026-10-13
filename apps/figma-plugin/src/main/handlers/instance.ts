@@ -42,9 +42,7 @@ export async function setInstanceProperties(params: unknown): Promise<MutationRe
         });
       }
       return {
-        proposalRootId: root.id,
-        affectedNodeIds: [node.id],
-        fingerprint: await fingerprintNodeTree([root]),
+        proposalFingerprint: await fingerprintNodeTree([root]),
       };
     },
   });

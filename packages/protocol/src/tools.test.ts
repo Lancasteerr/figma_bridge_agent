@@ -11,6 +11,7 @@ import {
   GetTreeRpcInputSchema,
   RenderResultSchema,
   RenderRpcResultSchema,
+  ValidateDesignPlanInputSchema,
 } from './tools.js';
 
 describe('export root binding contract', () => {
@@ -60,6 +61,41 @@ describe('aggregate fingerprint input', () => {
   it('rejects empty and duplicate node IDs', () => {
     expect(GetFingerprintInputSchema.safeParse({ nodeIds: [] }).success).toBe(false);
     expect(GetFingerprintInputSchema.safeParse({ nodeIds: ['root', 'root'] }).success).toBe(false);
+  });
+});
+
+describe('DesignPlan returnRefs input', () => {
+  const request = {
+    plan: {
+      version: 1 as const,
+      proposal: { name: 'Proposal' },
+      root: {
+        kind: 'FRAME' as const,
+        ref: 'root',
+        name: 'Root',
+        geometry: { width: 100, height: 100 },
+        children: [],
+      },
+    },
+  };
+
+  it('接受空值和不重复的按需引用', () => {
+    expect(ValidateDesignPlanInputSchema.safeParse(request).success).toBe(true);
+    expect(
+      ValidateDesignPlanInputSchema.safeParse({ ...request, returnRefs: ['root'] }).success,
+    ).toBe(true);
+  });
+
+  it('拒绝重复引用和超过二百个引用', () => {
+    expect(
+      ValidateDesignPlanInputSchema.safeParse({ ...request, returnRefs: ['root', 'root'] }).success,
+    ).toBe(false);
+    expect(
+      ValidateDesignPlanInputSchema.safeParse({
+        ...request,
+        returnRefs: Array.from({ length: 201 }, (_, index) => `ref-${index}`),
+      }).success,
+    ).toBe(false);
   });
 });
 

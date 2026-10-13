@@ -5,6 +5,7 @@ import {
   DiscardProposalInputSchema,
   DiscardProposalResultSchema,
   DuplicateProposalInputSchema,
+  CreateFrameResultSchema,
   MutationResultSchema,
   ProposalResultSchema,
   ReparentNodesInputSchema,
@@ -52,7 +53,7 @@ export function registerMutationTools(server: McpServer, broker: BridgeTransport
       description:
         'Create one ordinary Frame inside a bridge-marked Proposal. Original design nodes are rejected.',
       inputSchema: CreateFrameInputSchema,
-      outputSchema: MutationResultSchema,
+      outputSchema: CreateFrameResultSchema,
       annotations: {
         title: 'Create Frame in Proposal',
         readOnlyHint: false,
@@ -65,7 +66,7 @@ export function registerMutationTools(server: McpServer, broker: BridgeTransport
       try {
         const parsed = CreateFrameInputSchema.parse(input);
         return structuredResult(
-          MutationResultSchema.parse(await broker.request('createFrame', parsed, 15_000)),
+          CreateFrameResultSchema.parse(await broker.request('createFrame', parsed, 15_000)),
         );
       } catch (error) {
         return toolError(error);

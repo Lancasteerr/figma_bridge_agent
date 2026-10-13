@@ -21,9 +21,15 @@ describe('plugin staged asset cache', () => {
     const first = cache.put(rasterInput('11111111-1111-4111-8111-111111111111'));
     const second = cache.put(rasterInput('22222222-2222-4222-8222-222222222222'));
 
+    expect(first).toEqual({
+      assetId: '11111111-1111-4111-8111-111111111111',
+      width: 1,
+      height: 1,
+      expiresAt: '2026-10-02T00:10:00.000Z',
+    });
     expect(second.assetId).toBe(first.assetId);
     cache.clear();
-    expect(() => cache.get(first.assetId, first.sha256)).toThrowError();
+    expect(() => cache.get(first.assetId)).toThrowError();
   });
 
   it('expires entries after ten minutes', () => {
@@ -31,7 +37,7 @@ describe('plugin staged asset cache', () => {
     const result = cache.put(rasterInput('11111111-1111-4111-8111-111111111111'));
     vi.advanceTimersByTime(10 * 60_000 + 1);
 
-    expect(() => cache.get(result.assetId, result.sha256)).toThrowError();
+    expect(() => cache.get(result.assetId)).toThrowError();
   });
 });
 

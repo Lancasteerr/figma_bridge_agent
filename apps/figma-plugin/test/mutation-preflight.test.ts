@@ -134,7 +134,7 @@ describe('mutation preflight boundaries', () => {
       },
     };
     const source = { roots: [{ id: 'source-root' }] };
-    mocks.takeValidation.mockReturnValue(plan);
+    mocks.takeValidation.mockReturnValue({ plan, returnRefs: [] });
     mocks.validateDesignPlan.mockResolvedValue(source);
     mocks.fingerprintNodeTree.mockResolvedValue('actual-fingerprint');
 
@@ -151,7 +151,7 @@ describe('mutation preflight boundaries', () => {
     const figmaSpy = installFigmaSpy();
     const plan = { resources: [], root: { kind: 'FRAME' } };
     const source = { roots: [] };
-    mocks.takeValidation.mockReturnValue(plan);
+    mocks.takeValidation.mockReturnValue({ plan, returnRefs: [] });
     mocks.validateDesignPlan.mockResolvedValue(source);
     mocks.designPlanDigest.mockImplementation(() => {
       throw new Error('digest failed');

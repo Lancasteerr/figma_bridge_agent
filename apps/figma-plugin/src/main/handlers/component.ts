@@ -26,21 +26,19 @@ export async function createComponentFromNode(params: unknown): Promise<CreateCo
       return {
         root,
         node,
-        replacedNodeId: node.id,
         replacesRoot: node.id === root.id,
         marker: node.id === root.id ? readProposalMarker(root) : undefined,
       };
     },
-    mutate: async ({ root, node, replacedNodeId, replacesRoot, marker }) => {
+    mutate: async ({ root, node, replacesRoot, marker }) => {
       const component = figma.createComponentFromNode(node);
       // createComponentFromNode 会替换原 Frame，因此根 Proposal 的 marker 不能依赖旧节点。
       const proposalRoot = replacesRoot ? component : root;
       if (marker) markProposal(component, marker.sourceRootIds, marker.requestedTargetIds);
       return {
-        proposalRootId: proposalRoot.id,
         componentId: component.id,
-        replacedNodeId,
-        fingerprint: await fingerprintNodeTree([proposalRoot]),
+        ...(replacesRoot ? { newProposalRootId: component.id } : {}),
+        proposalFingerprint: await fingerprintNodeTree([proposalRoot]),
       };
     },
   });

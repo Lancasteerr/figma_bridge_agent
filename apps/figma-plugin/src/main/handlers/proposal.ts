@@ -52,9 +52,7 @@ export async function duplicateAsProposal(params: unknown): Promise<ProposalResu
 }
 
 /** 在指纹仍匹配时删除由桥接创建的 Proposal。 */
-export async function discardProposal(
-  params: unknown,
-): Promise<{ discardedProposalRootId: string }> {
+export async function discardProposal(params: unknown): Promise<Record<string, never>> {
   const input = DiscardProposalInputSchema.parse(params);
   return await atomicMutation({
     prepare: async () => {
@@ -66,9 +64,8 @@ export async function discardProposal(
       return root;
     },
     mutate: (root) => {
-      const id = root.id;
       root.remove();
-      return { discardedProposalRootId: id };
+      return {};
     },
   });
 }
@@ -146,13 +143,7 @@ async function duplicateResolvedScope(
     const targetMap = scope.bindings.map((binding) => ({
       sourceNodeId: binding.target.id,
       proposalNodeId: requireMappedId(idMap, binding.target.id),
-      cloneRootSourceNodeId: binding.root.id,
       resolution: binding.resolution,
-    }));
-    const cloneRoots = scope.roots.map(({ node, nodeCount }) => ({
-      sourceNodeId: node.id,
-      proposalNodeId: requireMappedId(idMap, node.id),
-      nodeCount,
     }));
 
     root.visible = true;
@@ -160,12 +151,9 @@ async function duplicateResolvedScope(
     figma.viewport.scrollAndZoomIntoView([root]);
     return {
       proposalRootId: root.id,
-      requestedTargetIds: scope.targets.map((target) => target.id),
-      cloneRoots,
       targetMap,
-      idMap,
-      warnings: scope.warnings,
-      fingerprint: await fingerprintNodeTree([root]),
+      ...(scope.warnings.length > 0 ? { warnings: scope.warnings } : {}),
+      proposalFingerprint: await fingerprintNodeTree([root]),
     };
   } catch (error) {
     if (root && !root.removed) root.remove();

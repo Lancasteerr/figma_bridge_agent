@@ -78,6 +78,35 @@ describe('MCP tool contract', () => {
       expect(tool.inputSchema).toMatchObject({ type: 'object' });
       expect(tool.outputSchema).toMatchObject({ type: 'object' });
       expect(tool.annotations).toMatchObject({ openWorldHint: false });
+      const outputProperties = collectPropertyNames(tool.outputSchema);
+      for (const forbidden of [
+        'sha256',
+        'bytes',
+        'createdAt',
+        'delivery',
+        'requiresCopy',
+        'projectRelativePath',
+        'absolutePath',
+        'cloneRoots',
+        'requestedTargetIds',
+        'idMap',
+        'affectedNodeIds',
+        'discardedProposalRootId',
+        'nodeIds',
+        'rootNodeId',
+        'pageId',
+        'cursor',
+        'total',
+        'scannedNodeCount',
+        'scanTruncated',
+        'mimeType',
+        'fingerprint',
+      ]) {
+        expect(outputProperties, `${tool.name} exposes ${forbidden}`).not.toContain(forbidden);
+      }
+      expect(JSON.stringify(tool.outputSchema), `${tool.name} exposes STAGED`).not.toContain(
+        'STAGED',
+      );
     }
     expect(tools.find((tool) => tool.name === 'figma_discard_proposal')?.annotations).toMatchObject(
       { destructiveHint: true },
@@ -91,11 +120,14 @@ describe('MCP tool contract', () => {
     ).not.toHaveProperty('nodeIds');
     expect(duplicate?.outputSchema).toMatchObject({
       properties: {
-        cloneRoots: expect.any(Object),
         targetMap: expect.any(Object),
         warnings: expect.any(Object),
+        proposalFingerprint: expect.any(Object),
       },
     });
+    expect(
+      (duplicate?.outputSchema as { properties?: Record<string, unknown> }).properties,
+    ).not.toHaveProperty('idMap');
     const fingerprint = tools.find((tool) => tool.name === 'figma_get_fingerprint');
     expect(fingerprint?.inputSchema).toMatchObject({
       properties: { nodeIds: expect.any(Object) },
@@ -194,6 +226,17 @@ describe('MCP tool contract', () => {
       ['CLONE', 'ELLIPSE', 'FRAME', 'IMAGE', 'INSTANCE', 'LINE', 'RECTANGLE', 'SVG', 'TEXT'].sort(),
     );
     expect(variants).toContainEqual({ $ref: rootRef });
+    expect(validatePlan?.inputSchema).toMatchObject({
+      properties: { returnRefs: expect.any(Object) },
+    });
+    const applyPlan = tools.find((tool) => tool.name === 'figma_apply_design_plan');
+    expect(applyPlan?.outputSchema).toMatchObject({
+      properties: {
+        proposalRootId: expect.any(Object),
+        refMap: expect.any(Object),
+        proposalFingerprint: expect.any(Object),
+      },
+    });
   });
 
   it('advertises all tools for three independent MCP sessions before the daemon is ready', async () => {
@@ -241,6 +284,23 @@ interface ServerInfo {
 interface ServerSnapshot {
   serverInfo: ServerInfo | undefined;
   tools: ListedTool[];
+}
+
+/** 递归读取 JSON Schema 的 properties，防止内部记账字段藏在嵌套输出中。 */
+function collectPropertyNames(schema: unknown, names = new Set<string>()): Set<string> {
+  if (!schema || typeof schema !== 'object') return names;
+  const object = schema as Record<string, unknown>;
+  if (object.properties && typeof object.properties === 'object') {
+    for (const key of Object.keys(object.properties)) names.add(key);
+  }
+  for (const value of Object.values(object)) {
+    if (Array.isArray(value)) {
+      for (const item of value) collectPropertyNames(item, names);
+    } else {
+      collectPropertyNames(value, names);
+    }
+  }
+  return names;
 }
 
 async function listTools(server: ReturnType<typeof createMcpServer>): Promise<ListedTool[]> {
