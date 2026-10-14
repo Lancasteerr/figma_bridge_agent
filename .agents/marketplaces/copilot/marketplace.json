@@ -1,5 +1,5 @@
 {
-  "name": "figma-local-agent",
+  "name": "figma-bridge-agent",
   "owner": { "name": "Lancasteerr" },
   "metadata": {
     "description": "Local Figma Agent plugins for safe, local-first Figma design workflows.",

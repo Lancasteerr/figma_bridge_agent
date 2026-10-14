@@ -1,5 +1,5 @@
 {
-  "name": "figma-local-agent",
+  "name": "figma-bridge-agent",
   "interface": { "displayName": "Local Figma Agent" },
   "plugins": [
     {

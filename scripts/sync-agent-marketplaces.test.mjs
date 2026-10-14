@@ -18,10 +18,12 @@ const plugin = {
   license: 'MIT',
   keywords: ['figma', 'design', 'mcp', 'local-first'],
 };
+// 测试固定独立的 Marketplace 标识，防止再次与 Plugin 名称合并。
+const marketplaceName = 'figma-bridge-agent';
 
 function createMarketplaces() {
   const shared = {
-    name: plugin.name,
+    name: marketplaceName,
     owner: { name: plugin.author.name },
     metadata: { description: 'Marketplace description', version: plugin.version },
     plugins: [
@@ -40,7 +42,7 @@ function createMarketplaces() {
   };
   return {
     codex: {
-      name: plugin.name,
+      name: marketplaceName,
       interface: { displayName: 'Local Figma Agent' },
       plugins: [
         {
@@ -148,6 +150,17 @@ test('rejects an incorrect plugin source', async () => {
     await assert.rejects(
       syncAgentMarketplaces({ workspace, mode: 'write' }),
       /Copilot marketplace source must target plugins\/figma-local-agent/,
+    );
+  });
+});
+
+test('rejects a marketplace name that collides with the plugin name', async () => {
+  await withFixture(async ({ marketplaces, workspace }) => {
+    marketplaces.codex.name = plugin.name;
+    await writeJson(resolve(workspace, MARKETPLACE_TARGETS[0].source), marketplaces.codex);
+    await assert.rejects(
+      syncAgentMarketplaces({ workspace, mode: 'check' }),
+      /Codex marketplace name must differ from the plugin name/,
     );
   });
 });

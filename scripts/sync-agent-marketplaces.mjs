@@ -7,6 +7,8 @@ import { format, resolveConfig } from 'prettier';
 
 const defaultWorkspace = resolve(import.meta.dirname, '..');
 const pluginDirectory = 'plugins/figma-local-agent';
+// Marketplace 与 Plugin 使用不同标识，避免缓存路径中的连续同名目录被调用方误判为重复段。
+const marketplaceName = 'figma-bridge-agent';
 
 export const MARKETPLACE_TARGETS = [
   {
@@ -85,7 +87,11 @@ function validatePortableMetadata(packageMetadata, plugin) {
 }
 
 function validateCommonMarketplace(marketplace, plugin, platform) {
-  assert(marketplace.name === 'figma-local-agent', `${platform} marketplace name is invalid.`);
+  assert(
+    marketplace.name !== plugin.name,
+    `${platform} marketplace name must differ from the plugin name.`,
+  );
+  assert(marketplace.name === marketplaceName, `${platform} marketplace name is invalid.`);
   assert(
     Array.isArray(marketplace.plugins) && marketplace.plugins.length === 1,
     `${platform} marketplace must expose exactly one plugin.`,
