@@ -1,6 +1,6 @@
 import { readFile, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { resolve } from 'node:path';
+import { posix, resolve } from 'node:path';
 
 export const AGENT_PLUGIN_FILES = [
   'plugin.json',
@@ -9,6 +9,7 @@ export const AGENT_PLUGIN_FILES = [
   'skills/figma-local-agent/references/asset-export.md',
   'skills/figma-local-agent/references/design-plan-v1.md',
   'skills/figma-local-agent/references/frontend-implementation.md',
+  'skills/figma-local-agent/references/semantic-snapshots.md',
 ];
 export const AGENT_PLUGIN_ARCHIVE_ROOT = 'figma-local-agent';
 
@@ -33,6 +34,35 @@ function assert(condition, message) {
 
 async function readJson(path) {
   return JSON.parse(await readFile(path, 'utf8'));
+}
+
+/** 校验随包 Markdown 的本地引用闭包，防止源码可读但发行包断链。 */
+export async function validatePackagedMarkdownLinks(root, files) {
+  const packaged = new Set(files.map((file) => file.replaceAll('\\', '/')));
+  for (const file of packaged) {
+    if (!file.endsWith('.md')) continue;
+    const source = await readFile(resolve(root, file), 'utf8');
+    for (const match of source.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)) {
+      const rawTarget = match[1].trim().replace(/^<|>$/g, '');
+      if (!rawTarget || rawTarget.startsWith('#') || /^[a-z][a-z0-9+.-]*:/i.test(rawTarget)) {
+        continue;
+      }
+      const targetWithoutFragment = rawTarget.split(/[?#]/, 1)[0];
+      if (!targetWithoutFragment.endsWith('.md')) continue;
+      const target = posix.normalize(posix.join(posix.dirname(file), targetWithoutFragment));
+      assert(
+        !posix.isAbsolute(targetWithoutFragment) &&
+          !target.startsWith('../') &&
+          target !== '..' &&
+          !posix.isAbsolute(target),
+        `Packaged Markdown link escapes the plugin root: ${file} -> ${rawTarget}`,
+      );
+      assert(
+        packaged.has(target),
+        `Packaged Markdown link target is missing: ${file} -> ${target}`,
+      );
+    }
+  }
 }
 
 /** 校验可移植 Agent Plugin 与单一发行版本，避免宿主适配或版本漂移进入发布产物。 */
@@ -93,6 +123,7 @@ export async function checkAgentPlugin() {
       `Agent Plugin file is missing: ${file}`,
     );
   }
+  await validatePackagedMarkdownLinks(pluginRoot, AGENT_PLUGIN_FILES);
   for (const forbidden of [
     '.codex-plugin/plugin.json',
     '.cursor-plugin/plugin.json',

@@ -50,7 +50,7 @@ test('accepts an archive whose file set and contents match the source plugin', a
 
 test('reports a missing required file', async () => {
   await withFixture(async ({ archivePath, pluginRoot }) => {
-    const missing = 'skills/figma-local-agent/references/frontend-implementation.md';
+    const missing = 'skills/figma-local-agent/references/semantic-snapshots.md';
     await writeArchive(archivePath, pluginRoot, { missing });
     await assert.rejects(
       checkAgentPluginArchive(archivePath, { pluginRoot }),
