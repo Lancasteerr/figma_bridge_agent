@@ -16,6 +16,16 @@ export const GeometrySchema = z.object({
       height: z.number().nonnegative(),
     })
     .nullable(),
+  /** 包含阴影和外描边的页面绝对渲染边界；轻量树可以省略。 */
+  absoluteRenderBounds: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number().nonnegative(),
+      height: z.number().nonnegative(),
+    })
+    .nullable()
+    .optional(),
   rotation: z.number(),
 });
 /** 节点几何快照类型。 */
@@ -43,17 +53,78 @@ export const LayoutSnapshotSchema = z.object({
     .object({
       horizontal: AxisSizingSchema.optional(),
       vertical: AxisSizingSchema.optional(),
+      minWidth: z.number().nonnegative().optional(),
+      maxWidth: z.number().nonnegative().optional(),
+      minHeight: z.number().nonnegative().optional(),
+      maxHeight: z.number().nonnegative().optional(),
     })
     .optional(),
   positioning: PositioningSchema.optional(),
+  item: z
+    .object({
+      align: z.enum(['MIN', 'CENTER', 'MAX', 'STRETCH', 'INHERIT']).optional(),
+      grow: z.number().nonnegative().optional(),
+    })
+    .optional(),
   primaryAxisAlign: z.string().optional(),
   counterAxisAlign: z.string().optional(),
+  counterAxisAlignContent: z.string().optional(),
+  counterAxisSpacing: z.number().nullable().optional(),
+  itemReverseZIndex: z.boolean().optional(),
+  strokesIncludedInLayout: z.boolean().optional(),
   constraints: z.object({ horizontal: z.string(), vertical: z.string() }).optional(),
+  overflow: z
+    .object({
+      direction: z.string(),
+      fixedChildCount: z.number().int().nonnegative(),
+    })
+    .optional(),
+  grid: z
+    .object({
+      rowCount: z.number().int().nonnegative(),
+      columnCount: z.number().int().nonnegative(),
+      rowGap: z.number(),
+      columnGap: z.number(),
+      rowSizes: z.json(),
+      columnSizes: z.json(),
+      autoTracks: z.enum(['NONE', 'ROWS']),
+      itemsPositioning: z.enum(['MANUAL', 'ROW_AUTO_FLOW']),
+    })
+    .optional(),
+  gridItem: z
+    .object({
+      rowAnchorIndex: z.number().int().nonnegative(),
+      columnAnchorIndex: z.number().int().nonnegative(),
+      rowSpan: z.number().int().positive(),
+      columnSpan: z.number().int().positive(),
+      horizontalAlign: z.enum(['MIN', 'CENTER', 'MAX', 'AUTO']),
+      verticalAlign: z.enum(['MIN', 'CENTER', 'MAX', 'AUTO']),
+    })
+    .optional(),
 });
 /** 节点布局快照类型。 */
 export type LayoutSnapshot = z.infer<typeof LayoutSnapshotSchema>;
 
 /** 文本快照会标记截断和缺失字体，避免调用方误把摘要当成完整文本。 */
+export const TextStyleRunSchema = z
+  .object({
+    start: z.number().int().nonnegative(),
+    end: z.number().int().nonnegative(),
+    fontName: z.json().optional(),
+    fontSize: z.number().positive().optional(),
+    fontWeight: z.number().optional(),
+    lineHeight: z.json().optional(),
+    letterSpacing: z.json().optional(),
+    textCase: z.string().optional(),
+    textDecoration: z.string().optional(),
+    fills: z.json().optional(),
+    hyperlink: z.json().optional(),
+    textStyleId: z.string().optional(),
+    fillStyleId: z.string().optional(),
+  })
+  .strict();
+
+/** 文本快照的常用排版事实；混合样式仅返回有界的样式区间。 */
 export const TextSnapshotSchema = z.object({
   characters: z.string(),
   truncated: z.boolean(),
@@ -62,6 +133,17 @@ export const TextSnapshotSchema = z.object({
   lineHeight: z.json().optional(),
   letterSpacing: z.json().optional(),
   textAlignHorizontal: z.string().optional(),
+  textAlignVertical: z.string().optional(),
+  textAutoResize: z.string().optional(),
+  textTruncation: z.string().optional(),
+  maxLines: z.number().int().positive().nullable().optional(),
+  paragraphIndent: z.json().optional(),
+  paragraphSpacing: z.json().optional(),
+  listSpacing: z.json().optional(),
+  textCase: z.json().optional(),
+  textDecoration: z.json().optional(),
+  runs: z.array(TextStyleRunSchema).max(64).optional(),
+  runsTruncated: z.literal(true).optional(),
   hasMissingFont: z.boolean().optional(),
 });
 
@@ -72,7 +154,29 @@ export const VisualSnapshotSchema = z.object({
   fills: z.json().optional(),
   strokes: z.json().optional(),
   strokeWeight: z.json().optional(),
+  strokeAlign: z.string().optional(),
+  dashPattern: z.array(z.number()).optional(),
+  strokeCap: z.json().optional(),
+  strokeJoin: z.json().optional(),
+  strokeMiterLimit: z.number().optional(),
+  individualStrokeWeights: z
+    .object({
+      top: z.number().nonnegative(),
+      right: z.number().nonnegative(),
+      bottom: z.number().nonnegative(),
+      left: z.number().nonnegative(),
+    })
+    .optional(),
   cornerRadius: z.json().optional(),
+  cornerSmoothing: z.number().min(0).max(1).optional(),
+  cornerRadii: z
+    .object({
+      topLeft: z.number().nonnegative(),
+      topRight: z.number().nonnegative(),
+      bottomRight: z.number().nonnegative(),
+      bottomLeft: z.number().nonnegative(),
+    })
+    .optional(),
   effects: z.json().optional(),
   clipsContent: z.boolean().optional(),
 });

@@ -66,7 +66,12 @@ describe('范围语义序列化', () => {
 
   it('focusNodeIds 保留完整 outline，并只为焦点生成事实', async () => {
     vi.stubGlobal('figma', { getImageByHash: vi.fn() });
-    const leaf = node('leaf', 'Indicator', 'RECTANGLE', page);
+    const leaf = node('leaf', 'Indicator', 'RECTANGLE', page, [], {
+      absoluteRenderBounds: { x: -2, y: -2, width: 104, height: 44 },
+      strokes: [],
+      strokeWeight: 2,
+      strokeAlign: 'OUTSIDE',
+    });
     const branch = node('branch', 'Selected item', 'FRAME', page, [leaf]);
     const unrelated = node('other', 'Other item', 'FRAME', page);
     const root = node('root', 'Sidebar', 'FRAME', page, [branch, unrelated]);
@@ -90,6 +95,11 @@ describe('范围语义序列化', () => {
       .map((line) => JSON.parse(line).nodeId);
     expect(outlineIds).toEqual(['root', 'branch', 'leaf', 'other']);
     expect(factIds).toEqual(['leaf']);
+    const fact = JSON.parse(result.factsJsonl.trim()) as Record<string, unknown>;
+    expect(fact).toMatchObject({
+      geometry: { absoluteRenderBounds: { x: -2, y: -2, width: 104, height: 44 } },
+      visual: { strokeAlign: 'OUTSIDE' },
+    });
   });
 
   it('区分结构截断和文本截断的完整性', async () => {

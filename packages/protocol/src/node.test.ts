@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { LightweightTreeNodeSchema, TreeCoverageSchema, TreeResultSchema } from './node.js';
+import {
+  LightweightTreeNodeSchema,
+  NodeResultSchema,
+  TreeCoverageSchema,
+  TreeResultSchema,
+} from './node.js';
 
 const root = {
   id: '1:2',
@@ -72,6 +77,54 @@ describe('轻量树协议', () => {
           expiresAt: '2026-10-13T00:30:00.000Z',
           sha256: 'a'.repeat(64),
         },
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe('节点保真协议', () => {
+  it('接受布局、富文本和形状的稀疏扩展字段', () => {
+    expect(
+      NodeResultSchema.safeParse({
+        name: 'Card',
+        type: 'FRAME',
+        geometry: {
+          ...root.geometry,
+          absoluteRenderBounds: { x: -4, y: -4, width: 108, height: 88 },
+        },
+        layout: {
+          sizing: { horizontal: 'FILL', vertical: 'HUG', minWidth: 80 },
+          item: { align: 'STRETCH', grow: 1 },
+        },
+        text: {
+          characters: 'Hello',
+          truncated: false,
+          runs: [{ start: 0, end: 5, fontSize: 16 }],
+        },
+        visual: {
+          strokeAlign: 'OUTSIDE',
+          dashPattern: [4, 2],
+          cornerRadii: { topLeft: 4, topRight: 8, bottomRight: 12, bottomLeft: 16 },
+        },
+        children: [],
+        snapshotFingerprint: 'snapshot-123',
+      }).success,
+    ).toBe(true);
+  });
+
+  it('拒绝超过六十四个富文本样式区间', () => {
+    const runs = Array.from({ length: 65 }, (_, index) => ({
+      start: index,
+      end: index + 1,
+      fontSize: 16,
+    }));
+    expect(
+      NodeResultSchema.safeParse({
+        name: 'Text',
+        type: 'TEXT',
+        text: { characters: 'x'.repeat(65), truncated: false, runs },
+        children: [],
+        snapshotFingerprint: 'snapshot-123',
       }).success,
     ).toBe(false);
   });
