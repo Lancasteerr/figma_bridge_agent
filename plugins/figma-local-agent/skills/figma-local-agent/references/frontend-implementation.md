@@ -18,19 +18,48 @@ Do not repeat this question when terms such as pixel-accurate, exact reproductio
 or use the existing design system already answer it. If interactive clarification is unavailable or
 the user asks to continue without choosing, use high fidelity and state the assumption.
 
+## Confirm the interaction boundary
+
+Figma appearance is not sufficient evidence for product behavior. Before finalizing an
+implementation plan, inspect the target repository for existing routes, components, API clients,
+state conventions, and responsive rules. Ask the user only about material behavior that remains
+unresolved after that inspection.
+
+Material unknowns include:
+
+- the result of clicking, submitting, selecting, or switching a control;
+- network requests, persistence, or other side effects;
+- modal, drawer, pagination, and multi-state behavior;
+- responsive breakpoints or content reordering; and
+- required loading, empty, error, or disabled states.
+
+Use the host's structured question UI when available and group related unknowns into no more than
+three questions per round. Do not ask the user to decide colors, spacing, or other facts that the
+design and repository can establish. When a known node may contain useful prototype evidence,
+request only the `reactions` field through a self-only raw-node projection. Prototype reactions are
+supporting evidence, not authority for business behavior.
+
+Do not finalize the implementation plan until material unknowns are confirmed. If interaction is
+unavailable or the user explicitly asks to continue, preserve semantic controls and basic keyboard
+behavior but do not invent APIs, navigation destinations, persistence, mobile layouts, or unseen
+loading/error/empty states. Record the plan's confirmed behavior, conservative assumptions, and
+out-of-scope behavior separately.
+
 ## Gather implementation evidence
 
-1. Follow [semantic snapshots](semantic-snapshots.md) when durable evidence is useful. Export a
-   single component directly; for a large region or page, inspect `OUTLINE` before choosing bounded
-   implementation scopes. Treat an optional render as appearance evidence, not a substitute for
-   node structure. A render result is a 30-minute local PNG path; open it with the Agent's visual
-   tool only when inspection is necessary and regenerate it after expiry.
+1. Follow [semantic snapshots](semantic-snapshots.md) for implementation evidence. Export a single
+   component directly with `IMPLEMENTATION`; for a large region or page, inspect `OUTLINE` and then
+   activate only one bounded `IMPLEMENTATION` scope at a time. Treat a render as appearance
+   evidence, not a substitute for node structure. A render result is a 30-minute local PNG path;
+   open it with the Agent's visual tool only when inspection is necessary and regenerate it after
+   expiry.
 2. Read only leaf nodes whose exact treatment affects the result, especially selected-state
    indicators, distinctive icons, text, image crops, masks, overlays, and effects. Also inspect any
    element that may be replaced by an existing project component or icon.
-3. Use normalized snapshots as the structural source of truth. Call `figma_get_css` when its Inspect
-   output can clarify front-end styling. Use bounded `figma_get_raw_node` only for a material detail
-   that remains unavailable; do not fetch raw data speculatively.
+3. Use normalized snapshots as the structural source of truth. Call `figma_get_css` only when its
+   Inspect output resolves a material front-end styling decision. Use a self-only, field-projected
+   `figma_get_raw_node` result only for a known fact that normalized data still omits; do not fetch
+   raw data speculatively or use it as the ordinary implementation source.
 4. Record the relevant Figma fact and implementation decision for each material element in a
    lightweight work unit. Reference the source manifest instead of copying semantic records. If a
    fact cannot be established, preserve the uncertainty instead of inventing a visual value.
