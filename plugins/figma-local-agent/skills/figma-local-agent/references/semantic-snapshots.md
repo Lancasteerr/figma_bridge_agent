@@ -5,15 +5,11 @@ document and the structural evidence would otherwise occupy substantial conversa
 bridge persists objective Figma facts; it does not decide component roles, implementation
 boundaries, or code mappings.
 
-## Bind the session workspace
+## Use the session workspace
 
-1. Call `figma_status` and record the current `workspace.sessionId`.
-2. Obtain the exact absolute `process.cwd()` from the Agent's local task execution environment.
-3. Before any asset or semantic write, call `figma_bind_export_root` with that cwd and the recorded
-   session ID. Asset and semantic writes share one immutable session binding; an unbound write
-   returns `EXPORT_ROOT_UNBOUND` rather than falling back to staging.
-4. Pass the same session ID as `expectedSessionId` to semantic tools. Never reuse an ID from a
-   previous Adapter process.
+Follow the shared binding procedure in `SKILL.md` before the first persistent semantic or asset
+write. Pass the latest `workspace.sessionId` as `expectedSessionId` to semantic tools; never reuse an
+ID from a previous Adapter process.
 
 A bound snapshot is stored below
 `.figma_bridge_agent/sessions/<sessionId>/scopes/<scopeId>/<sourceFingerprint>/<variant>/`. The
@@ -45,6 +41,9 @@ For a large region or page:
 4. Leave completed scopes on disk and retain only their lightweight work-unit summaries while
    working on the next scope.
 
+Keep only one implementation scope active in model context. A completed scope remains available on
+disk but contributes only its work-unit summary to later decisions.
+
 Never read an entire `facts.jsonl` into model context. Use `rg` with an exact node ID/name and a
 small context window. If one matching line is still too large, re-export with a narrower root or
 `focusNodeIds`. A snapshot with `complete: false` because of `DEPTH_LIMIT`, `NODE_LIMIT`, or
@@ -60,8 +59,10 @@ It is a compact implementation ledger, not another semantic-tree copy. Keep only
 
 - the source `manifest.json` path and fingerprint;
 - the requested scope and fidelity policy;
+- confirmed interactions, conservative assumptions, and out-of-scope behavior;
 - target code files;
 - key Figma node IDs mapped to code symbols or selectors;
+- evidence paths for material layout, typography, shapes, assets, and validation;
 - `planned`, `implementing`, `blocked`, or `complete` state;
 - unresolved material differences.
 

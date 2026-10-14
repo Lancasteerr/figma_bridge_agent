@@ -15,7 +15,11 @@ project asset delivery path.
    - `exportSettings` reports the author-configured Figma export facts.
    - `vector` and `mask` report path/segment counts and mask state.
 3. Inspect the implementation project before deciding that a new file is necessary.
-4. Choose code, `RAW`, or `RENDERED` using the decision criteria in `SKILL.md`.
+4. Choose the delivery form:
+   - use code for text, layout, interaction, and ordinary CSS shapes;
+   - use `RAW` for original Image Paint bytes when CSS can reproduce crop, radius, opacity,
+     filters, and layout; or
+   - use `RENDERED` for a distinctive logo, complex vector, mask, or compositing that must be baked.
 5. Record each chosen source and destination. Planning must not call `figma_export_asset`.
 
 Do not treat tree `assetHints` as export facts: counts and booleans intentionally omit image hashes,
@@ -24,16 +28,9 @@ filter only the few candidate records needed for the decision instead of reading
 
 ## Implementation phase
 
-Before the first asset export or semantic snapshot write:
-
-1. Call `figma_status` again and record the current `workspace.sessionId`.
-2. Obtain the exact absolute `process.cwd()` from the Agent's own local task execution environment.
-   Do not infer a root from the plugin process, plugin cache, Git metadata, or user-provided prose.
-3. Call `figma_bind_export_root` with that path and `expectedSessionId`. Asset and semantic writes
-   share one immutable Adapter-session binding, so binding must happen before either starts. The
-   same canonical root is idempotent; rebinding to another root is rejected. If local execution is
-   unavailable or binding fails, do not attempt a persistent write: it returns
-   `EXPORT_ROOT_UNBOUND`.
+Follow the shared binding procedure in `SKILL.md` before the first asset or semantic write. Asset
+and semantic writes share one immutable Adapter-session binding; do not attempt an export when the
+session is unbound.
 
 For `RAW`, re-read the node and call `figma_export_asset` with:
 

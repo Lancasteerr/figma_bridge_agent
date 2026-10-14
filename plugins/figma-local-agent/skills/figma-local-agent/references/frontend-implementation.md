@@ -66,14 +66,11 @@ out-of-scope behavior separately.
 
 ## Decide between code and assets
 
-- Implement text, layout, interaction, and genuinely equivalent primitives in code.
+- Read [asset export](asset-export.md) whenever a material leaf may require a project file. That
+  reference owns the code, `RAW`, and `RENDERED` decision and the delivery procedure.
 - A familiar meaning does not make an icon visually simple. In high-fidelity mode, reuse a library
   icon only after verifying outline, fill versus stroke, stroke details, view box, internal spacing,
   and optical alignment. Otherwise export the exact icon node as `RENDERED` SVG.
-- Use `RAW` Image Paint bytes when CSS can faithfully reproduce the recorded transform, scale mode,
-  crop, radius, opacity, and ordinary filters. Use `RENDERED` when masks, vectors, or compositing
-  must be baked to preserve appearance. Follow [asset export](asset-export.md) for delivery and
-  freshness checks.
 - Do not add blur, shadow, letter spacing, gradients, or other visual treatment without Figma or
   explicit user evidence. Do not silently normalize unusual geometry into a conventional UI shape.
 - In engineering-adaptation mode, existing components and icon libraries may take priority. List
