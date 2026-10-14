@@ -25,14 +25,14 @@
 ## 2. 连接和读取路径
 
 1. 先使用已安装的 Agent Plugin 启动 Codex；再在未安装该插件的独立 Claude Code 配置中，按[直接 MCP 指南](install-mcp-server.md)重复关键连接检查。两个客户端都只能加载一个 `figma-local-agent` Server。
-2. 调用 `figma_status`；确认协议 8 已在内部通过校验，且公共结果只包含文件/页面元数据、选择摘要以及带 session ID 的 `UNBOUND` 工作区。
+2. 调用 `figma_status`；确认协议 9 已在内部通过校验，且公共结果只包含文件/页面元数据、选择摘要以及带 session ID 的 `UNBOUND` 工作区。
 3. 关闭插件并再次调用；确认约一秒内返回 `PLUGIN_NOT_CONNECTED`，而不是一直挂起。
 4. 重新打开插件，确认能够自动重连。
 5. 再打开两个 Codex 任务，确认三个任务都发现相同的 24 个工具，并能通过同一插件调用 `figma_status`。
 6. 关闭其中一个任务，确认另两个任务仍保持连接。运行 `bridge status`，确认客户端数量变化且插件不断线。
 7. 选择粗略的 ArticleCard，使用 `figma_status` 返回的选区并调用 node、tree 和 render 工具；确认 `figma_get_selection` 与 `figma_get_variables` 不存在。
-8. 确认规范化树和图像足以识别行/列关系以及覆盖层；节点素材快照应列出 fills/strokes 中多个 Image Paint、重复 hash 的尺寸、CROP/TILE/transform/filters/透明度、exportSettings、矢量段数和蒙版。
-9. 模拟空 image hash、找不到图片和尺寸查询异常；确认 paint 定位和错误状态保留，整次节点读取仍成功。修改图片、裁剪、矢量、蒙版或导出设置，确认节点快照指纹变化。
+8. 确认规范化节点和图像足以识别 Auto Layout/Grid、滚动、尺寸约束、子项对齐、文本截断与样式、描边、独立圆角和真实渲染边界；mixed 富文本 runs 不重复正文，且超过 64 条时明确标记截断。节点素材快照还应列出 fills/strokes 中多个 Image Paint、重复 hash 的尺寸、CROP/TILE/transform/filters/透明度、exportSettings、矢量段数和蒙版。
+9. 调用 `figma_get_raw_node` 时确认默认不含 `children`；`depth: 1` 只保留一层，`fields` 最多接受 32 个唯一顶层字段并始终保留 `id`、`name`、`type`，且投影发生在 256 KiB/2 MiB 字节检查之前。模拟空 image hash、找不到图片和尺寸查询异常；确认 paint 定位和错误状态保留，整次节点读取仍成功。修改新增布局、文本、形状、图片、裁剪、矢量、蒙版或导出设置事实，确认节点快照指纹变化。
 
 ## 3. 基础 Proposal 路径
 

@@ -40,7 +40,7 @@ The first adapter starts the Daemon when needed. Closing one host only closes it
 
 1. Node snapshots enumerate Image Paint, export-setting, vector, and mask facts. One tree read caches dimension lookup by image hash. Asset properties participate in snapshot fingerprints.
 2. A RAW request resolves the exact paint again and verifies both image hash and node snapshot fingerprint. A RENDERED request recalculates the complete node-subtree fingerprint. Source drift is rejected before reading bytes or calling `exportAsync()` where possible.
-3. The plugin returns original bytes, rendered bytes, or an SVG string through protocol 8 RPC, with a 9 MiB per-item limit. Public MCP results never expose those bodies.
+3. The plugin returns original bytes, rendered bytes, or an SVG string through protocol 9 RPC, with a 9 MiB per-item limit. Public MCP results never expose those bodies.
 4. The Adapter rechecks RAW PNG/JPEG/GIF/WebP magic bytes and checks RENDERED format, extension, and payload size.
 5. The Adapter validates relative paths and realpaths of existing parents to block symlink/junction escapes, then writes a random temporary file in the destination directory and commits it by rename.
 6. Identical content at the same path returns `REUSED`; different content returns `EXPORT_TARGET_CONFLICT` by default. Explicit overwrite requires the existing SHA-256 and rechecks it just before rename to block concurrent modification.
@@ -99,7 +99,7 @@ DesignPlan v1 supports Frame, Text, Rectangle, Ellipse, Line, Image, SVG, Clone,
 - Tree: default depth 2 / 200 nodes; hard limits 8 / 1000.
 - Text: caller-bounded and explicitly marked when truncated.
 - Render: maximum requested dimension 2048 px and raw PNG limit 9 MiB (keeps encoded RPC payload below the bridge limit).
-- Raw REST JSON: default 2 MiB, hard request limit 8 MiB.
+- Raw REST JSON: self-only by default, with explicit one-level children and projection of up to 32 unique top-level fields; the default limit is 256 KiB and the hard request limit is 2 MiB.
 - Semantic RPC body: 12 MiB; a larger scope must be narrowed or split.
 - Persistent asset and semantic writes require a bound workspace. Temporary tree/render storage retains its independent TTL and quota controls.
 

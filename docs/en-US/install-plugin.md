@@ -86,7 +86,7 @@ Restart ChatGPT/Cursor, or start a new Codex or Copilot agent session, so the ne
 
 1. Confirm the client loads only one `figma-local-agent` MCP Server.
 2. Ask the agent to call `figma_status`.
-3. Confirm the result includes the current Figma file, page, selection, and an `UNBOUND` or `BOUND` workspace. Protocol 8 compatibility is checked internally during connection setup.
+3. Confirm the result includes the current Figma file, page, selection, and an `UNBOUND` or `BOUND` workspace. Protocol 9 compatibility is checked internally during connection setup.
 4. Confirm the **Local Figma Agent** Skill is available and can guide the Proposal workflow.
 
 ## Updates and troubleshooting

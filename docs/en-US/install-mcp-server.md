@@ -128,7 +128,7 @@ Restart the MCP client or open a new session after saving the configuration. The
 
 1. Confirm the client loads only one `figma-local-agent` Server.
 2. Confirm all 24 tools, including `figma_status` and `figma_bind_export_root`, are discoverable.
-3. Call `figma_status` and check the current Figma file, page, selection, and an `UNBOUND` or `BOUND` workspace. Protocol 8 compatibility is checked internally during connection setup.
+3. Call `figma_status` and check the current Figma file, page, selection, and an `UNBOUND` or `BOUND` workspace. Protocol 9 compatibility is checked internally during connection setup.
 
 Direct configuration does not automatically load the Agent Plugin Skill. Read the [MCP tool reference](tools.md), especially the Proposal and DesignPlan workflows, before performing writes.
 

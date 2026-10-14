@@ -12,7 +12,7 @@ The MCP Server exposes a fixed set of 24 tools. Public results contain only fiel
 | Status     | `figma_bind_export_root`           | Bind the Agent task's absolute workspace root to this session                           | No                      |
 | Read       | `figma_get_design_resources`       | Page through local styles, variables, and current-page components/Instances             | No                      |
 | Read       | `figma_list_fonts`                 | Page by font family, with styles and optional variation axes                            | No                      |
-| Read       | `figma_get_raw_node`               | Return bounded `JSON_REST_V1` as an object                                              | No                      |
+| Read       | `figma_get_raw_node`               | Return self-first, projectable `JSON_REST_V1` as an object                              | No                      |
 | Read       | `figma_get_css`                    | Return a Figma Inspect CSS property map                                                 | No                      |
 | Read       | `figma_get_node`                   | Return node facts, direct-child summaries, and `snapshotFingerprint`                    | No                      |
 | Read       | `figma_get_tree`                   | Return a lightweight navigation tree, optional truncation, and optional temporary JSONL | No                      |
@@ -53,8 +53,8 @@ Export paths must be workspace-relative and cannot contain drive letters, UNC/ab
 
 - `figma_get_design_resources` returns `{resources,nextCursor?,componentScanComplete}`; VARIABLE entries may include `codeSyntax`.
 - `figma_list_fonts` returns `{families:[{name,styles,variationAxes?}],nextCursor?}` and advances by family.
-- `figma_get_raw_node` returns `{node}`; `figma_get_css` returns `{properties}`.
-- `figma_get_node` does not echo the input ID or page ID. Empty `assets` is omitted, and the fingerprint is named `snapshotFingerprint`.
+- `figma_get_raw_node` returns `{node}`. It defaults to `depth: 0` and removes `children`; `depth: 1` keeps one level only. `fields` projects at most 32 unique top-level fields while `id`, `name`, and `type` are always retained. Unknown fields are ignored, and only `depth` controls `children`. Projection and depth trimming precede the 256 KiB default / 2 MiB hard byte check; narrow fields or depth when the result is too large. `figma_get_css` returns `{properties}`.
+- `figma_get_node` does not echo the input ID or page ID. Empty `assets` is omitted, and the fingerprint is named `snapshotFingerprint`. Its sparse facts cover render bounds, layout and Grid, scrolling, size constraints, text layout and truncation, strokes, and independent corners. Style runs appear only when base text styles are mixed, omit the characters, and are capped at 64.
 - `figma_get_tree` returns `{root,truncation?,artifact?}`. Nodes use local `bounds` and omit default hints. An artifact contains only `{localPath,expiresAt}`.
 - `figma_render_node` returns `{localPath,width,height,expiresAt}`.
 

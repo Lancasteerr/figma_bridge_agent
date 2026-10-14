@@ -25,14 +25,14 @@ Do not continue acceptance if this gate fails.
 ## 2. Connection and read path
 
 1. Start Codex with the installed Agent Plugin. Then repeat the essential connection check in a separate Claude Code configuration without that plugin, following the [direct MCP guide](install-mcp-server.md). Each client must load exactly one `figma-local-agent` Server.
-2. Call `figma_status`; confirm protocol 8 was accepted internally and the public result contains only document/page metadata, selection summary, and an `UNBOUND` workspace with its session ID.
+2. Call `figma_status`; confirm protocol 9 was accepted internally and the public result contains only document/page metadata, selection summary, and an `UNBOUND` workspace with its session ID.
 3. Close the plugin and call it again; confirm `PLUGIN_NOT_CONNECTED` returns in about one second rather than hanging.
 4. Reopen the plugin and confirm automatic reconnection.
 5. Open two additional Codex tasks. Confirm all three tasks discover the same 24 tools and can call `figma_status` through the same plugin.
 6. Close one task and confirm the other two remain connected. Run `bridge status` and confirm the client count changes without disconnecting the plugin.
 7. Select the rough ArticleCard, use the selection returned by `figma_status`, and call node, tree, and render tools. Confirm `figma_get_selection` and `figma_get_variables` are absent.
-8. Confirm the normalized tree plus image identifies row/column relationships and the overlay. Asset snapshots should include multiple Image Paints across fills/strokes, dimensions for repeated hashes, CROP/TILE/transform/filters/opacity, export settings, vector segments, and masks.
-9. Simulate an empty image hash, missing image, and dimension-query failure. Confirm paint location plus error state remain and the node read succeeds. Change image, crop, vector, mask, or export-setting facts and confirm the snapshot fingerprint changes.
+8. Confirm the normalized node plus image identifies Auto Layout/Grid, scrolling, size constraints, child alignment, text truncation and styles, strokes, independent corners, and true render bounds. Mixed-text runs must not repeat their characters and must mark truncation above 64 runs. Asset snapshots should also include multiple Image Paints across fills/strokes, dimensions for repeated hashes, CROP/TILE/transform/filters/opacity, export settings, vector segments, and masks.
+9. Call `figma_get_raw_node` and confirm the default omits `children`; `depth: 1` keeps one level only, `fields` accepts at most 32 unique top-level fields while always retaining `id`, `name`, and `type`, and projection precedes the 256 KiB/2 MiB byte check. Simulate an empty image hash, missing image, and dimension-query failure. Confirm paint location plus error state remain and the node read succeeds. Change new layout, text, shape, image, crop, vector, mask, or export-setting facts and confirm the snapshot fingerprint changes.
 
 ## 3. Primitive Proposal path
 

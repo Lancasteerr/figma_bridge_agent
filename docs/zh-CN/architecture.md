@@ -40,7 +40,7 @@ Figma 插件主进程
 
 1. 插件在节点快照中枚举 Image Paint、导出设置、矢量和蒙版事实；同一次树读取按 image hash 缓存尺寸查询。素材属性参与快照指纹。
 2. RAW 请求在插件中重新解析指定 paint，并同时核对 image hash 与节点快照指纹；RENDERED 请求重新计算完整节点子树指纹。来源变化会在读取字节或调用 `exportAsync()` 前尽早拒绝。
-3. 插件通过协议 8 RPC 返回单项不超过 9 MiB 的原始字节、渲染字节或 SVG 字符串。公共 MCP 结果不会透出这些正文。
+3. 插件通过协议 9 RPC 返回单项不超过 9 MiB 的原始字节、渲染字节或 SVG 字符串。公共 MCP 结果不会透出这些正文。
 4. Adapter 对 RAW 再做 PNG/JPEG/GIF/WebP 魔数识别，对 RENDERED 核对格式、扩展名和载荷上限。
 5. Adapter 校验相对路径与已有路径的 realpath，阻止 symlink/junction 越界；随后在目标目录写随机临时文件并通过 rename 提交。
 6. 同路径同 hash 返回 `REUSED`；不同 hash 默认返回 `EXPORT_TARGET_CONFLICT`。显式覆盖要求现有 SHA-256，并在 rename 前再次核对以防并发修改。
@@ -90,7 +90,7 @@ DesignPlan v1 支持 Frame、Text、Rectangle、Ellipse、Line、Image、SVG、C
 - 树：默认深度 2、200 个节点；硬限制为深度 8、1000 个节点。
 - 文本：由调用方限制长度，并在截断时明确标记。
 - 渲染：请求的最大尺寸为 2048 px，原始 PNG 限制为 9 MiB（使编码后的 RPC 载荷保持在桥接限制以内）。
-- 原始 REST JSON：默认 2 MiB，请求硬限制为 8 MiB。
+- 原始 REST JSON：默认只返回自节点，可显式读取一层子节点，并可投影最多 32 个唯一顶层字段；默认限制 256 KiB，请求硬限制为 2 MiB。
 - 语义 RPC 正文：12 MiB；超限要求缩小根范围或拆分子范围。
 - 持久素材与语义写入必须先绑定工作区；临时树/渲染存储继续使用独立 TTL 与配额控制。
 

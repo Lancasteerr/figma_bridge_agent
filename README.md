@@ -87,7 +87,7 @@ npx -y figma-local-agent-mcp@<VERSION> pair
 
 ### 4. 验证连接
 
-重启 MCP 客户端或新建 Agent 会话，然后让 Agent 调用 `figma_status`。正常结果会包含当前 Figma 文件、页面、选区，以及 `UNBOUND` 或 `BOUND` 工作区状态。插件与 Server 内部使用 Bridge 协议 8。
+重启 MCP 客户端或新建 Agent 会话，然后让 Agent 调用 `figma_status`。正常结果会包含当前 Figma 文件、页面、选区，以及 `UNBOUND` 或 `BOUND` 工作区状态。插件与 Server 内部使用 Bridge 协议 9。
 
 Development build、源码构建和直接 MCP 故障排查见[直接 MCP 安装指南](docs/zh-CN/install-mcp-server.md)。
 

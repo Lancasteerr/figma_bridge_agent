@@ -12,7 +12,7 @@ MCP Server 公开固定集合的 24 个工具。公共结果只保留 Agent 下�
 | 状态       | `figma_bind_export_root`           | 将 Agent 任务的绝对工作区根绑定到当前会话              | 否                  |
 | 读取       | `figma_get_design_resources`       | 分页读取本地样式、变量及当前页组件/Instance            | 否                  |
 | 读取       | `figma_list_fonts`                 | 按字体族分页读取样式与可变轴                           | 否                  |
-| 读取       | `figma_get_raw_node`               | 返回受大小限制的 `JSON_REST_V1` 对象                   | 否                  |
+| 读取       | `figma_get_raw_node`               | 返回自节点优先、可投影的 `JSON_REST_V1` 对象           | 否                  |
 | 读取       | `figma_get_css`                    | 返回 Figma Inspect CSS 属性映射                        | 否                  |
 | 读取       | `figma_get_node`                   | 返回单节点设计事实、直接子节点和 `snapshotFingerprint` | 否                  |
 | 读取       | `figma_get_tree`                   | 返回轻量导航树，可选截断信息和临时 JSONL 路径          | 否                  |
@@ -53,8 +53,8 @@ MCP Server 公开固定集合的 24 个工具。公共结果只保留 Agent 下�
 
 - `figma_get_design_resources` 返回 `{resources,nextCursor?,componentScanComplete}`；VARIABLE 可含 `codeSyntax`。
 - `figma_list_fonts` 返回 `{families:[{name,styles,variationAxes?}],nextCursor?}`，游标按字体族推进。
-- `figma_get_raw_node` 返回 `{node}` JSON 对象；`figma_get_css` 返回 `{properties}`。
-- `figma_get_node` 不回显输入 ID/page ID；空 `assets` 被省略，指纹名为 `snapshotFingerprint`。
+- `figma_get_raw_node` 返回 `{node}` JSON 对象。默认 `depth: 0` 并删除 `children`；`depth: 1` 只保留一层。可用 `fields` 投影最多 32 个唯一顶层字段，`id`、`name`、`type` 始终保留，未知字段被忽略，`children` 只能由 `depth` 控制。投影和深度裁剪先于 256 KiB 默认/2 MiB 硬限制的字节检查；超限时应缩小字段或深度。`figma_get_css` 返回 `{properties}`。
+- `figma_get_node` 不回显输入 ID/page ID；空 `assets` 被省略，指纹名为 `snapshotFingerprint`。其稀疏事实覆盖渲染边界、布局与 Grid、滚动、尺寸约束、文字排版与截断、描边和独立圆角；只有基础样式 mixed 时才返回不含正文的样式 runs，最多 64 条。
 - `figma_get_tree` 返回 `{root,truncation?,artifact?}`。节点只含本地 `bounds` 与非默认提示；artifact 只含 `{localPath,expiresAt}`。
 - `figma_render_node` 返回 `{localPath,width,height,expiresAt}`。
 
