@@ -7,6 +7,7 @@ import {
   ExportAssetInputSchema,
   ExportAssetRpcInputSchema,
   GetFingerprintInputSchema,
+  GetRawNodeInputSchema,
   GetTreeInputSchema,
   GetTreeRpcInputSchema,
   RenderResultSchema,
@@ -157,6 +158,32 @@ describe('lightweight tree input', () => {
   it('文本预览上限固定为八十字符且不允许无限内联模式', () => {
     expect(GetTreeInputSchema.safeParse({ nodeId: '1:2', maxTextLength: 81 }).success).toBe(false);
     expect(GetTreeInputSchema.safeParse({ nodeId: '1:2', delivery: 'INLINE' }).success).toBe(false);
+  });
+});
+
+describe('raw node projection input', () => {
+  it('默认只读取自节点并使用二百五十六 KiB 上限', () => {
+    expect(GetRawNodeInputSchema.parse({ nodeId: '1:2' })).toEqual({
+      nodeId: '1:2',
+      depth: 0,
+      maxBytes: 256 * 1024,
+    });
+  });
+
+  it('接受唯一的普通顶层字段和一层 children', () => {
+    expect(
+      GetRawNodeInputSchema.parse({ nodeId: '1:2', depth: 1, fields: ['reactions', 'styles'] }),
+    ).toMatchObject({ depth: 1, fields: ['reactions', 'styles'] });
+  });
+
+  it('拒绝保留字段、重复字段、过深读取和超过二 MiB 的上限', () => {
+    for (const fields of [['children'], ['id'], ['reactions', 'reactions'], ['__proto__']]) {
+      expect(GetRawNodeInputSchema.safeParse({ nodeId: '1:2', fields }).success).toBe(false);
+    }
+    expect(GetRawNodeInputSchema.safeParse({ nodeId: '1:2', depth: 2 }).success).toBe(false);
+    expect(
+      GetRawNodeInputSchema.safeParse({ nodeId: '1:2', maxBytes: 2 * 1024 * 1024 + 1 }).success,
+    ).toBe(false);
   });
 });
 

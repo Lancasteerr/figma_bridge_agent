@@ -93,7 +93,7 @@ export function registerReadTools(
     'figma_get_raw_node',
     {
       description:
-        'Return bounded JSON_REST_V1 for debugging unsupported node details. Prefer normalized snapshots for normal reasoning.',
+        'Return a bounded, self-only JSON_REST_V1 projection for a known unsupported detail. Identity fields are retained; request depth 1 or selected top-level fields explicitly. Prefer normalized snapshots for normal reasoning.',
       inputSchema: GetRawNodeInputSchema,
       outputSchema: RawNodeResultSchema,
       annotations: {

@@ -46,7 +46,12 @@ async function setup(tree: Record<string, unknown>) {
     close: vi.fn(async () => undefined),
   } as unknown as BridgeTransport;
   registerReadTools(server, broker, artifacts);
-  return { artifactRoot: artifacts.root, broker, handler: handlers.get('figma_get_tree')! };
+  return {
+    artifactRoot: artifacts.root,
+    broker,
+    handlers,
+    handler: handlers.get('figma_get_tree')!,
+  };
 }
 
 function node(id: string, name = `Node ${id}`, children: Record<string, unknown>[] = []) {
@@ -89,6 +94,35 @@ function tree(children: Record<string, unknown>[]) {
     root,
   };
 }
+
+describe('figma_get_raw_node MCP 投影', () => {
+  it('把自节点默认值和字段投影发送给插件，只公开 node', async () => {
+    const rpc = {
+      nodeId: 'node:1',
+      node: { id: 'node:1', name: 'Button', type: 'FRAME', reactions: [] },
+      bytes: 80,
+    };
+    const { broker, handlers } = await setup(rpc);
+
+    const response = await handlers.get('figma_get_raw_node')!({
+      nodeId: 'node:1',
+      fields: ['reactions'],
+    });
+
+    expect(broker.request).toHaveBeenCalledWith(
+      'getRawNode',
+      {
+        nodeId: 'node:1',
+        depth: 0,
+        fields: ['reactions'],
+        maxBytes: 256 * 1024,
+      },
+      30_000,
+    );
+    expect(response.structuredContent).toEqual({ node: rpc.node });
+    expect(response.structuredContent).not.toHaveProperty('bytes');
+  });
+});
 
 describe('figma_get_tree MCP 交付', () => {
   it('小树在预算内完整内联，且交付策略不发送给插件', async () => {

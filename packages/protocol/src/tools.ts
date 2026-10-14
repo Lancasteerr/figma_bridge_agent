@@ -44,13 +44,39 @@ export const RenderNodeInputSchema = z.object({
   maxDimension: z.number().int().min(64).max(2048).default(2048),
 });
 export const GetCssInputSchema = GetNodeInputSchema;
+const RawNodeReservedFieldSchema = z.enum([
+  'id',
+  'name',
+  'type',
+  'children',
+  '__proto__',
+  'prototype',
+  'constructor',
+]);
+const RawNodeProjectedFieldSchema = z
+  .string()
+  .min(1)
+  .max(100)
+  .regex(/^[A-Za-z_$][A-Za-z0-9_$]*$/)
+  .refine((field) => !RawNodeReservedFieldSchema.safeParse(field).success, {
+    message: 'fields must not include identity, children, or prototype-related keys.',
+  });
+/** 原始节点默认只投影自身；调用方必须显式选择一层 children 或具体顶层字段。 */
 export const GetRawNodeInputSchema = GetNodeInputSchema.extend({
+  depth: z.union([z.literal(0), z.literal(1)]).default(0),
+  fields: z
+    .array(RawNodeProjectedFieldSchema)
+    .max(32)
+    .refine((fields) => new Set(fields).size === fields.length, {
+      message: 'fields must be unique.',
+    })
+    .optional(),
   maxBytes: z
     .number()
     .int()
     .min(1_024)
-    .max(8 * 1024 * 1024)
-    .default(2 * 1024 * 1024),
+    .max(2 * 1024 * 1024)
+    .default(256 * 1024),
 });
 const RelativeExportPathSchema = z
   .string()

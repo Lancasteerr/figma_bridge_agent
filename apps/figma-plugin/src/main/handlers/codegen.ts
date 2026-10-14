@@ -24,10 +24,11 @@ export async function getCss(
 export async function getRawNode(
   params: unknown,
 ): Promise<ReturnType<typeof RawNodeRpcResultSchema.parse>> {
-  const { nodeId, maxBytes } = GetRawNodeInputSchema.parse(params);
+  const { nodeId, depth, fields, maxBytes } = GetRawNodeInputSchema.parse(params);
   const node = await resolveCurrentPageNode(nodeId);
   const raw = await node.exportAsync({ format: 'JSON_REST_V1' });
-  const json = JSON.stringify(raw);
+  const projected = projectRawNode(raw, depth, fields);
+  const json = JSON.stringify(projected);
   const bytes = utf8ByteLength(json);
   if (bytes > maxBytes) {
     throw new BridgeFault({
@@ -38,7 +39,30 @@ export async function getRawNode(
       details: { bytes, maxBytes },
     });
   }
-  return RawNodeRpcResultSchema.parse({ nodeId, node: raw, bytes });
+  return RawNodeRpcResultSchema.parse({ nodeId, node: projected, bytes });
+}
+
+/** 投影 JSON_REST_V1 的顶层字段，并把 children 深度限制为零或一层。 */
+function projectRawNode(raw: unknown, depth: 0 | 1, fields?: readonly string[]): unknown {
+  if (!isRecord(raw)) return raw;
+  const result: Record<string, unknown> = {};
+  const selectedFields = fields ?? Object.keys(raw);
+
+  for (const identity of ['id', 'name', 'type'] as const) {
+    if (Object.hasOwn(raw, identity)) result[identity] = raw[identity];
+  }
+  for (const field of selectedFields) {
+    if (field === 'id' || field === 'name' || field === 'type' || field === 'children') continue;
+    if (Object.hasOwn(raw, field)) result[field] = raw[field];
+  }
+  if (depth === 1 && Array.isArray(raw.children)) {
+    result.children = raw.children.map((child) => projectRawNode(child, 0, fields));
+  }
+  return result;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /** 按 UTF-8 字节数计算长度，而不是按 JavaScript UTF-16 code unit 计数。 */
