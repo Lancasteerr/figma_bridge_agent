@@ -30,13 +30,13 @@
 codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v<VERSION>
 ```
 
-然后在 Codex 中运行 `/plugins`，选择 `figma-local-agent` marketplace，并安装 **Local Figma Agent**。
+然后在 Codex 中运行 `/plugins`，选择 `figma-bridge-agent` marketplace，并安装 **Local Figma Agent**。
 
 ### GitHub Copilot CLI
 
 ```powershell
 copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v<VERSION>
-copilot plugin install figma-local-agent@figma-local-agent
+copilot plugin install figma-local-agent@figma-bridge-agent
 ```
 
 如果只想安装插件而不注册 marketplace，可以使用：
