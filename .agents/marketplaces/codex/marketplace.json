@@ -1,5 +1,5 @@
 {
-  "name": "figma-bridge-agent",
+  "name": "figma-bridge-marketplace",
   "interface": { "displayName": "Local Figma Agent" },
   "plugins": [
     {

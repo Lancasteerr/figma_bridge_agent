@@ -30,13 +30,13 @@ Import the version-pinned repository marketplace in PowerShell:
 codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v<VERSION>
 ```
 
-Then run `/plugins` in Codex, choose the `figma-bridge-agent` marketplace, and install **Local Figma Agent**.
+Then run `/plugins` in Codex, choose the `figma-bridge-marketplace` marketplace, and install **Local Figma Agent**.
 
 ### GitHub Copilot CLI
 
 ```powershell
 copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v<VERSION>
-copilot plugin install figma-local-agent@figma-bridge-agent
+copilot plugin install figma-local-agent@figma-bridge-marketplace
 ```
 
 To install only the plugin without registering its marketplace, use:

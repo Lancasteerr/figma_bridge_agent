@@ -7,8 +7,8 @@ import { format, resolveConfig } from 'prettier';
 
 const defaultWorkspace = resolve(import.meta.dirname, '..');
 const pluginDirectory = 'plugins/figma-local-agent';
-// Marketplace 与 Plugin 使用不同标识，避免缓存路径中的连续同名目录被调用方误判为重复段。
-const marketplaceName = 'figma-bridge-agent';
+// Marketplace 使用明确的语义后缀，与 Plugin 标识及其缓存层级保持可辨识。
+const marketplaceName = 'figma-bridge-marketplace';
 
 export const MARKETPLACE_TARGETS = [
   {

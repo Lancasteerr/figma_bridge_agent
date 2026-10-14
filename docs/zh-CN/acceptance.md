@@ -15,7 +15,7 @@
 7. 运行 `devices list`，撤销当前设备，并确认插件立即返回配对界面。
 8. 运行 `pnpm check:agent-marketplaces`，确认三份源索引与生成的 Codex、Cursor、Copilot 固定入口同步。
 9. npm `<VERSION>` 和 GitHub `v<VERSION>` tag 公开后，运行 `codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v<VERSION>`，通过 `/plugins` 安装 **Local Figma Agent**，新建会话，并确认无需手工配置 MCP 即可发现恰好 24 个工具和随插件提供的 Skill。
-10. 在 Copilot CLI 中运行 `copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v<VERSION>` 和 `copilot plugin install figma-local-agent@figma-bridge-agent`；新建会话并确认相同的 24 个工具和 Skill 可用。
+10. 在 Copilot CLI 中运行 `copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v<VERSION>` 和 `copilot plugin install figma-local-agent@figma-bridge-marketplace`；新建会话并确认相同的 24 个工具和 Skill 可用。
 11. 在 Cursor 团队中通过 **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo** 导入 `https://github.com/Lancasteerr/figma_bridge_agent`；从 **Customize** 安装 **Local Figma Agent**，并确认相同的 24 个工具和 Skill 可用。
 12. 在未安装 Agent Plugin 的干净 Claude Code 配置中，按[直接 MCP 指南](install-mcp-server.md#claude-code)注册 npm 稳定版；确认能够发现相同的 24 个工具，但不会自动出现 **Local Figma Agent** Skill。
 13. 检查 Agent Plugin ZIP，确认其中包含 `skills/figma-local-agent/references/design-plan-v1.md`、`skills/figma-local-agent/references/asset-export.md`、`skills/figma-local-agent/references/frontend-implementation.md` 和 `skills/figma-local-agent/references/semantic-snapshots.md`，但不包含任何仓库级 marketplace 文件。
