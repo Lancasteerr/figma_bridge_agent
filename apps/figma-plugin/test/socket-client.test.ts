@@ -1,3 +1,4 @@
+import { BRIDGE_PROTOCOL_VERSION } from '@figma-agent/protocol';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BridgeSocketClient } from '../src/ui/socket-client.js';
@@ -27,6 +28,10 @@ class FakeWebSocket {
 
   emitClose(code = 1006, reason = 'test close'): void {
     this.onclose?.({ code, reason } as CloseEvent);
+  }
+
+  emitMessage(value: unknown): void {
+    this.onmessage?.({ data: JSON.stringify(value) } as MessageEvent);
   }
 }
 
@@ -83,5 +88,28 @@ describe('BridgeSocketClient connection lifecycle', () => {
     expect(FakeWebSocket.instances).toHaveLength(2);
     expect(states.at(-1)).toBe('connecting');
     expect(setTimeoutMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps the credential and retries while release versions differ', () => {
+    const onAuthInvalid = vi.fn();
+    const client = new BridgeSocketClient(
+      () => undefined,
+      () => undefined,
+      onAuthInvalid,
+    );
+
+    client.start(auth);
+    const socket = FakeWebSocket.instances[0];
+    socket?.emitMessage({
+      type: 'auth.challenge',
+      protocolVersion: BRIDGE_PROTOCOL_VERSION,
+      serverVersion: '0.0.0',
+      serverId: auth.serverId,
+      serverNonce: Buffer.alloc(24, 9).toString('base64url'),
+    });
+    socket?.emitClose(4003, 'VERSION_MISMATCH');
+
+    expect(onAuthInvalid).not.toHaveBeenCalled();
+    expect(setTimeoutMock).toHaveBeenCalledOnce();
   });
 });

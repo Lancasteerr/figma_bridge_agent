@@ -81,10 +81,7 @@ export class BridgeSocketClient {
           const challenge = AuthChallengeSchema.safeParse(value);
           if (challenge.success) {
             if (challenge.data.serverVersion !== __PLUGIN_VERSION__) {
-              terminal = true;
-              this.#onAuthInvalid(
-                `Plugin ${__PLUGIN_VERSION__} does not match server ${challenge.data.serverVersion}. Install both from the same release.`,
-              );
+              // 版本差异不代表凭证失效，保留凭证并等待双方升级到一致版本。
               socket.close(4003, 'VERSION_MISMATCH');
               return;
             }
@@ -142,7 +139,11 @@ export class BridgeSocketClient {
           }
           const rejection = AuthRejectedSchema.safeParse(value);
           if (rejection.success) {
-            terminal = rejection.data.code !== 'PLUGIN_ALREADY_CONNECTED';
+            const retryable =
+              rejection.data.code === 'PLUGIN_ALREADY_CONNECTED' ||
+              rejection.data.code === 'VERSION_MISMATCH' ||
+              rejection.data.code === 'PROTOCOL_MISMATCH';
+            terminal = !retryable;
             if (terminal) this.#onAuthInvalid(rejection.data.message);
             socket.close(4003, rejection.data.code);
           }
