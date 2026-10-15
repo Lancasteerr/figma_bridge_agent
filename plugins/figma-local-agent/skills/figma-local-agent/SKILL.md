@@ -37,6 +37,20 @@ remain open.
   [DesignPlan v1](references/design-plan-v1.md) only when constructing a declarative DesignPlan;
   prefer duplication plus targeted mutations for edits to existing artwork.
 
+## Static front-end evidence boundary
+
+For front-end implementation, treat the current page as static visual evidence. It can establish
+materialized layout, styling, text, assets, clipping, and visible states, but it cannot establish
+runtime interaction, routing, data effects, responsive rules, state transitions, or scrolling
+behavior. Figma clipping, overflow, and fixed-child fields remain static layout facts; they do not
+prove whether a browser should use page scrolling, an inner scroll container, sticky or fixed
+positioning, infinite loading, scroll restoration, scroll-linked animation, or custom scrollbars.
+
+Before finalizing an implementation plan, distinguish the requested implementation target from
+adjacent annotations, component state boards, and reference frames. Read
+[front-end implementation](references/frontend-implementation.md) for the user-confirmation and
+conservative-default rules. Do not use prototype reactions to infer product behavior.
+
 ## Shared read boundaries
 
 - Never print a complete tree artifact or `facts.jsonl` into the conversation. Query temporary

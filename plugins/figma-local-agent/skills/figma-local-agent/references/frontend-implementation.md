@@ -18,32 +18,49 @@ Do not repeat this question when terms such as pixel-accurate, exact reproductio
 or use the existing design system already answer it. If interactive clarification is unavailable or
 the user asks to continue without choosing, use high fidelity and state the assumption.
 
-## Confirm the interaction boundary
+## Confirm the static implementation boundary
 
-Figma appearance is not sufficient evidence for product behavior. Before finalizing an
-implementation plan, inspect the target repository for existing routes, components, API clients,
-state conventions, and responsive rules. Ask the user only about material behavior that remains
-unresolved after that inspection.
+Figma is static visual evidence. It can establish materialized layout, styling, text, assets,
+clipping, and visible states, but it cannot establish product behavior. Before finalizing an
+implementation plan, separate the inspected content into:
+
+- the page, component, or region that is the implementation target;
+- annotations, component state boards, and adjacent frames that are reference material only; and
+- behavior that the static evidence cannot establish.
+
+Inspect the target repository for existing routes, components, API clients, state conventions,
+responsive rules, and scrolling conventions. Ask the user only about material behavior that
+remains unresolved after that inspection. Do not repeat a question when the user's request already
+sets the boundary, such as a request for a static or pixel-accurate reproduction.
 
 Material unknowns include:
 
 - the result of clicking, submitting, selecting, or switching a control;
 - network requests, persistence, or other side effects;
 - modal, drawer, pagination, and multi-state behavior;
-- responsive breakpoints or content reordering; and
+- responsive breakpoints or content reordering;
+- page versus inner-container scrolling, sticky or fixed regions, infinite loading, scroll
+  restoration, scroll-linked animation, and custom scrollbar treatment; and
 - required loading, empty, error, or disabled states.
 
 Use the host's structured question UI when available and group related unknowns into no more than
 three questions per round. Do not ask the user to decide colors, spacing, or other facts that the
-design and repository can establish. When a known node may contain useful prototype evidence,
-request only the `reactions` field through a self-only raw-node projection. Prototype reactions are
-supporting evidence, not authority for business behavior.
+design and repository can establish. Do not query prototype reactions to infer product behavior.
+
+Treat Figma `clipsContent`, `overflowDirection`, and fixed-child facts only as static layout hints.
+They do not determine the browser's scrolling contract. When scrolling materially affects the
+implementation, confirm whether the page or an inner region scrolls, which regions remain fixed,
+and whether pagination, infinite loading, restoration, animation, or custom scrollbars are
+required.
 
 Do not finalize the implementation plan until material unknowns are confirmed. If interaction is
 unavailable or the user explicitly asks to continue, preserve semantic controls and basic keyboard
-behavior but do not invent APIs, navigation destinations, persistence, mobile layouts, or unseen
-loading/error/empty states. Record the plan's confirmed behavior, conservative assumptions, and
-out-of-scope behavior separately.
+behavior but do not invent APIs, navigation destinations, persistence, mobile layouts, unseen
+loading/error/empty states, inner scrolling, sticky or fixed positioning, infinite loading, scroll
+restoration, scroll animation, or custom scrollbars. Use normal document flow; content taller than
+the viewport may produce ordinary browser page scrolling. Record that as an engineering default,
+not Figma evidence. Reproduce only visible clipping and record confirmed behavior, conservative
+assumptions, and out-of-scope behavior separately.
 
 ## Gather implementation evidence
 
@@ -88,5 +105,7 @@ out-of-scope behavior separately.
 5. Correct material differences and repeat the comparison. If a difference cannot be resolved,
    report it with its affected element and cause; never claim that visual validation passed.
 
-High fidelity means evidence-based visual equivalence in a controlled environment, not guaranteed
-byte-identical pixels across Figma, browser, operating-system, or renderer versions.
+High fidelity means evidence-based static visual equivalence in a controlled environment, not
+guaranteed byte-identical pixels across Figma, browser, operating-system, or renderer versions. By
+default, validate the initial `scrollTop = 0` state only. Do not claim that interaction, responsive,
+or scrolling behavior was reproduced unless it was established separately and tested.
