@@ -34,17 +34,17 @@ Figma 插件主进程
 - Adapter 日志写入 stderr。后台 Daemon 在用户配置目录写入有界 `bridge.log`，并只保留一个轮转文件。日志仅包含请求 ID、RPC 方法、耗时和结果，排除密钥、图像 base64 和原始节点 JSON。
 - `figma_render_node` 的视觉预览和 `figma_get_tree` 的大型 JSONL 写入 `%TEMP%/figma-agent-mcp/<session-id>/`；该目录复用 Adapter 的导出 session ID，不会再生成第二套临时会话 ID。
 - 当前 Adapter 的临时文件保留三十分钟并在关闭时立即删除。其他 Adapter 不会清理其中的单个文件或空目录；异常退出的会话目录在 `mtime` 超过二十四小时后由存活 Adapter 兜底删除。若运行中的旧会话目录因此被删除，该 Adapter 会在下次写入时自动重建。
-- 素材和语义快照由 Adapter 写文件，共享同一个不可变会话根绑定、路径校验和原子写入。会话初始为 `UNBOUND`，不创建暂存导出根，也不维护暂存配额。Agent 必须在首次持久写入前用最新 session ID 把自身任务执行环境的绝对 cwd 绑定为工作区根；Adapter 不信任自身的 `process.cwd()`。临时树和渲染使用独立临时存储，因此未绑定时仍可用。
+- 素材和语义快照由 Adapter 写文件，共享同一个不可变会话根绑定、路径校验和原子写入。会话初始为 `UNBOUND`。素材批次会在绑定工作区内使用瞬时会话暂存目录，并受 64 MiB 批次上限约束；提交或失败后都会清理暂存。Agent 必须在首次持久写入前用最新 session ID 把自身任务执行环境的绝对 cwd 绑定为工作区根；Adapter 不信任自身的 `process.cwd()`。临时树和渲染使用独立临时存储，因此未绑定时仍可用。
 
 ## 素材读取与导出生命周期
 
-1. 插件在节点快照中枚举 Image Paint、导出设置、矢量和蒙版事实；同一次树读取按 image hash 缓存尺寸查询。素材属性参与快照指纹。
-2. RAW 请求在插件中重新解析指定 paint，并同时核对 image hash 与节点快照指纹；RENDERED 请求重新计算完整节点子树指纹。来源变化会在读取字节或调用 `exportAsync()` 前尽早拒绝。
-3. 插件通过协议 9 RPC 返回单项不超过 9 MiB 的原始字节、渲染字节或 SVG 字符串。公共 MCP 结果不会透出这些正文。
-4. Adapter 对 RAW 再做 PNG/JPEG/GIF/WebP 魔数识别，对 RENDERED 核对格式、扩展名和载荷上限。
-5. Adapter 校验相对路径与已有路径的 realpath，阻止 symlink/junction 越界；随后在目标目录写随机临时文件并通过 rename 提交。
-6. 同路径同 hash 返回 `REUSED`；不同 hash 默认返回 `EXPORT_TARGET_CONFLICT`。显式覆盖要求现有 SHA-256，并在 rename 前再次核对以防并发修改。
-7. 绑定必须在任何导出写入前完成，相同规范根可幂等重试，会话内不得切换到其他根。未绑定请求返回 `EXPORT_ROOT_UNBOUND`；成功结果只包含工作区相对 `path` 以及 `CREATED`、`REUSED` 或 `UPDATED` 状态。
+1. 紧凑节点读取枚举 Image Paint、导出设置、矢量和蒙版事实；同一序列化上下文按 image hash 缓存尺寸查询，内部 canonical snapshot 继续保留完整一致性指纹。
+2. `figma_export_assets` 最多接受 32 个 RAW 或 RENDERED item。有 guard 时，插件确认所有 item 位于同一个语义快照根内，并在整批前后匹配其 `sourceFingerprint`；无 guard 时逐项比较导出前后的内部来源。
+3. 插件通过协议 10 RPC 返回单项不超过 9 MiB 的原始字节、渲染字节或 SVG 字符串，Adapter 将整批解码后暂存限制为 64 MiB。公共 MCP 结果不会透出正文或来源指纹。
+4. Adapter 对 RAW 再做 PNG/JPEG/GIF/WebP 魔数识别，对 RENDERED 核对格式、扩展名、尺寸和载荷上限；解析后的输出路径必须唯一。
+5. 所有来源、格式、路径和覆盖条件通过后，Adapter 才把全部内容写入瞬时会话暂存目录，复检目标并发变化，再以可恢复批次发布完整文件。任一步失败都会恢复备份目标，不留下部分项目更新。
+6. 同路径同 hash 返回 `REUSED`；不同 hash 默认返回 `EXPORT_TARGET_CONFLICT`。显式覆盖要求现有 SHA-256，并在提交前再次核对以防并发修改。
+7. 绑定必须在任何导出写入前完成，相同规范根可幂等重试，会话内不得切换到其他根。未绑定请求返回 `EXPORT_ROOT_UNBOUND`；成功按顺序返回 `{path,status,mimeType,width,height,dimensionUnit}`，不公开文件摘要。
 
 ## 语义快照生命周期
 
@@ -63,7 +63,7 @@ Figma 插件主进程
 
 克隆前，插件会对源根、直接布局父级和兄弟几何生成指纹；副本脱离后再次验证，任何漂移都会返回 `SOURCE_CHANGED_DURING_CLONE` 并回滚。副本会递归解锁，而源节点的可见性、锁定、层级和几何不会改变。修改操作会串行执行，并拆分为只读预检阶段和写入阶段。预检失败绝不会触碰 undo 历史。由于空的 `commitUndo()` 和 Page plugin data 都不能建立 Figma undo 边界，写入阶段会创建一个不可见的临时节点作为 undo 锚点。失败时，桥接器先把锚点和可能存在的部分写入提交为当前单元，再立即撤销该单元。因此即使第一个业务写入前就失败，也只会回滚当前修改，不会撤销前一个成功操作。锚点会在成功提交前删除，在失败时随当前修改一起回滚；若插件崩溃遗留了不可见锚点，下一次成功修改会将其清理。公开的 undo 是有意不提供的，因为它可能撤销之后的手动编辑。
 
-丢弃 Proposal 时必须提供最近一次检查得到的 Proposal 指纹。如果用户在检查后编辑了 Proposal，则返回 `PROPOSAL_CHANGED`，而不会删除它。应通过 `figma_get_fingerprint` 获取新的完整树指纹；有界节点快照中携带的指纹覆盖范围不同，不能替代该值。
+丢弃 Proposal 时必须提供最近一次检查得到的 Proposal 指纹。如果用户在检查后编辑了 Proposal，则返回 `PROPOSAL_CHANGED`，而不会删除它。应通过 `figma_get_fingerprint` 获取新的完整树指纹；紧凑 `figma_get_node` 结果有意不公开指纹，不能替代该值。
 
 ## DesignPlan 生命周期
 
@@ -90,6 +90,7 @@ DesignPlan v1 支持 Frame、Text、Rectangle、Ellipse、Line、Image、SVG、C
 - 树：默认深度 2、200 个节点；硬限制为深度 8、1000 个节点。
 - 文本：由调用方限制长度，并在截断时明确标记。
 - 渲染：请求的最大尺寸为 2048 px，原始 PNG 限制为 9 MiB（使编码后的 RPC 载荷保持在桥接限制以内）。
+- 持久素材导出：每批最多 32 项、单项最多 9 MiB，整批解码后最多 64 MiB。
 - 原始 REST JSON：默认只返回自节点，可显式读取一层子节点，并可投影最多 32 个唯一顶层字段；默认限制 256 KiB，请求硬限制为 2 MiB。
 - 语义 RPC 正文：12 MiB；超限要求缩小根范围或拆分子范围。
 - 持久素材与语义写入必须先绑定工作区；临时树/渲染存储继续使用独立 TTL 与配额控制。

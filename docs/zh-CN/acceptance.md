@@ -25,14 +25,14 @@
 ## 2. 连接和读取路径
 
 1. 先使用已安装的 Agent Plugin 启动 Codex；再在未安装该插件的独立 Claude Code 配置中，按[直接 MCP 指南](install-mcp-server.md)重复关键连接检查。两个客户端都只能加载一个 `figma-local-agent` Server。
-2. 调用 `figma_status`；确认协议 9 已在内部通过校验，且公共结果只包含文件/页面元数据、选择摘要以及带 session ID 的 `UNBOUND` 工作区。
+2. 调用 `figma_status`；确认协议 10 已在内部通过校验，且公共结果只包含文件/页面元数据、选择摘要以及带 session ID 的 `UNBOUND` 工作区。2.9.2 插件或 Server 不得与协议 10 混用，而应明确失败。
 3. 关闭插件并再次调用；确认约一秒内返回 `PLUGIN_NOT_CONNECTED`，而不是一直挂起。
 4. 重新打开插件，确认能够自动重连。
 5. 再打开两个 Codex 任务，确认三个任务都发现相同的 24 个工具，并能通过同一插件调用 `figma_status`。
 6. 关闭其中一个任务，确认另两个任务仍保持连接。运行 `bridge status`，确认客户端数量变化且插件不断线。
 7. 选择粗略的 ArticleCard，使用 `figma_status` 返回的选区并调用 node、tree 和 render 工具；确认 `figma_get_selection` 与 `figma_get_variables` 不存在。
-8. 确认规范化节点和图像足以识别 Auto Layout/Grid、滚动、尺寸约束、子项对齐、文本截断与样式、描边、独立圆角和真实渲染边界；mixed 富文本 runs 不重复正文，且超过 64 条时明确标记截断。节点素材快照还应列出 fills/strokes 中多个 Image Paint、重复 hash 的尺寸、CROP/TILE/transform/filters/透明度、exportSettings、矢量段数和蒙版。
-9. 调用 `figma_get_raw_node` 时确认默认不含 `children`；`depth: 1` 只保留一层，`fields` 最多接受 32 个唯一顶层字段并始终保留 `id`、`name`、`type`，且投影发生在 256 KiB/2 MiB 字节检查之前。模拟空 image hash、找不到图片和尺寸查询异常；确认 paint 定位和错误状态保留，整次节点读取仍成功。修改新增布局、文本、形状、图片、裁剪、矢量、蒙版或导出设置事实，确认节点快照指纹变化。
+8. 确认 `figma_get_node` 接受稳定字段组，始终返回名称/类型/父节点，只有显式请求才返回 `CHILDREN`，并省略默认布尔值、零旋转、空集合、无效蒙版外壳、重复 render bounds 及公开 snapshot fingerprint。按需读取时仍应保留 Auto Layout/Grid、尺寸约束、子项对齐、文本截断与样式、描边、独立圆角、真实渲染边界和素材事实。clipping/overflow 只能作为静态事实，不能据此声称页面、容器、吸顶或其他滚动行为已确定。
+9. 调用 `figma_get_raw_node` 时确认默认不含 `children`；`depth: 1` 只保留一层，`fields` 最多接受 32 个唯一顶层字段并始终保留 `id`、`name`、`type`，且投影发生在 256 KiB/2 MiB 字节检查之前。模拟空 image hash、找不到图片和尺寸查询异常；确认 paint 定位和错误状态保留，整次节点读取仍成功。修改布局、文本、形状、图片、裁剪、矢量、蒙版或导出设置事实，确认新的语义快照得到不同 `sourceFingerprint`，而 `figma_get_node` 仍不公开指纹。
 
 ## 3. 基础 Proposal 路径
 
@@ -66,15 +66,15 @@
 4. 创建 Paint/Text/Effect/Grid 样式和单模式 COLOR/FLOAT/STRING/BOOLEAN 变量；确认 `Agent/<Proposal>/...` 命名、同结构复用、不同结构冲突、绑定，以及合并后的 `refMap` 只包含请求的资源 ref。
 5. 从当前页 Component 创建 Instance，并克隆已经放到当前页的外部 Instance；设置暴露的文本/布尔/变体/instance-swap 值，拒绝非当前页来源，且绝不 detach。
 6. 强制中途异常并确认节点/资源清理；模拟 `BUILDING` 标记并确认下一次写操作恢复；丢弃成功 Proposal 后确认已提交资源仍保留。
-7. 在 Plan 模式探查裁剪头像、背景图、多 Image Fill、图片描边、多 Vector Logo、蒙版和混合效果；记录实现决策、paint 位置、格式、相对路径与指纹，并确认工程没有新增文件。
-8. 启动 Agent Plugin 后先调用 `figma_status`，确认初始状态为独立的 `UNBOUND` 会话且不存在暂存导出目录。由 Agent 在自身任务执行环境取得准确的绝对 cwd，并使用最新 `workspace.sessionId` 调用 `figma_bind_export_root`；确认状态切换到真实项目的 `BOUND`。再以 RAW 导出头像/背景原图，确认 PNG/JPEG/GIF/WebP 按真实魔数追加扩展名，且没有裁剪、滤镜合成或转码。
-9. 使用刚获取的完整树指纹把 Logo 导出为 SVG，并在前端工程中以返回的相对路径引用。PNG/JPG 的 scale 应限制为 1–4；SVG 携带 scale 或扩展名不匹配必须被拒绝。
+7. 在 Plan 模式探查裁剪头像、背景图、多 Image Fill、图片描边、多 Vector Logo、蒙版和混合效果；记录实现决策、paint 位置、格式与相对路径，并确认工程没有新增文件，也没有组装逐项 fingerprint 链。
+8. 对同一有界根分别导出 `OUTLINE` 和 `IMPLEMENTATION`；确认 manifest v2 声明 `COMPACT_V1`，OUTLINE 标记 `factsStatus: "NOT_REQUESTED"` 且没有空 `facts.jsonl`，IMPLEMENTATION 标记 `WRITTEN`。保留返回的语义 `sourceFingerprint` 供素材批次使用。
+9. 启动 Agent Plugin 后先调用 `figma_status`，确认初始状态为独立的 `UNBOUND` 会话且不存在暂存导出目录。由 Agent 在自身任务执行环境取得准确的绝对 cwd，并使用最新 `workspace.sessionId` 调用 `figma_bind_export_root`；确认状态切换到真实项目的 `BOUND`。在一个带 guard 的批次内导出头像/背景 RAW item 和渲染 SVG；确认 PNG/JPEG/GIF/WebP 按魔数追加扩展名且不合成裁剪/滤镜或转码，SVG 拒绝 scale，渲染扩展名必须匹配，结果包含 MIME、尺寸及 `PIXEL`/`FIGMA_UNIT`。
 10. 在新的未绑定 MCP Adapter 中确认 `figma_status` 返回独立 `UNBOUND` session。使用错误 session ID、相对路径、文件系统根、用户主目录和插件目录绑定时应分别得到稳定错误；同根重复绑定应幂等成功，改绑应返回 `EXPORT_ROOT_CONFLICT`。保持未绑定并确认素材/语义写入返回 `EXPORT_ROOT_UNBOUND`，同时临时存储中的树 artifact 与渲染仍可用。
-11. 修改 Figma 图片 hash、裁剪参数或 Logo 子节点，再用旧指纹导出；确认返回 `ASSET_SOURCE_CHANGED` 且不产生文件。
+11. 修改 Figma 图片 hash、裁剪参数或 Logo 子节点，再使用旧语义 `sourceFingerprint` guard 导出；确认返回 `ASSET_SOURCE_CHANGED` 且不产生文件。guard 中含根外节点也必须失败且不写入。
 12. 重复导出相同内容，确认返回 `REUSED`。修改本地目标后用默认策略导出，确认返回 `EXPORT_TARGET_CONFLICT` 且现有文件不变。
-13. 检查现有文件 SHA-256 后显式传入 `OVERWRITE` 和该摘要，确认返回 `UPDATED`；错误或过期摘要必须拒绝。中途失败不得留下目标半成品或 `.tmp` 文件。
+13. 检查现有文件 SHA-256 后显式传入 `OVERWRITE` 和该摘要，确认返回 `UPDATED`；错误或过期摘要必须拒绝。解析后路径重复、目标冲突或批次中途失败必须回滚整个批次，不留下部分目标、备份或暂存文件。
 14. 尝试绝对路径、盘符、UNC、`..`、NUL、symlink/junction 越界、目录和其他非普通目标；全部应在写入前拒绝。确认公开 MCP 结果不含 Base64 或 SVG 正文。
-15. 让临时树/渲染 artifact 过期并确认清理，再超过临时存储配额，确认原有边界不回退；确认不存在持久暂存导出的配额或清理路径。
+15. 拒绝 33 项素材批次和解码后超过 64 MiB 的暂存内容；确认成功或失败后瞬时会话暂存目录均被清理。让临时树/渲染 artifact 过期并确认其独立 TTL/配额行为不回退。
 
 ## 6. Codex 自然语言场景
 
@@ -86,13 +86,13 @@
 
 ### 前端高保真实现场景
 
-准备一个一次性 React 工程，并在 Figma 中选择包含特征图标、局部选中指示器、无模糊半透明面板、指定字体、裁剪图片、行为不明确的 CTA 和表单状态的页面。工程中提供一部分已有路由和 API 约定，但不提供 CTA 目标、提交副作用和移动端重排规则。使用以下提示词，但不要预先说明保真策略：
+准备一个一次性 React 工程，并在 Figma 中选择包含特征图标、局部选中指示器、无模糊半透明面板、指定字体、裁剪图片、行为不明确的 CTA、表单状态，以及与滚动行为未说明的页头相邻的长裁切内容。工程中提供一部分已有路由和 API 约定，但不提供 CTA 目标、提交副作用、移动端重排、页面/容器滚动、固定/吸顶区域、加载、恢复、滚动联动和滚动条样式。使用以下提示词，但不要预先说明保真策略：
 
 > 使用 React 实现当前选中的 Figma 页面。
 
-确认 Agent 先检查工程的路由、组件和 API，再在确定实现计划前询问选择“高保真复现”或“工程化适配”，并集中询问 CTA 目标、提交副作用和响应式重排。颜色、间距等可发现事实不得交给用户决定。选择高保真后，确认 Agent 读取视觉显著或存在歧义的叶子节点；只在普通快照不足时使用 CSS 或自节点字段投影后的原始数据；不使用轮廓不同的通用图标，不增加设计稿不存在的效果，并按照记录的 Image Paint transform 实现裁切。
+确认 Agent 先区分实现目标、参考材料和未知行为，再检查工程的路由、组件、API 和已有滚动约定；在确定实现计划前询问选择“高保真复现”或“工程化适配”，并集中询问 CTA 目标、提交副作用、响应式重排及有实质影响的滚动规则。颜色、间距等可发现事实不得交给用户决定。选择高保真后，确认 Agent 读取视觉显著或存在歧义的叶子节点；只在普通快照不足时使用 CSS 或自节点字段投影后的原始数据；不使用轮廓不同的通用图标，不增加设计稿不存在的效果，并按照记录的 Image Paint transform 实现裁切。
 
-通过标准：计划分别列出已确认行为、保守假设和范围外行为；用户无法回答时不得虚构接口、跳转、持久化、移动端布局或未展示状态。Agent 使用固定视口、DPR、字体和页面状态比较最新 Figma 渲染与完整浏览器截图，并同时检查几何和计算样式。字体抗锯齿等轻微渲染噪声可以记录为容差；错误图标轮廓、颜色、效果、图片裁切或布局必须修正或明确报告为未解决，存在这些差异时不得声称视觉验收通过。再选择工程化适配重复一次，确认允许使用项目组件或图标库，但计划和最终交付均明确列出可见偏差。
+通过标准：计划分别列出已确认行为、保守假设和范围外行为；用户无法回答时不得虚构接口、跳转、持久化、移动端布局、未展示状态、内部滚动、sticky/fixed、无限加载、滚动恢复、滚动动画或自定义滚动条。默认采用正常文档流和浏览器自然页面滚动，只复现可见裁切，并明确这是工程默认而非 Figma 证据。除非用户提供其他状态，Agent 只验收静态 `scrollTop = 0`。Agent 使用固定视口、DPR、字体和页面状态比较最新 Figma 渲染与完整浏览器截图，并同时检查几何和计算样式。字体抗锯齿等轻微渲染噪声可以记录为容差；错误图标轮廓、颜色、效果、图片裁切或布局必须修正或明确报告为未解决，存在这些差异时不得声称视觉验收通过。再选择工程化适配重复一次，确认允许使用项目组件或图标库，但计划和最终交付均明确列出可见偏差。
 
 ## 视觉对比
 

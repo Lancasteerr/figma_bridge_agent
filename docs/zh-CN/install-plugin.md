@@ -86,7 +86,7 @@ figma-agent-bridge-plugin/manifest.json
 
 1. 确认客户端只加载一个 `figma-local-agent` MCP Server。
 2. 让 Agent 调用 `figma_status`。
-3. 确认结果包含当前 Figma 文件、页面、选区以及 `UNBOUND` 或 `BOUND` 工作区。协议 9 兼容性由连接建立阶段在内部校验。
+3. 确认结果包含当前 Figma 文件、页面、选区以及 `UNBOUND` 或 `BOUND` 工作区。协议 10 兼容性由连接建立阶段在内部校验，协议 9 客户端必须明确失败。
 4. 确认 **Local Figma Agent** Skill 可用，并能指导 Agent 使用 Proposal 工作流。
 
 ## 更新与排查

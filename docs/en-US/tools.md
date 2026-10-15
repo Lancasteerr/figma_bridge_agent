@@ -75,6 +75,11 @@ Success returns `{assets:[{path,status,mimeType,width,height,dimensionUnit}]}`, 
 
 `figma_stage_asset` returns `{assetId,width?,height?,expiresAt}`. IMAGE/SVG references inside a DesignPlan contain only `assetId`; SHA remains internal for cache deduplication and integrity checks.
 
+Fingerprint roles are intentionally narrow: front-end snapshot and asset work uses one semantic
+`sourceFingerprint`; `treeFingerprint` is reserved for DesignPlan sources and complete-tree Proposal
+checks; Proposal mutations continue chaining `proposalFingerprint`. `figma_get_node` exposes no
+fingerprint.
+
 ## Semantic snapshots
 
 `figma_export_semantic_scope` writes under `.figma_bridge_agent/sessions/<sessionId>/scopes/` and returns `{manifestPath,sourceFingerprint,complete,truncation?}`. `manifestPath` is workspace-relative. The persisted manifest retains file SHA values and creation time; the public result does not.

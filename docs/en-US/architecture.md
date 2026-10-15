@@ -34,17 +34,17 @@ The first adapter starts the Daemon when needed. Closing one host only closes it
 - Adapter logs go to stderr. The detached Daemon writes a bounded `bridge.log` in the user configuration directory and retains one rotated file. Logs contain only request ID, RPC method, duration, and outcome; secrets, image base64, and raw node JSON are excluded.
 - Visual previews from `figma_render_node` and large JSONL results from `figma_get_tree` go to `%TEMP%/figma-agent-mcp/<session-id>/`. This directory reuses the Adapter export session ID instead of creating a second temporary-session identity.
 - The current Adapter retains temporary files for thirty minutes and removes them immediately on close. Other Adapters do not clean individual files or empty directories in that session. A live Adapter removes crashed-session directories after their `mtime` has remained stale for twenty-four hours. If this removes an old but still-running session directory, its Adapter recreates the directory on its next write.
-- Assets and semantic snapshots are written by the Adapter and share one immutable session-root binding, path validation, and atomic writer. Every session starts `UNBOUND`; no staging export root or staging quota exists. Before the first persistent write, the Agent must bind the exact absolute cwd from its own task execution environment with the latest session ID. The Adapter does not trust its own `process.cwd()`. Temporary tree and render files use the separate temporary store and remain available while unbound.
+- Assets and semantic snapshots are written by the Adapter and share one immutable session-root binding, path validation, and atomic writer. Every session starts `UNBOUND`. Asset batches use a transient session staging directory under the bound workspace and a 64 MiB batch limit; staging is removed after commit or failure. Before the first persistent write, the Agent must bind the exact absolute cwd from its own task execution environment with the latest session ID. The Adapter does not trust its own `process.cwd()`. Temporary tree and render files use the separate temporary store and remain available while unbound.
 
 ## Asset read and export lifecycle
 
-1. Node snapshots enumerate Image Paint, export-setting, vector, and mask facts. One tree read caches dimension lookup by image hash. Asset properties participate in snapshot fingerprints.
-2. A RAW request resolves the exact paint again and verifies both image hash and node snapshot fingerprint. A RENDERED request recalculates the complete node-subtree fingerprint. Source drift is rejected before reading bytes or calling `exportAsync()` where possible.
-3. The plugin returns original bytes, rendered bytes, or an SVG string through protocol 9 RPC, with a 9 MiB per-item limit. Public MCP results never expose those bodies.
-4. The Adapter rechecks RAW PNG/JPEG/GIF/WebP magic bytes and checks RENDERED format, extension, and payload size.
-5. The Adapter validates relative paths and realpaths of existing parents to block symlink/junction escapes, then writes a random temporary file in the destination directory and commits it by rename.
-6. Identical content at the same path returns `REUSED`; different content returns `EXPORT_TARGET_CONFLICT` by default. Explicit overwrite requires the existing SHA-256 and rechecks it just before rename to block concurrent modification.
-7. Binding must happen before any export write. The same canonical root is idempotent, and a session cannot switch to another root. An unbound request fails with `EXPORT_ROOT_UNBOUND`; a successful result contains only a workspace-relative `path` and `CREATED`, `REUSED`, or `UPDATED` status.
+1. Compact node reads enumerate Image Paint, export-setting, vector, and mask facts. Image dimensions are cached by hash during one serialization context, while internal canonical snapshots retain complete consistency fingerprints.
+2. `figma_export_assets` accepts at most 32 RAW or RENDERED items. A guarded batch checks that every item is under one semantic-snapshot root and that its `sourceFingerprint` matches before and after the whole export. Without a guard, each item compares its internal source before and after export.
+3. The plugin returns original bytes, rendered bytes, or an SVG string through protocol 10 RPC, with a 9 MiB per-item limit. The Adapter limits decoded batch staging to 64 MiB. Public MCP results never expose those bodies or source fingerprints.
+4. The Adapter rechecks RAW PNG/JPEG/GIF/WebP magic bytes and checks RENDERED format, extension, dimensions, and payload size. Resolved output paths must be unique.
+5. After every source, format, path, and overwrite condition passes, the Adapter writes all content into a transient session staging directory, rechecks targets for concurrent changes, and publishes the complete files as one recoverable batch. A failure restores backed-up targets and does not leave a partial project update.
+6. Identical content at the same path returns `REUSED`; different content returns `EXPORT_TARGET_CONFLICT` by default. Explicit overwrite requires the existing SHA-256 and rechecks it immediately before commit.
+7. Binding must happen before any export write. The same canonical root is idempotent, and a session cannot switch to another root. An unbound request fails with `EXPORT_ROOT_UNBOUND`; success returns ordered `{path,status,mimeType,width,height,dimensionUnit}` entries without file digests.
 
 ## Semantic snapshot lifecycle
 
@@ -72,7 +72,7 @@ Write handlers accept only nodes inside a root carrying the `figma-agent-mcp:pro
 
 Before cloning, the plugin fingerprints each source root plus its immediate layout parent and sibling geometry. It verifies the same context after detaching the clones; any drift returns `SOURCE_CHANGED_DURING_CLONE` and rolls back. Cloned nodes are unlocked recursively, while source visibility, locks, hierarchy, and geometry are never changed. Mutations are serialized and split into a read-only preparation phase and a write phase. Preparation failures never touch undo history. Because empty `commitUndo()` calls and Page plugin data do not establish a Figma undo boundary, the write phase creates an invisible temporary node as its undo anchor. On failure, the bridge first commits the anchor and any partial writes as the current unit, then immediately triggers undo for that unit. Even a failure before the first business write can therefore roll back only the current mutation instead of the previous successful action. The anchor is removed before a successful commit and reverted with the mutation on failure. A later successful mutation cleans any invisible anchor left by a plugin crash. Public undo is intentionally absent because it could undo later manual edits.
 
-Discard requires the last inspected Proposal fingerprint. A user edit after inspection produces `PROPOSAL_CHANGED` instead of deletion. Obtain a fresh complete-tree fingerprint with `figma_get_fingerprint`; the fingerprint embedded in a bounded node snapshot covers different data and is not a substitute.
+Discard requires the last inspected Proposal fingerprint. A user edit after inspection produces `PROPOSAL_CHANGED` instead of deletion. Obtain a fresh complete-tree fingerprint with `figma_get_fingerprint`; compact `figma_get_node` results intentionally expose no fingerprint and are not a substitute.
 
 ## DesignPlan lifecycle
 
@@ -99,6 +99,7 @@ DesignPlan v1 supports Frame, Text, Rectangle, Ellipse, Line, Image, SVG, Clone,
 - Tree: default depth 2 / 200 nodes; hard limits 8 / 1000.
 - Text: caller-bounded and explicitly marked when truncated.
 - Render: maximum requested dimension 2048 px and raw PNG limit 9 MiB (keeps encoded RPC payload below the bridge limit).
+- Persistent asset export: at most 32 items, 9 MiB per item, and 64 MiB decoded data per batch.
 - Raw REST JSON: self-only by default, with explicit one-level children and projection of up to 32 unique top-level fields; the default limit is 256 KiB and the hard request limit is 2 MiB.
 - Semantic RPC body: 12 MiB; a larger scope must be narrowed or split.
 - Persistent asset and semantic writes require a bound workspace. Temporary tree/render storage retains its independent TTL and quota controls.

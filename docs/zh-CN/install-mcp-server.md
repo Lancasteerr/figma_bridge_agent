@@ -128,7 +128,7 @@ enabled = true
 
 1. 确认客户端只加载一个 `figma-local-agent` Server。
 2. 确认能发现 `figma_status`、`figma_bind_export_root` 等 24 个工具。
-3. 调用 `figma_status`，检查当前 Figma 文件、页面、选区以及 `UNBOUND` 或 `BOUND` 工作区。协议 9 兼容性由连接建立阶段在内部校验。
+3. 调用 `figma_status`，检查当前 Figma 文件、页面、选区以及 `UNBOUND` 或 `BOUND` 工作区。协议 10 兼容性由连接建立阶段在内部校验，协议 9 插件必须明确失败。
 
 直接配置不会自动加载 Agent Plugin Skill。需要了解安全写入顺序时，请阅读 [MCP 工具参考](tools.md)，尤其是 Proposal 与 DesignPlan 流程。
 

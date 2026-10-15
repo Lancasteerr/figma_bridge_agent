@@ -75,6 +75,8 @@ MCP Server 公开固定集合的 24 个工具。公共结果只保留 Agent 下�
 
 `figma_stage_asset` 返回 `{assetId,width?,height?,expiresAt}`。DesignPlan 中 IMAGE/SVG 的 `asset` 只携带 `assetId`；SHA 仅用于插件内部去重和完整性校验。
 
+各类 fingerprint 的职责保持收敛：前端语义快照和素材链路只复用一次 `sourceFingerprint`；`treeFingerprint` 仅用于 DesignPlan 来源及 Proposal 完整树检查；Proposal 修改继续串联 `proposalFingerprint`。`figma_get_node` 不公开 fingerprint。
+
 ## 语义快照
 
 `figma_export_semantic_scope` 把快照写入 `.figma_bridge_agent/sessions/<sessionId>/scopes/`，并返回 `{manifestPath,sourceFingerprint,complete,truncation?}`。`manifestPath` 是工作区相对路径。磁盘 manifest 保留文件 SHA 与创建时间，公共结果不返回这些内部字段。
