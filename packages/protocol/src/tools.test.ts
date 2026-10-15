@@ -7,6 +7,7 @@ import {
   ExportAssetInputSchema,
   ExportAssetRpcInputSchema,
   GetFingerprintInputSchema,
+  GetNodeInputSchema,
   GetRawNodeInputSchema,
   GetTreeInputSchema,
   GetTreeRpcInputSchema,
@@ -62,6 +63,25 @@ describe('aggregate fingerprint input', () => {
   it('rejects empty and duplicate node IDs', () => {
     expect(GetFingerprintInputSchema.safeParse({ nodeIds: [] }).success).toBe(false);
     expect(GetFingerprintInputSchema.safeParse({ nodeIds: ['root', 'root'] }).success).toBe(false);
+  });
+});
+
+describe('compact node input', () => {
+  it('默认选择除 CHILDREN 外的事实字段组', () => {
+    expect(GetNodeInputSchema.parse({ nodeId: '1:2' })).toEqual({
+      nodeId: '1:2',
+      fields: ['GEOMETRY', 'LAYOUT', 'TEXT', 'VISUAL', 'ASSETS', 'COMPONENT'],
+    });
+  });
+
+  it('接受显式空投影和 CHILDREN，并拒绝重复字段', () => {
+    expect(GetNodeInputSchema.parse({ nodeId: '1:2', fields: [] }).fields).toEqual([]);
+    expect(GetNodeInputSchema.parse({ nodeId: '1:2', fields: ['CHILDREN'] }).fields).toEqual([
+      'CHILDREN',
+    ]);
+    expect(GetNodeInputSchema.safeParse({ nodeId: '1:2', fields: ['TEXT', 'TEXT'] }).success).toBe(
+      false,
+    );
   });
 });
 

@@ -9,14 +9,16 @@ import {
 } from '@figma-agent/protocol';
 
 import { fingerprintNodeTree, serializeNode } from '../serialization/node-snapshot.js';
+import { projectCompactNode } from '../serialization/compact-node.js';
 import { serializeLightweightTreeNode } from '../serialization/lightweight-tree.js';
 import { resolveCurrentPageNode } from '../serialization/resolve.js';
 import { isSceneNode } from '../serialization/resolve.js';
 
-/** 返回单节点完整规范化快照。 */
+/** 内部先生成完整规范化快照，再按公开字段组返回紧凑投影。 */
 export async function getNode(params: unknown) {
-  const { nodeId } = GetNodeInputSchema.parse(params);
-  return await serializeNode(await resolveCurrentPageNode(nodeId));
+  const { nodeId, fields } = GetNodeInputSchema.parse(params);
+  const snapshot = await serializeNode(await resolveCurrentPageNode(nodeId));
+  return projectCompactNode(snapshot, fields);
 }
 
 /** 返回与 DesignPlan 和 Proposal 乐观并发校验完全相同的完整树聚合指纹。 */

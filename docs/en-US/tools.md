@@ -14,7 +14,7 @@ The MCP Server exposes a fixed set of 24 tools. Public results contain only fiel
 | Read       | `figma_list_fonts`                 | Page by font family, with styles and optional variation axes                            | No                      |
 | Read       | `figma_get_raw_node`               | Return self-first, projectable `JSON_REST_V1` as an object                              | No                      |
 | Read       | `figma_get_css`                    | Return a Figma Inspect CSS property map                                                 | No                      |
-| Read       | `figma_get_node`                   | Return node facts, direct-child summaries, and `snapshotFingerprint`                    | No                      |
+| Read       | `figma_get_node`                   | Return a projectable compact set of facts for one node                                  | No                      |
 | Read       | `figma_get_tree`                   | Return a lightweight navigation tree, optional truncation, and optional temporary JSONL | No                      |
 | Read       | `figma_get_fingerprint`            | Return an ordered complete-subtree `treeFingerprint`                                    | No                      |
 | Semantic   | `figma_export_semantic_scope`      | Persist a bounded scope under the workspace and return its relative manifest path       | No; writes local files  |
@@ -54,7 +54,7 @@ Export paths must be workspace-relative and cannot contain drive letters, UNC/ab
 - `figma_get_design_resources` returns `{resources,nextCursor?,componentScanComplete}`; VARIABLE entries may include `codeSyntax`.
 - `figma_list_fonts` returns `{families:[{name,styles,variationAxes?}],nextCursor?}` and advances by family.
 - `figma_get_raw_node` returns `{node}`. It defaults to `depth: 0` and removes `children`; `depth: 1` keeps one level only. `fields` projects at most 32 unique top-level fields while `id`, `name`, and `type` are always retained. Unknown fields are ignored, and only `depth` controls `children`. Projection and depth trimming precede the 256 KiB default / 2 MiB hard byte check; narrow fields or depth when the result is too large. `figma_get_css` returns `{properties}`.
-- `figma_get_node` does not echo the input ID or page ID. Empty `assets` is omitted, and the fingerprint is named `snapshotFingerprint`. Its sparse facts cover render bounds, layout and Grid, scrolling, size constraints, text layout and truncation, strokes, and independent corners. Style runs appear only when base text styles are mixed, omit the characters, and are capped at 64.
+- `figma_get_node.fields` accepts `GEOMETRY|LAYOUT|TEXT|VISUAL|ASSETS|COMPONENT|CHILDREN`. Name, type, and parent are always returned. Every applicable group except `CHILDREN` is selected by default; direct-child summaries require an explicit request, and `figma_get_tree` remains the preferred navigation tool. The result does not echo the input/page ID or expose a snapshot fingerprint. Default booleans, zero rotation, empty collections, invalid mask shells, and duplicate render bounds are omitted. Figma clipping/overflow values are static layout facts, not browser scrolling contracts.
 - `figma_get_tree` returns `{root,truncation?,artifact?}`. Nodes use local `bounds` and omit default hints. An artifact contains only `{localPath,expiresAt}`.
 - `figma_render_node` returns `{localPath,width,height,expiresAt}`.
 
@@ -77,7 +77,7 @@ Success returns only `{path,status}`, where status is `CREATED|REUSED|UPDATED`.
 
 `figma_export_semantic_scope` writes under `.figma_bridge_agent/sessions/<sessionId>/scopes/` and returns `{manifestPath,sourceFingerprint,complete,truncation?}`. `manifestPath` is workspace-relative. The persisted manifest retains file SHA values and creation time; the public result does not.
 
-`OUTLINE` provides hierarchy; `IMPLEMENTATION` also provides layout, text, visual, asset, and component facts. Read the manifest first, then query JSONL by exact node ID/name with `rg`. `figma_check_semantic_scope` returns only `{status}`.
+The manifest uses `schemaVersion: 2`, `normalization: "COMPACT_V1"`, and `factsStatus`. `OUTLINE` provides hierarchy, records `factsStatus: "NOT_REQUESTED"`, and does not create an empty `facts.jsonl`. `IMPLEMENTATION` records `WRITTEN` and adds compact layout, text, visual, asset, and component facts. Read the manifest first, then query JSONL by exact node ID/name with `rg`. `figma_check_semantic_scope` returns only `{status}`.
 
 ## Proposal and DesignPlan result chains
 

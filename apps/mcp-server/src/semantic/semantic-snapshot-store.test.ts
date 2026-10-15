@@ -80,6 +80,9 @@ describe('SemanticSnapshotStore', () => {
     });
     const manifest = JSON.parse(await readFile(join(project, stored.manifestPath), 'utf8'));
     expect(manifest).toMatchObject({
+      schemaVersion: 2,
+      normalization: 'COMPACT_V1',
+      factsStatus: 'WRITTEN',
       rootNodeId: '84:681',
       profile: 'IMPLEMENTATION',
       sourceFingerprint: '12345678abcdef00',
@@ -91,12 +94,23 @@ describe('SemanticSnapshotStore', () => {
   });
 
   it('相同源指纹的不同 profile 使用独立快照变体', async () => {
-    const { store } = await setup();
+    const { project, store } = await setup();
     const outline = await store.write(result('OUTLINE'));
     const implementation = await store.write(result('IMPLEMENTATION'));
 
     expect(outline.manifestPath).not.toBe(implementation.manifestPath);
     expect(outline.sourceFingerprint).toBe(implementation.sourceFingerprint);
+    const manifest = JSON.parse(await readFile(join(project, outline.manifestPath), 'utf8'));
+    expect(manifest).toMatchObject({
+      schemaVersion: 2,
+      normalization: 'COMPACT_V1',
+      factsStatus: 'NOT_REQUESTED',
+      files: { outline: 'outline.jsonl' },
+    });
+    expect(manifest.files).not.toHaveProperty('facts');
+    await expect(
+      readFile(join(project, outline.manifestPath.replace(/manifest\.json$/, 'facts.jsonl'))),
+    ).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
   it('未绑定时拒绝语义写入，随后仍可正常绑定工作区', async () => {

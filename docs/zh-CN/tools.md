@@ -6,32 +6,32 @@ MCP Server 公开固定集合的 24 个工具。公共结果只保留 Agent 下�
 
 ## 工具列表
 
-| 分组       | 工具                               | 用途                                                   | Figma 写入          |
-| ---------- | ---------------------------------- | ------------------------------------------------------ | ------------------- |
-| 状态       | `figma_status`                     | 返回 `{document,page,selection,workspace}`             | 否                  |
-| 状态       | `figma_bind_export_root`           | 将 Agent 任务的绝对工作区根绑定到当前会话              | 否                  |
-| 读取       | `figma_get_design_resources`       | 分页读取本地样式、变量及当前页组件/Instance            | 否                  |
-| 读取       | `figma_list_fonts`                 | 按字体族分页读取样式与可变轴                           | 否                  |
-| 读取       | `figma_get_raw_node`               | 返回自节点优先、可投影的 `JSON_REST_V1` 对象           | 否                  |
-| 读取       | `figma_get_css`                    | 返回 Figma Inspect CSS 属性映射                        | 否                  |
-| 读取       | `figma_get_node`                   | 返回单节点设计事实、直接子节点和 `snapshotFingerprint` | 否                  |
-| 读取       | `figma_get_tree`                   | 返回轻量导航树，可选截断信息和临时 JSONL 路径          | 否                  |
-| 读取       | `figma_get_fingerprint`            | 返回完整有序子树的 `treeFingerprint`                   | 否                  |
-| 语义       | `figma_export_semantic_scope`      | 把有界范围写入工作区并返回 manifest 相对路径           | 否，写本地文件      |
-| 语义       | `figma_check_semantic_scope`       | 返回 `FRESH` 或 `STALE`                                | 否                  |
-| 素材       | `figma_render_node`                | 生成 30 分钟有效的临时 PNG                             | 否                  |
-| 素材       | `figma_export_asset`               | 把原始 Image Paint 或节点渲染安全写入工作区            | 否，写本地文件      |
-| 素材       | `figma_stage_asset`                | 校验 Base64 位图/SVG 并暂存在插件内存                  | 否，仅内存          |
-| Proposal   | `figma_duplicate_as_proposal`      | 复制编辑目标及必要上下文，创建隔离 Proposal            | 是，仅副本          |
-| Proposal   | `figma_create_frame`               | 在 Proposal 中创建 Frame                               | 是，仅 Proposal     |
-| Proposal   | `figma_reparent_nodes`             | 在同一 Proposal 内移动节点                             | 是，仅 Proposal     |
-| Proposal   | `figma_set_layout`                 | 写入 Auto Layout、尺寸与定位                           | 是，仅 Proposal     |
-| Proposal   | `figma_create_component_from_node` | 把 Proposal 内 Frame 转为 Component                    | 是，仅 Proposal     |
-| Proposal   | `figma_set_instance_properties`    | 修改 Instance 公开属性，不 detach                      | 是，仅 Proposal     |
-| Proposal   | `figma_update_text`                | 预加载字体后原子更新文本                               | 是，仅 Proposal     |
-| Proposal   | `figma_discard_proposal`           | 指纹匹配时删除 Bridge Proposal                         | 是，删除 Proposal   |
-| DesignPlan | `figma_validate_design_plan`       | 只读验证完整计划，生成五分钟单次 ID                    | 否                  |
-| DesignPlan | `figma_apply_design_plan`          | 使用验证 ID 原子创建完整 Proposal                      | 是，仅新建 Proposal |
+| 分组       | 工具                               | 用途                                          | Figma 写入          |
+| ---------- | ---------------------------------- | --------------------------------------------- | ------------------- |
+| 状态       | `figma_status`                     | 返回 `{document,page,selection,workspace}`    | 否                  |
+| 状态       | `figma_bind_export_root`           | 将 Agent 任务的绝对工作区根绑定到当前会话     | 否                  |
+| 读取       | `figma_get_design_resources`       | 分页读取本地样式、变量及当前页组件/Instance   | 否                  |
+| 读取       | `figma_list_fonts`                 | 按字体族分页读取样式与可变轴                  | 否                  |
+| 读取       | `figma_get_raw_node`               | 返回自节点优先、可投影的 `JSON_REST_V1` 对象  | 否                  |
+| 读取       | `figma_get_css`                    | 返回 Figma Inspect CSS 属性映射               | 否                  |
+| 读取       | `figma_get_node`                   | 返回可投影、紧凑的单节点设计事实              | 否                  |
+| 读取       | `figma_get_tree`                   | 返回轻量导航树，可选截断信息和临时 JSONL 路径 | 否                  |
+| 读取       | `figma_get_fingerprint`            | 返回完整有序子树的 `treeFingerprint`          | 否                  |
+| 语义       | `figma_export_semantic_scope`      | 把有界范围写入工作区并返回 manifest 相对路径  | 否，写本地文件      |
+| 语义       | `figma_check_semantic_scope`       | 返回 `FRESH` 或 `STALE`                       | 否                  |
+| 素材       | `figma_render_node`                | 生成 30 分钟有效的临时 PNG                    | 否                  |
+| 素材       | `figma_export_asset`               | 把原始 Image Paint 或节点渲染安全写入工作区   | 否，写本地文件      |
+| 素材       | `figma_stage_asset`                | 校验 Base64 位图/SVG 并暂存在插件内存         | 否，仅内存          |
+| Proposal   | `figma_duplicate_as_proposal`      | 复制编辑目标及必要上下文，创建隔离 Proposal   | 是，仅副本          |
+| Proposal   | `figma_create_frame`               | 在 Proposal 中创建 Frame                      | 是，仅 Proposal     |
+| Proposal   | `figma_reparent_nodes`             | 在同一 Proposal 内移动节点                    | 是，仅 Proposal     |
+| Proposal   | `figma_set_layout`                 | 写入 Auto Layout、尺寸与定位                  | 是，仅 Proposal     |
+| Proposal   | `figma_create_component_from_node` | 把 Proposal 内 Frame 转为 Component           | 是，仅 Proposal     |
+| Proposal   | `figma_set_instance_properties`    | 修改 Instance 公开属性，不 detach             | 是，仅 Proposal     |
+| Proposal   | `figma_update_text`                | 预加载字体后原子更新文本                      | 是，仅 Proposal     |
+| Proposal   | `figma_discard_proposal`           | 指纹匹配时删除 Bridge Proposal                | 是，删除 Proposal   |
+| DesignPlan | `figma_validate_design_plan`       | 只读验证完整计划，生成五分钟单次 ID           | 否                  |
+| DesignPlan | `figma_apply_design_plan`          | 使用验证 ID 原子创建完整 Proposal             | 是，仅新建 Proposal |
 
 `figma_get_selection` 与 `figma_get_variables` 已删除：选区由 `figma_status` 返回，变量统一由 `figma_get_design_resources` 返回。
 
@@ -54,7 +54,7 @@ MCP Server 公开固定集合的 24 个工具。公共结果只保留 Agent 下�
 - `figma_get_design_resources` 返回 `{resources,nextCursor?,componentScanComplete}`；VARIABLE 可含 `codeSyntax`。
 - `figma_list_fonts` 返回 `{families:[{name,styles,variationAxes?}],nextCursor?}`，游标按字体族推进。
 - `figma_get_raw_node` 返回 `{node}` JSON 对象。默认 `depth: 0` 并删除 `children`；`depth: 1` 只保留一层。可用 `fields` 投影最多 32 个唯一顶层字段，`id`、`name`、`type` 始终保留，未知字段被忽略，`children` 只能由 `depth` 控制。投影和深度裁剪先于 256 KiB 默认/2 MiB 硬限制的字节检查；超限时应缩小字段或深度。`figma_get_css` 返回 `{properties}`。
-- `figma_get_node` 不回显输入 ID/page ID；空 `assets` 被省略，指纹名为 `snapshotFingerprint`。其稀疏事实覆盖渲染边界、布局与 Grid、滚动、尺寸约束、文字排版与截断、描边和独立圆角；只有基础样式 mixed 时才返回不含正文的样式 runs，最多 64 条。
+- `figma_get_node` 的 `fields` 可选择 `GEOMETRY|LAYOUT|TEXT|VISUAL|ASSETS|COMPONENT|CHILDREN`。名称、类型和父节点始终返回；默认选择除 `CHILDREN` 外的字段，直接子节点必须显式请求，导航仍优先使用 `figma_get_tree`。结果不回显输入 ID/page ID，也不公开 snapshot fingerprint；默认布尔值、零旋转、空集合、无效蒙版外壳及重复 render bounds 会被省略。Figma 的 clipping/overflow 只表示静态布局事实，不构成浏览器滚动契约。
 - `figma_get_tree` 返回 `{root,truncation?,artifact?}`。节点只含本地 `bounds` 与非默认提示；artifact 只含 `{localPath,expiresAt}`。
 - `figma_render_node` 返回 `{localPath,width,height,expiresAt}`。
 
@@ -77,7 +77,7 @@ MCP Server 公开固定集合的 24 个工具。公共结果只保留 Agent 下�
 
 `figma_export_semantic_scope` 把快照写入 `.figma_bridge_agent/sessions/<sessionId>/scopes/`，并返回 `{manifestPath,sourceFingerprint,complete,truncation?}`。`manifestPath` 是工作区相对路径。磁盘 manifest 保留文件 SHA 与创建时间，公共结果不返回这些内部字段。
 
-`OUTLINE` 生成层级概要；`IMPLEMENTATION` 还生成布局、文本、视觉、素材和组件事实。先读 manifest，再用 `rg` 按 node ID/name 查询 JSONL。`figma_check_semantic_scope` 只返回 `{status}`。
+manifest 使用 `schemaVersion: 2`、`normalization: "COMPACT_V1"` 和 `factsStatus`。`OUTLINE` 只生成层级概要，标记 `factsStatus: "NOT_REQUESTED"`，且不创建空 `facts.jsonl`；`IMPLEMENTATION` 标记 `WRITTEN` 并生成紧凑的布局、文本、视觉、素材和组件事实。先读 manifest，再用 `rg` 按 node ID/name 查询 JSONL。`figma_check_semantic_scope` 只返回 `{status}`。
 
 ## Proposal 与 DesignPlan 返回链
 

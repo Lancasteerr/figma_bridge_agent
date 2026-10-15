@@ -17,6 +17,11 @@ variant keeps different profiles, focus sets, render choices, and budgets immuta
 Figma source fingerprint is unchanged. The cache root contains its own `.gitignore`; do not add
 snapshot files to product source or copy their bodies into the conversation.
 
+Every new snapshot uses manifest `schemaVersion: 2` and `normalization: "COMPACT_V1"`. Check
+`factsStatus` before reading facts: `OUTLINE` records `NOT_REQUESTED` and intentionally has no
+`facts.jsonl`; `IMPLEMENTATION` records `WRITTEN` and includes that file even when its selected fact
+set is empty. Do not infer a missing OUTLINE facts file is corruption.
+
 A temporary JSONL returned by `figma_get_tree` is only a 30-minute navigation artifact. It is not a
 semantic snapshot, does not bind a workspace, and must not be used as durable implementation
 evidence or freshness state.
@@ -35,7 +40,7 @@ For one node or component:
 For a large region or page:
 
 1. Export the requested root with `profile: "OUTLINE"`.
-2. Inspect the outline and let the user goal plus repository structure determine useful child
+2. Inspect `outline.jsonl` and let the user goal plus repository structure determine useful child
    scopes. There is no fixed page decomposition.
 3. Export and activate one bounded child scope at a time with `profile: "IMPLEMENTATION"`.
 4. Leave completed scopes on disk and retain only their lightweight work-unit summaries while

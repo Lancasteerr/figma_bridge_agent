@@ -1,11 +1,11 @@
 import { z } from 'zod';
 
 import {
+  CompactGeometrySchema,
+  CompactNodeAssetSnapshotSchema,
+  CompactTextSnapshotSchema,
   ComponentSnapshotSchema,
-  GeometrySchema,
   LayoutSnapshotSchema,
-  NodeAssetSnapshotSchema,
-  TextSnapshotSchema,
   VisualSnapshotSchema,
 } from './node.js';
 
@@ -39,8 +39,8 @@ export const SemanticOutlineRecordSchema = z
     order: z.number().int().nonnegative(),
     name: z.string(),
     type: z.string(),
-    visible: z.boolean().optional(),
-    geometry: GeometrySchema.optional(),
+    visible: z.literal(false).optional(),
+    geometry: CompactGeometrySchema.optional(),
     layoutMode: z.string().optional(),
     childCount: z.number().int().nonnegative(),
   })
@@ -56,13 +56,13 @@ export const SemanticFactRecordSchema = z
     order: z.number().int().nonnegative(),
     name: z.string(),
     type: z.string(),
-    visible: z.boolean().optional(),
-    locked: z.boolean().optional(),
-    geometry: GeometrySchema.optional(),
+    visible: z.literal(false).optional(),
+    locked: z.literal(true).optional(),
+    geometry: CompactGeometrySchema.optional(),
     layout: LayoutSnapshotSchema.optional(),
-    text: TextSnapshotSchema.optional(),
+    text: CompactTextSnapshotSchema.optional(),
     visual: VisualSnapshotSchema.optional(),
-    assets: NodeAssetSnapshotSchema.optional(),
+    assets: CompactNodeAssetSnapshotSchema.optional(),
     component: ComponentSnapshotSchema.optional(),
   })
   .strict();
@@ -160,10 +160,12 @@ export const CheckSemanticScopeResultSchema = z
   .strict();
 export type CheckSemanticScopeResult = z.infer<typeof CheckSemanticScopeResultSchema>;
 
-/** manifest 是磁盘格式的一部分，schemaVersion 允许未来并行读取旧修订。 */
+/** manifest v2 明确紧凑规范化方式，并区分未请求 facts 与已写入空 facts。 */
 export const SemanticSnapshotManifestSchema = z
   .object({
-    schemaVersion: z.literal(1),
+    schemaVersion: z.literal(2),
+    normalization: z.literal('COMPACT_V1'),
+    factsStatus: z.enum(['NOT_REQUESTED', 'WRITTEN']),
     sessionId: z.string().uuid(),
     scopeId: z.string(),
     rootNodeId: z.string(),
@@ -186,14 +188,17 @@ export const SemanticSnapshotManifestSchema = z
     files: z
       .object({
         outline: z.string(),
-        facts: z.string(),
+        facts: z.string().optional(),
         render: z.string().optional(),
       })
       .strict(),
     sha256: z
       .object({
         outline: z.string().regex(/^[a-f0-9]{64}$/),
-        facts: z.string().regex(/^[a-f0-9]{64}$/),
+        facts: z
+          .string()
+          .regex(/^[a-f0-9]{64}$/)
+          .optional(),
         render: z
           .string()
           .regex(/^[a-f0-9]{64}$/)
@@ -202,5 +207,23 @@ export const SemanticSnapshotManifestSchema = z
       .strict(),
     createdAt: z.string().datetime(),
   })
-  .strict();
+  .strict()
+  .superRefine((manifest, context) => {
+    const hasFacts = manifest.files.facts !== undefined && manifest.sha256.facts !== undefined;
+    if (manifest.factsStatus === 'WRITTEN' && !hasFacts) {
+      context.addIssue({ code: 'custom', message: 'WRITTEN manifest must include facts file.' });
+    }
+    if (manifest.factsStatus === 'NOT_REQUESTED' && hasFacts) {
+      context.addIssue({
+        code: 'custom',
+        message: 'NOT_REQUESTED manifest must not include facts file.',
+      });
+    }
+    if (
+      (manifest.profile === 'OUTLINE' && manifest.factsStatus !== 'NOT_REQUESTED') ||
+      (manifest.profile === 'IMPLEMENTATION' && manifest.factsStatus !== 'WRITTEN')
+    ) {
+      context.addIssue({ code: 'custom', message: 'factsStatus must match snapshot profile.' });
+    }
+  });
 export type SemanticSnapshotManifest = z.infer<typeof SemanticSnapshotManifestSchema>;

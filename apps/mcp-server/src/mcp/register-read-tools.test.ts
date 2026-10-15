@@ -124,6 +124,30 @@ describe('figma_get_raw_node MCP 投影', () => {
   });
 });
 
+describe('figma_get_node MCP 投影', () => {
+  it('默认不请求 children，并原样公开插件生成的紧凑事实', async () => {
+    const compact = {
+      name: 'Card',
+      type: 'FRAME',
+      geometry: {
+        local: { x: 0, y: 0, width: 100, height: 80 },
+        absolute: { x: 0, y: 0, width: 100, height: 80 },
+      },
+    };
+    const { broker, handlers } = await setup(compact);
+
+    const response = await handlers.get('figma_get_node')!({ nodeId: 'node:1' });
+
+    expect(broker.request).toHaveBeenCalledWith('getNode', {
+      nodeId: 'node:1',
+      fields: ['GEOMETRY', 'LAYOUT', 'TEXT', 'VISUAL', 'ASSETS', 'COMPONENT'],
+    });
+    expect(response.structuredContent).toEqual(compact);
+    expect(response.structuredContent).not.toHaveProperty('children');
+    expect(response.structuredContent).not.toHaveProperty('snapshotFingerprint');
+  });
+});
+
 describe('figma_get_tree MCP 交付', () => {
   it('小树在预算内完整内联，且交付策略不发送给插件', async () => {
     const { broker, handler } = await setup(tree([node('child')]));

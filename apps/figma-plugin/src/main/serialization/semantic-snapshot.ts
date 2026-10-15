@@ -6,6 +6,7 @@ import {
 } from '@figma-agent/protocol';
 
 import { createSerializeContext, serializeNode } from './node-snapshot.js';
+import { projectCompactNode } from './compact-node.js';
 import { isSceneNode } from './resolve.js';
 
 interface SerializeSemanticScopeInput {
@@ -51,6 +52,14 @@ export async function serializeSemanticScope(
     parentId: string | null,
   ): Promise<void> => {
     const snapshot = await serializeNode(node, { maxTextLength: input.maxTextLength }, context);
+    const compact = projectCompactNode(snapshot, [
+      'GEOMETRY',
+      'LAYOUT',
+      'TEXT',
+      'VISUAL',
+      'ASSETS',
+      'COMPONENT',
+    ]);
     const children = 'children' in node ? node.children.filter(isSceneNode) : [];
     outline.push({
       nodeId: node.id,
@@ -59,9 +68,9 @@ export async function serializeSemanticScope(
       order,
       name: node.name,
       type: node.type,
-      ...('visible' in node ? { visible: node.visible } : {}),
-      geometry: snapshot.geometry,
-      ...(snapshot.layout?.mode ? { layoutMode: snapshot.layout.mode } : {}),
+      ...(compact.visible === false ? { visible: false as const } : {}),
+      ...(compact.geometry ? { geometry: compact.geometry } : {}),
+      ...(compact.layout?.mode ? { layoutMode: compact.layout.mode } : {}),
       childCount: children.length,
     });
 
@@ -75,14 +84,14 @@ export async function serializeSemanticScope(
         order,
         name: node.name,
         type: node.type,
-        ...('visible' in node ? { visible: node.visible } : {}),
-        ...('locked' in node ? { locked: node.locked } : {}),
-        geometry: snapshot.geometry,
-        ...(snapshot.layout ? { layout: snapshot.layout } : {}),
-        ...(snapshot.text ? { text: snapshot.text } : {}),
-        ...(snapshot.visual ? { visual: snapshot.visual } : {}),
-        ...(snapshot.assets ? { assets: snapshot.assets } : {}),
-        ...(snapshot.component ? { component: snapshot.component } : {}),
+        ...(compact.visible === false ? { visible: false as const } : {}),
+        ...(compact.locked === true ? { locked: true as const } : {}),
+        ...(compact.geometry ? { geometry: compact.geometry } : {}),
+        ...(compact.layout ? { layout: compact.layout } : {}),
+        ...(compact.text ? { text: compact.text } : {}),
+        ...(compact.visual ? { visual: compact.visual } : {}),
+        ...(compact.assets ? { assets: compact.assets } : {}),
+        ...(compact.component ? { component: compact.component } : {}),
       });
       if (snapshot.text?.truncated) reasons.add('TEXT_LIMIT');
     }

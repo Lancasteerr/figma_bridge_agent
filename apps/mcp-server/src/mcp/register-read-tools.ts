@@ -11,7 +11,6 @@ import {
   GetTreeInputSchema,
   GetTreeRpcInputSchema,
   NodeResultSchema,
-  NodeSnapshotSchema,
   RawNodeResultSchema,
   RawNodeRpcResultSchema,
   TreeResultSchema,
@@ -147,7 +146,7 @@ export function registerReadTools(
     'figma_get_node',
     {
       description:
-        'Return a normalized snapshot of one node on the current Figma page, including geometry, layout, text, visual, component, and direct-child summaries.',
+        'Return a compact normalized projection of one node on the current Figma page. Identity is always returned; request field groups explicitly and use CHILDREN only when direct-child summaries are needed. Figma clipping and overflow fields are static layout hints, not browser scrolling contracts.',
       inputSchema: GetNodeInputSchema,
       outputSchema: NodeResultSchema,
       annotations: {
@@ -160,39 +159,8 @@ export function registerReadTools(
     },
     async (input) => {
       try {
-        const snapshot = NodeSnapshotSchema.parse(
-          await broker.request('getNode', GetNodeInputSchema.parse(input)),
-        );
-        const children = snapshot.children.map(({ id, name, type, geometry }) => ({
-          id,
-          name,
-          type,
-          ...(geometry ? { geometry } : {}),
-        }));
-        const assets =
-          snapshot.assets &&
-          (snapshot.assets.imagePaints.length > 0 ||
-            snapshot.assets.exportSettings.length > 0 ||
-            snapshot.assets.vector ||
-            snapshot.assets.mask)
-            ? snapshot.assets
-            : undefined;
         return structuredResult(
-          NodeResultSchema.parse({
-            name: snapshot.name,
-            type: snapshot.type,
-            ...(snapshot.parentId ? { parentId: snapshot.parentId } : {}),
-            ...(snapshot.geometry ? { geometry: snapshot.geometry } : {}),
-            ...(snapshot.visible === undefined ? {} : { visible: snapshot.visible }),
-            ...(snapshot.locked === undefined ? {} : { locked: snapshot.locked }),
-            ...(snapshot.layout ? { layout: snapshot.layout } : {}),
-            ...(snapshot.text ? { text: snapshot.text } : {}),
-            ...(snapshot.visual ? { visual: snapshot.visual } : {}),
-            children,
-            ...(assets ? { assets } : {}),
-            ...(snapshot.component ? { component: snapshot.component } : {}),
-            snapshotFingerprint: snapshot.fingerprint,
-          }),
+          NodeResultSchema.parse(await broker.request('getNode', GetNodeInputSchema.parse(input))),
         );
       } catch (error) {
         return toolError(error);

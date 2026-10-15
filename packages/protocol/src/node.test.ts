@@ -98,7 +98,6 @@ describe('节点保真协议', () => {
         },
         text: {
           characters: 'Hello',
-          truncated: false,
           runs: [{ start: 0, end: 5, fontSize: 16 }],
         },
         visual: {
@@ -107,7 +106,6 @@ describe('节点保真协议', () => {
           cornerRadii: { topLeft: 4, topRight: 8, bottomRight: 12, bottomLeft: 16 },
         },
         children: [],
-        snapshotFingerprint: 'snapshot-123',
       }).success,
     ).toBe(true);
   });
@@ -122,8 +120,18 @@ describe('节点保真协议', () => {
       NodeResultSchema.safeParse({
         name: 'Text',
         type: 'TEXT',
-        text: { characters: 'x'.repeat(65), truncated: false, runs },
+        text: { characters: 'x'.repeat(65), runs },
         children: [],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('拒绝已移除的公开 snapshot fingerprint 和默认布尔值', () => {
+    expect(
+      NodeResultSchema.safeParse({
+        name: 'Card',
+        type: 'FRAME',
+        visible: true,
         snapshotFingerprint: 'snapshot-123',
       }).success,
     ).toBe(false);

@@ -45,11 +45,14 @@ export class SemanticSnapshotStore {
       data: result.outlineJsonl,
       writePolicy: 'REUSE_OR_FAIL',
     });
-    const facts = await this.#writer.write({
-      relativePath: `${directory}/facts.jsonl`,
-      data: result.factsJsonl,
-      writePolicy: 'REUSE_OR_FAIL',
-    });
+    const facts =
+      result.profile === 'IMPLEMENTATION'
+        ? await this.#writer.write({
+            relativePath: `${directory}/facts.jsonl`,
+            data: result.factsJsonl,
+            writePolicy: 'REUSE_OR_FAIL',
+          })
+        : undefined;
     const render = result.render
       ? await this.#writer.write({
           relativePath: `${directory}/render.png`,
@@ -59,7 +62,9 @@ export class SemanticSnapshotStore {
       : undefined;
 
     const manifest = SemanticSnapshotManifestSchema.parse({
-      schemaVersion: 1,
+      schemaVersion: 2,
+      normalization: 'COMPACT_V1',
+      factsStatus: facts ? 'WRITTEN' : 'NOT_REQUESTED',
       sessionId: this.workspace.sessionId,
       scopeId,
       rootNodeId: result.rootNodeId,
@@ -73,12 +78,12 @@ export class SemanticSnapshotStore {
       truncation: result.truncation,
       files: {
         outline: 'outline.jsonl',
-        facts: 'facts.jsonl',
+        ...(facts ? { facts: 'facts.jsonl' } : {}),
         ...(render ? { render: 'render.png' } : {}),
       },
       sha256: {
         outline: outline.sha256,
-        facts: facts.sha256,
+        ...(facts ? { facts: facts.sha256 } : {}),
         ...(render ? { render: render.sha256 } : {}),
       },
       createdAt: this.#createdAt,

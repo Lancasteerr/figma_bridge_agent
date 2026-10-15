@@ -6,7 +6,37 @@ import { PositioningSchema } from './node.js';
 
 /** MCP 工具输入和输出 schema 集中定义，服务端与插件共享同一边界。 */
 export const EmptyInputSchema = z.object({});
-export const GetNodeInputSchema = z.object({ nodeId: z.string().min(1) });
+/** 节点读取按稳定字段组投影；children 必须由调用方显式请求。 */
+export const NodeFieldSchema = z.enum([
+  'GEOMETRY',
+  'LAYOUT',
+  'TEXT',
+  'VISUAL',
+  'ASSETS',
+  'COMPONENT',
+  'CHILDREN',
+]);
+export type NodeField = z.infer<typeof NodeFieldSchema>;
+export const DEFAULT_NODE_FIELDS: readonly NodeField[] = [
+  'GEOMETRY',
+  'LAYOUT',
+  'TEXT',
+  'VISUAL',
+  'ASSETS',
+  'COMPONENT',
+];
+export const GetNodeInputSchema = z
+  .object({
+    nodeId: z.string().min(1),
+    fields: z
+      .array(NodeFieldSchema)
+      .max(NodeFieldSchema.options.length)
+      .refine((fields) => new Set(fields).size === fields.length, {
+        message: 'fields must be unique.',
+      })
+      .default([...DEFAULT_NODE_FIELDS]),
+  })
+  .strict();
 export const GetFingerprintInputSchema = z
   .object({
     nodeIds: z
@@ -43,7 +73,7 @@ export const RenderNodeInputSchema = z.object({
   scale: z.number().positive().max(4).default(1),
   maxDimension: z.number().int().min(64).max(2048).default(2048),
 });
-export const GetCssInputSchema = GetNodeInputSchema;
+export const GetCssInputSchema = z.object({ nodeId: z.string().min(1) }).strict();
 const RawNodeReservedFieldSchema = z.enum([
   'id',
   'name',

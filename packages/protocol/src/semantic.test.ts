@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ExportSemanticScopeInputSchema,
   SemanticFactRecordSchema,
+  SemanticSnapshotManifestSchema,
   SemanticTruncationSchema,
 } from './semantic.js';
 
@@ -48,5 +49,47 @@ describe('语义快照协议', () => {
       frontierNodeIds: ['child:2'],
       omittedChildCount: 1,
     });
+  });
+
+  it('manifest v2 区分未请求与已写入的 facts', () => {
+    const base = {
+      schemaVersion: 2 as const,
+      normalization: 'COMPACT_V1' as const,
+      sessionId: '11111111-1111-4111-8111-111111111111',
+      scopeId: 'scope-1',
+      rootNodeId: '84:681',
+      rootNodeName: 'Root',
+      page: { id: 'page:1', name: 'Home' },
+      request: {
+        focusNodeIds: [],
+        includeRender: false,
+        depth: 8,
+        maxNodes: 200,
+        maxTextLength: 500,
+      },
+      sourceFingerprint: '12345678',
+      nodeCount: 1,
+      complete: true,
+      truncation: null,
+      createdAt: '2026-10-15T00:00:00.000Z',
+    };
+    expect(
+      SemanticSnapshotManifestSchema.safeParse({
+        ...base,
+        profile: 'OUTLINE',
+        factsStatus: 'NOT_REQUESTED',
+        files: { outline: 'outline.jsonl' },
+        sha256: { outline: 'a'.repeat(64) },
+      }).success,
+    ).toBe(true);
+    expect(
+      SemanticSnapshotManifestSchema.safeParse({
+        ...base,
+        profile: 'OUTLINE',
+        factsStatus: 'NOT_REQUESTED',
+        files: { outline: 'outline.jsonl', facts: 'facts.jsonl' },
+        sha256: { outline: 'a'.repeat(64), facts: 'b'.repeat(64) },
+      }).success,
+    ).toBe(false);
   });
 });

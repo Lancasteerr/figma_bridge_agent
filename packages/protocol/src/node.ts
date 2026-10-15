@@ -31,6 +31,12 @@ export const GeometrySchema = z.object({
 /** 节点几何快照类型。 */
 export type Geometry = z.infer<typeof GeometrySchema>;
 
+/** 对外投影省略零旋转，并允许去掉与 absolute 重复的渲染边界。 */
+export const CompactGeometrySchema = GeometrySchema.omit({ rotation: true }).extend({
+  rotation: z.number().optional(),
+});
+export type CompactGeometry = z.infer<typeof CompactGeometrySchema>;
+
 /** Figma Auto Layout 的尺寸策略和节点布局模式。 */
 export const AxisSizingSchema = z.enum(['FIXED', 'HUG', 'FILL']);
 export const LayoutModeSchema = z.enum(['NONE', 'HORIZONTAL', 'VERTICAL', 'GRID']);
@@ -147,6 +153,11 @@ export const TextSnapshotSchema = z.object({
   hasMissingFont: z.boolean().optional(),
 });
 
+/** 紧凑文本事实只在发生截断时返回标志，false 由字段缺省表达。 */
+export const CompactTextSnapshotSchema = TextSnapshotSchema.omit({ truncated: true }).extend({
+  truncated: z.literal(true).optional(),
+});
+
 /** 可序列化的视觉属性摘要。 */
 export const VisualSnapshotSchema = z.object({
   opacity: z.number().optional(),
@@ -242,6 +253,12 @@ export const NodeAssetSnapshotSchema = z
   .strict();
 export type NodeAssetSnapshot = z.infer<typeof NodeAssetSnapshotSchema>;
 
+/** 紧凑素材事实不保留空数组或无效的非蒙版外壳。 */
+export const CompactNodeAssetSnapshotSchema = NodeAssetSnapshotSchema.extend({
+  imagePaints: NodeAssetSnapshotSchema.shape.imagePaints.optional(),
+  exportSettings: NodeAssetSnapshotSchema.shape.exportSettings.optional(),
+});
+
 /** Component、Component Set 和 Instance 的关联信息。 */
 export const ComponentSnapshotSchema = z.object({
   kind: z.enum(['COMPONENT', 'COMPONENT_SET', 'INSTANCE']),
@@ -284,26 +301,25 @@ export const PublicNodeChildSchema = z
     id: z.string(),
     name: z.string(),
     type: z.string(),
-    geometry: GeometrySchema.optional(),
+    geometry: CompactGeometrySchema.optional(),
   })
   .strict();
 
-/** MCP 公开节点结果去除页面、输入 ID 和重复截断标志。 */
+/** MCP 公开节点结果是按字段组投影的紧凑事实，不暴露内部一致性指纹。 */
 export const NodeResultSchema = z
   .object({
     name: z.string(),
     type: z.string(),
     parentId: z.string().optional(),
-    geometry: GeometrySchema.optional(),
-    visible: z.boolean().optional(),
-    locked: z.boolean().optional(),
+    geometry: CompactGeometrySchema.optional(),
+    visible: z.literal(false).optional(),
+    locked: z.literal(true).optional(),
     layout: LayoutSnapshotSchema.optional(),
-    text: TextSnapshotSchema.optional(),
+    text: CompactTextSnapshotSchema.optional(),
     visual: VisualSnapshotSchema.optional(),
-    assets: NodeAssetSnapshotSchema.optional(),
+    assets: CompactNodeAssetSnapshotSchema.optional(),
     component: ComponentSnapshotSchema.optional(),
-    children: z.array(PublicNodeChildSchema),
-    snapshotFingerprint: z.string().min(8),
+    children: z.array(PublicNodeChildSchema).optional(),
   })
   .strict();
 export type NodeResult = z.infer<typeof NodeResultSchema>;
