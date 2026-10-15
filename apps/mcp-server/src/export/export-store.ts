@@ -44,4 +44,9 @@ export class ExportStore {
   async write(request: ExportWriteRequest): Promise<ExportWriteResult> {
     return await this.#writer.write(request);
   }
+
+  /** 批量素材在全部校验完成后一次提交，避免只更新部分项目文件。 */
+  async writeBatch(requests: readonly ExportWriteRequest[]): Promise<ExportWriteResult[]> {
+    return await this.#writer.writeBatch(requests);
+  }
 }

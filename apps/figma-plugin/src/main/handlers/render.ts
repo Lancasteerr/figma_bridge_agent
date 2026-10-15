@@ -1,5 +1,7 @@
 import {
   BridgeFault,
+  CheckAssetSourceGuardRpcInputSchema,
+  CheckAssetSourceGuardRpcResultSchema,
   ExportAssetRpcInputSchema,
   ExportAssetRpcResultSchema,
   RenderNodeInputSchema,
@@ -37,7 +39,7 @@ export async function renderNode(params: unknown): Promise<RenderResult> {
   };
 }
 
-/** 按 paint 精确提取原始图片，或在完整子树指纹一致时渲染节点。 */
+/** 按 paint 精确提取原始图片，或渲染节点；每项都在导出前后校验来源一致。 */
 export async function exportAsset(params: unknown): Promise<ExportRpcResult> {
   const input = ExportAssetRpcInputSchema.parse(params);
   const node = await resolveCurrentPageNode(input.nodeId);
@@ -55,41 +57,33 @@ export async function exportAsset(params: unknown): Promise<ExportRpcResult> {
   }
 }
 
+/** 校验批次 guard 根和所有素材节点的归属，并返回与语义快照相同的来源指纹。 */
+export async function checkAssetSourceGuard(params: unknown) {
+  const input = CheckAssetSourceGuardRpcInputSchema.parse(params);
+  const root = await resolveCurrentPageNode(input.rootNodeId);
+  const nodes = await Promise.all(input.nodeIds.map(resolveCurrentPageNode));
+  for (const node of nodes) assertDescendant(root, node);
+  return CheckAssetSourceGuardRpcResultSchema.parse({
+    rootNodeId: root.id,
+    sourceFingerprint: await fingerprintNodeTree([root]),
+  });
+}
+
 async function exportRawImage(
   node: SceneNode,
   input: Extract<z.infer<typeof ExportAssetRpcInputSchema>, { mode: 'RAW' }>,
 ): Promise<ExportRpcResult> {
-  const snapshot = await serializeNode(node);
-  if (snapshot.fingerprint !== input.expectedNodeFingerprint) {
-    throw sourceChanged(node.id, 'Node snapshot fingerprint changed.', {
-      expectedNodeFingerprint: input.expectedNodeFingerprint,
-      actualNodeFingerprint: snapshot.fingerprint,
-    });
-  }
-
-  const paintValue =
-    input.paintSlot === 'FILLS' && 'fills' in node
-      ? node.fills
-      : input.paintSlot === 'STROKES' && 'strokes' in node
-        ? node.strokes
-        : undefined;
-  if (!Array.isArray(paintValue)) {
-    throw sourceChanged(node.id, `${input.paintSlot} is mixed or unavailable.`);
-  }
-  const paint = paintValue[input.paintIndex];
-  if (!paint || paint.type !== 'IMAGE' || paint.imageHash !== input.expectedImageHash) {
-    throw sourceChanged(node.id, 'Image paint or image hash changed.', {
-      paintSlot: input.paintSlot,
-      paintIndex: input.paintIndex,
-      expectedImageHash: input.expectedImageHash,
-      actualImageHash: paint?.type === 'IMAGE' ? paint.imageHash : undefined,
-    });
-  }
-
-  const image = figma.getImageByHash(input.expectedImageHash);
+  const before = await serializeNode(node);
+  const imageHash = resolveImageHash(node, input.paintSlot, input.paintIndex);
+  const image = figma.getImageByHash(imageHash);
   if (!image) throw sourceChanged(node.id, 'The referenced Figma image no longer exists.');
   const [bytes, size] = await Promise.all([image.getBytesAsync(), image.getSizeAsync()]);
   assertPayloadSize(bytes.byteLength, node.id, 'Raw image');
+  const after = await serializeNode(node);
+  const afterImageHash = resolveImageHash(node, input.paintSlot, input.paintIndex);
+  if (before.fingerprint !== after.fingerprint || imageHash !== afterImageHash) {
+    throw sourceChanged(node.id, 'The image paint changed while it was being exported.');
+  }
   return ExportAssetRpcResultSchema.parse({
     nodeId: node.id,
     mode: 'RAW',
@@ -99,10 +93,6 @@ async function exportRawImage(
     encoding: 'base64',
     width: size.width,
     height: size.height,
-    source: {
-      imageHash: input.expectedImageHash,
-      nodeFingerprint: snapshot.fingerprint,
-    },
   });
 }
 
@@ -110,17 +100,12 @@ async function exportRenderedNode(
   node: SceneNode,
   input: Extract<z.infer<typeof ExportAssetRpcInputSchema>, { mode: 'RENDERED' }>,
 ): Promise<ExportRpcResult> {
-  const treeFingerprint = await fingerprintNodeTree([node]);
-  if (treeFingerprint !== input.expectedTreeFingerprint) {
-    throw sourceChanged(node.id, 'Node subtree fingerprint changed.', {
-      expectedTreeFingerprint: input.expectedTreeFingerprint,
-      actualTreeFingerprint: treeFingerprint,
-    });
-  }
+  const before = await fingerprintNodeTree([node]);
 
   if (input.format === 'SVG') {
     const data = await node.exportAsync({ format: 'SVG_STRING' });
     assertPayloadSize(encodeUtf8(data).byteLength, node.id, 'Rendered SVG');
+    await assertTreeUnchanged(node, before);
     return ExportAssetRpcResultSchema.parse({
       nodeId: node.id,
       mode: 'RENDERED',
@@ -128,7 +113,8 @@ async function exportRenderedNode(
       mimeType: 'image/svg+xml',
       data,
       encoding: 'utf8',
-      source: { treeFingerprint },
+      width: node.width,
+      height: node.height,
     });
   }
 
@@ -137,6 +123,7 @@ async function exportRenderedNode(
     constraint: { type: 'SCALE', value: input.scale },
   });
   assertPayloadSize(bytes.byteLength, node.id, `Rendered ${input.format}`);
+  await assertTreeUnchanged(node, before);
   return ExportAssetRpcResultSchema.parse({
     nodeId: node.id,
     mode: 'RENDERED',
@@ -146,7 +133,51 @@ async function exportRenderedNode(
     encoding: 'base64',
     width: Math.max(1, Math.round(node.width * input.scale)),
     height: Math.max(1, Math.round(node.height * input.scale)),
-    source: { treeFingerprint },
+  });
+}
+
+function resolveImageHash(
+  node: SceneNode,
+  paintSlot: 'FILLS' | 'STROKES',
+  paintIndex: number,
+): string {
+  const paintValue =
+    paintSlot === 'FILLS' && 'fills' in node
+      ? node.fills
+      : paintSlot === 'STROKES' && 'strokes' in node
+        ? node.strokes
+        : undefined;
+  if (!Array.isArray(paintValue)) {
+    throw sourceChanged(node.id, `${paintSlot} is mixed or unavailable.`);
+  }
+  const paint = paintValue[paintIndex];
+  if (!paint || paint.type !== 'IMAGE' || !paint.imageHash) {
+    throw sourceChanged(node.id, 'The selected paint is no longer an exported image.', {
+      paintSlot,
+      paintIndex,
+    });
+  }
+  return paint.imageHash;
+}
+
+async function assertTreeUnchanged(node: SceneNode, before: string): Promise<void> {
+  const after = await fingerprintNodeTree([node]);
+  if (before !== after) {
+    throw sourceChanged(node.id, 'The node subtree changed while it was being exported.');
+  }
+}
+
+function assertDescendant(root: SceneNode, node: SceneNode): void {
+  let current: BaseNode | null = node;
+  while (current) {
+    if (current.id === root.id) return;
+    current = current.parent;
+  }
+  throw new BridgeFault({
+    code: 'NODE_NOT_IN_CURRENT_PAGE',
+    message: `Asset node ${node.id} is not inside source guard ${root.id}.`,
+    retryable: false,
+    nodeId: node.id,
   });
 }
 

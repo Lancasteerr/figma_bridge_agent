@@ -19,7 +19,7 @@ const EXPECTED_TOOLS = [
   'figma_create_frame',
   'figma_discard_proposal',
   'figma_duplicate_as_proposal',
-  'figma_export_asset',
+  'figma_export_assets',
   'figma_export_semantic_scope',
   'figma_get_css',
   'figma_get_design_resources',
@@ -99,7 +99,6 @@ describe('MCP tool contract', () => {
         'total',
         'scannedNodeCount',
         'scanTruncated',
-        'mimeType',
         'fingerprint',
       ]) {
         expect(outputProperties, `${tool.name} exposes ${forbidden}`).not.toContain(forbidden);
@@ -140,10 +139,14 @@ describe('MCP tool contract', () => {
       destructiveHint: false,
       idempotentHint: true,
     });
-    expect(tools.find((tool) => tool.name === 'figma_export_asset')?.annotations).toMatchObject({
+    expect(tools.find((tool) => tool.name === 'figma_export_assets')?.annotations).toMatchObject({
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: true,
+    });
+    expect(tools.map((tool) => tool.name)).not.toContain('figma_export_asset');
+    expect(tools.find((tool) => tool.name === 'figma_export_assets')?.outputSchema).toMatchObject({
+      properties: { assets: expect.any(Object) },
     });
     expect(tools.find((tool) => tool.name === 'figma_bind_export_root')?.annotations).toMatchObject(
       {

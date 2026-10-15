@@ -20,7 +20,7 @@ MCP Server 公开固定集合的 24 个工具。公共结果只保留 Agent 下�
 | 语义       | `figma_export_semantic_scope`      | 把有界范围写入工作区并返回 manifest 相对路径  | 否，写本地文件      |
 | 语义       | `figma_check_semantic_scope`       | 返回 `FRESH` 或 `STALE`                       | 否                  |
 | 素材       | `figma_render_node`                | 生成 30 分钟有效的临时 PNG                    | 否                  |
-| 素材       | `figma_export_asset`               | 把原始 Image Paint 或节点渲染安全写入工作区   | 否，写本地文件      |
+| 素材       | `figma_export_assets`              | 原子批量写入原始 Image Paint 或节点渲染       | 否，写本地文件      |
 | 素材       | `figma_stage_asset`                | 校验 Base64 位图/SVG 并暂存在插件内存         | 否，仅内存          |
 | Proposal   | `figma_duplicate_as_proposal`      | 复制编辑目标及必要上下文，创建隔离 Proposal   | 是，仅副本          |
 | Proposal   | `figma_create_frame`               | 在 Proposal 中创建 Frame                      | 是，仅 Proposal     |
@@ -45,7 +45,7 @@ MCP Server 公开固定集合的 24 个工具。公共结果只保留 Agent 下�
 
 在第一次素材或语义快照写入前，Agent 必须从自己的任务执行环境取得准确绝对工作区路径，并使用当前 `sessionId` 调用 `figma_bind_export_root`。成功后状态为 `{state:"BOUND",sessionId,rootPath}`。同一规范根重复绑定幂等；切换到另一根返回 `EXPORT_ROOT_CONFLICT`。
 
-未绑定时，`figma_export_asset` 和 `figma_export_semantic_scope` 返回 `EXPORT_ROOT_UNBOUND`，不会创建 STAGED 目录，也不会请求插件生成大型正文。`figma_get_tree` 的临时 JSONL 与 `figma_render_node` 的临时 PNG 使用独立临时存储，因此在 UNBOUND 状态仍可使用。
+未绑定时，`figma_export_assets` 和 `figma_export_semantic_scope` 返回 `EXPORT_ROOT_UNBOUND`，不会创建暂存文件，也不会请求插件生成大型正文。`figma_get_tree` 的临时 JSONL 与 `figma_render_node` 的临时 PNG 使用独立临时存储，因此在 UNBOUND 状态仍可使用。
 
 导出路径必须相对工作区，不能含盘符、UNC/绝对根、NUL、空段或 `..`。默认 `REUSE_OR_FAIL`：相同内容返回 `REUSED`，不同内容返回 `EXPORT_TARGET_CONFLICT`。仅当 Agent 已本地读取现有文件并计算摘要后，才可用 `OVERWRITE` 并传入 `expectedExistingSha256`；冲突错误和成功结果都不会回传内部 SHA。
 
@@ -64,12 +64,14 @@ MCP Server 公开固定集合的 24 个工具。公共结果只保留 Agent 下�
 
 `figma_get_node.assets` 提供 Image Paint 的 slot/index/hash、原始尺寸、缩放/裁剪、滤镜和可见性，以及导出设置、矢量与蒙版事实。`figma_get_tree.assetHints` 只用于发现候选，不能替代定向节点读取。
 
-`figma_export_asset` 有两个互斥模式：
+`figma_export_assets` 一批接受 1–32 个 item，解析后的目标路径必须唯一，总暂存数据不得超过 64 MiB。所有来源、格式、路径和覆盖条件通过后才原子提交；任一项失败时只返回一个结构化错误，项目文件不发生部分更新。item 有两个互斥模式：
 
-- `RAW`：传入 paint slot/index、当前 image hash、节点快照指纹和不带扩展名的相对 `outputPathStem`。Server 按魔数识别 PNG/JPEG/GIF/WebP 并追加扩展名。
-- `RENDERED`：先取得单节点完整 `treeFingerprint`，再传入匹配扩展名的相对 `outputPath`。PNG/JPG 支持 1–4 倍 scale，SVG 不接受 scale。
+- `RAW`：传入 paint slot/index 和不带扩展名的相对 `outputPathStem`。Server 按魔数识别 PNG/JPEG/GIF/WebP 并追加扩展名。
+- `RENDERED`：传入匹配扩展名的相对 `outputPath`。PNG/JPG 支持 1–4 倍 scale，SVG 不接受 scale。
 
-成功只返回 `{path,status}`，其中 status 为 `CREATED|REUSED|UPDATED`。
+来源来自语义快照时，可在批次上传一次 `sourceGuard:{rootNodeId,expectedSourceFingerprint}`；所有 item 必须在根内，整批导出前后必须匹配同一来源指纹。无 guard 时插件仍逐项执行导出前后来源一致性校验。不再传入 image hash、节点 fingerprint 或逐项 tree fingerprint。
+
+成功返回 `{assets:[{path,status,mimeType,width,height,dimensionUnit}]}`，其中 status 为 `CREATED|REUSED|UPDATED`。RAW 和渲染位图尺寸单位是 `PIXEL`，SVG 是 `FIGMA_UNIT`；不公开文件摘要或来源 fingerprint。
 
 `figma_stage_asset` 返回 `{assetId,width?,height?,expiresAt}`。DesignPlan 中 IMAGE/SVG 的 `asset` 只携带 `assetId`；SHA 仅用于插件内部去重和完整性校验。
 

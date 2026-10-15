@@ -4,7 +4,7 @@ import {
   BindExportRootInputSchema,
   BindExportRootResultSchema,
   DuplicateProposalInputSchema,
-  ExportAssetInputSchema,
+  ExportAssetsInputSchema,
   ExportAssetRpcInputSchema,
   GetFingerprintInputSchema,
   GetNodeInputSchema,
@@ -210,74 +210,100 @@ describe('raw node projection input', () => {
 describe('asset export input', () => {
   const fingerprint = '12345678';
 
-  it('accepts RAW and strips local delivery fields from the plugin RPC contract', () => {
+  it('接受带单一来源守卫的 RAW+SVG 批次，并从插件 RPC 移除本地交付字段', () => {
     const input = {
-      nodeId: 'node:1',
-      mode: 'RAW',
-      paintSlot: 'FILLS',
-      paintIndex: 0,
-      expectedImageHash: 'image-hash',
-      expectedNodeFingerprint: fingerprint,
-      outputPathStem: 'src/assets/avatar',
+      sourceGuard: { rootNodeId: 'root', expectedSourceFingerprint: fingerprint },
+      items: [
+        {
+          nodeId: 'node:1',
+          mode: 'RAW' as const,
+          paintSlot: 'FILLS' as const,
+          paintIndex: 0,
+          outputPathStem: 'src/assets/avatar',
+        },
+        {
+          nodeId: 'node:2',
+          mode: 'RENDERED' as const,
+          format: 'SVG' as const,
+          outputPath: 'src/assets/logo.svg',
+        },
+      ],
     };
-    expect(ExportAssetInputSchema.parse(input)).toMatchObject({ writePolicy: 'REUSE_OR_FAIL' });
+    expect(ExportAssetsInputSchema.parse(input)).toMatchObject({
+      items: [{ writePolicy: 'REUSE_OR_FAIL' }, { writePolicy: 'REUSE_OR_FAIL' }],
+    });
     expect(
       ExportAssetRpcInputSchema.safeParse({
-        nodeId: input.nodeId,
-        mode: input.mode,
-        paintSlot: input.paintSlot,
-        paintIndex: input.paintIndex,
-        expectedImageHash: input.expectedImageHash,
-        expectedNodeFingerprint: input.expectedNodeFingerprint,
+        nodeId: 'node:1',
+        mode: 'RAW',
+        paintSlot: 'FILLS',
+        paintIndex: 0,
       }).success,
     ).toBe(true);
   });
 
-  it('rejects absolute/traversal paths and RAW stems with extensions', () => {
+  it('拒绝绝对/越界路径、带扩展名的 RAW stem 和超过 32 项', () => {
     const base = {
       nodeId: 'node:1',
-      mode: 'RAW',
-      paintSlot: 'FILLS',
+      mode: 'RAW' as const,
+      paintSlot: 'FILLS' as const,
       paintIndex: 0,
-      expectedImageHash: 'image-hash',
-      expectedNodeFingerprint: fingerprint,
     };
     for (const outputPathStem of ['C:\\temp\\avatar', '../avatar', '/tmp/avatar', 'a.png']) {
-      expect(ExportAssetInputSchema.safeParse({ ...base, outputPathStem }).success).toBe(false);
+      expect(
+        ExportAssetsInputSchema.safeParse({ items: [{ ...base, outputPathStem }] }).success,
+      ).toBe(false);
     }
-  });
-
-  it('rejects SVG scale and rendered extension mismatches', () => {
     expect(
-      ExportAssetInputSchema.safeParse({
-        nodeId: 'node:1',
-        mode: 'RENDERED',
-        format: 'SVG',
-        scale: 2,
-        expectedTreeFingerprint: fingerprint,
-        outputPath: 'src/assets/logo.svg',
-      }).success,
-    ).toBe(false);
-    expect(
-      ExportAssetInputSchema.safeParse({
-        nodeId: 'node:1',
-        mode: 'RENDERED',
-        format: 'PNG',
-        expectedTreeFingerprint: fingerprint,
-        outputPath: 'src/assets/logo.svg',
+      ExportAssetsInputSchema.safeParse({
+        items: Array.from({ length: 33 }, (_, index) => ({
+          ...base,
+          outputPathStem: `assets/${index}`,
+        })),
       }).success,
     ).toBe(false);
   });
 
-  it('requires a checked existing hash for explicit overwrite', () => {
+  it('拒绝 SVG scale 和渲染格式扩展名不匹配', () => {
     expect(
-      ExportAssetInputSchema.safeParse({
-        nodeId: 'node:1',
-        mode: 'RENDERED',
-        format: 'PNG',
-        expectedTreeFingerprint: fingerprint,
-        outputPath: 'src/assets/image.png',
-        writePolicy: 'OVERWRITE',
+      ExportAssetsInputSchema.safeParse({
+        items: [
+          {
+            nodeId: 'node:1',
+            mode: 'RENDERED',
+            format: 'SVG',
+            scale: 2,
+            outputPath: 'src/assets/logo.svg',
+          },
+        ],
+      }).success,
+    ).toBe(false);
+    expect(
+      ExportAssetsInputSchema.safeParse({
+        items: [
+          {
+            nodeId: 'node:1',
+            mode: 'RENDERED',
+            format: 'PNG',
+            outputPath: 'src/assets/logo.svg',
+          },
+        ],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('显式覆盖仍要求调用方检查过现有文件摘要', () => {
+    expect(
+      ExportAssetsInputSchema.safeParse({
+        items: [
+          {
+            nodeId: 'node:1',
+            mode: 'RENDERED',
+            format: 'PNG',
+            outputPath: 'src/assets/image.png',
+            writePolicy: 'OVERWRITE',
+          },
+        ],
       }).success,
     ).toBe(false);
   });

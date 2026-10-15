@@ -248,4 +248,48 @@ describe('ExportStore', () => {
       (await readdir(join(workspace, 'assets'))).filter((name) => name.endsWith('.tmp')),
     ).toEqual([]);
   });
+
+  it('批量冲突会在提交前回滚，且不会留下部分更新', async () => {
+    const workspace = await temporaryDirectory();
+    const store = await initializedStore();
+    await store.bindRoot(workspace, SESSION_ID);
+    await writeFile(join(workspace, 'existing.txt'), 'original');
+
+    await expect(
+      store.writeBatch([
+        { relativePath: 'created.txt', data: 'created', writePolicy: 'REUSE_OR_FAIL' },
+        { relativePath: 'existing.txt', data: 'changed', writePolicy: 'REUSE_OR_FAIL' },
+      ]),
+    ).rejects.toMatchObject({ bridgeError: { code: 'EXPORT_TARGET_CONFLICT' } });
+
+    await expect(readFile(join(workspace, 'created.txt'), 'utf8')).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+    await expect(readFile(join(workspace, 'existing.txt'), 'utf8')).resolves.toBe('original');
+    expect((await readdir(workspace)).filter((name) => name.includes('.figma-export.'))).toEqual(
+      [],
+    );
+  });
+
+  it('批量提交保留顺序，并同时返回 CREATED、REUSED 和 UPDATED', async () => {
+    const workspace = await temporaryDirectory();
+    const store = await initializedStore();
+    await store.bindRoot(workspace, SESSION_ID);
+    await writeFile(join(workspace, 'reused.txt'), 'same');
+    await writeFile(join(workspace, 'updated.txt'), 'old');
+
+    const results = await store.writeBatch([
+      { relativePath: 'created.txt', data: 'new', writePolicy: 'REUSE_OR_FAIL' },
+      { relativePath: 'reused.txt', data: 'same', writePolicy: 'REUSE_OR_FAIL' },
+      {
+        relativePath: 'updated.txt',
+        data: 'updated',
+        writePolicy: 'OVERWRITE',
+        expectedExistingSha256: createHash('sha256').update('old').digest('hex'),
+      },
+    ]);
+
+    expect(results.map((result) => result.status)).toEqual(['CREATED', 'REUSED', 'UPDATED']);
+    await expect(readFile(join(workspace, 'updated.txt'), 'utf8')).resolves.toBe('updated');
+  });
 });

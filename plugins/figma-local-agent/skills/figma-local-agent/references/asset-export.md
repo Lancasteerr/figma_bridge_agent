@@ -20,7 +20,7 @@ project asset delivery path.
    - use `RAW` for original Image Paint bytes when CSS can reproduce crop, radius, opacity,
      filters, and layout; or
    - use `RENDERED` for a distinctive logo, complex vector, mask, or compositing that must be baked.
-5. Record each chosen source and destination. Planning must not call `figma_export_asset`.
+5. Record each chosen source and destination. Planning must not call `figma_export_assets`.
 
 Do not treat tree `assetHints` as export facts: counts and booleans intentionally omit image hashes,
 dimensions, transforms, filters, and exact export settings. If a temporary tree JSONL is returned,
@@ -32,26 +32,37 @@ Follow the shared binding procedure in `SKILL.md` before the first asset or sema
 and semantic writes share one immutable Adapter-session binding; do not attempt an export when the
 session is unbound.
 
-For `RAW`, re-read the node and call `figma_export_asset` with:
+Re-read the chosen nodes, then make one `figma_export_assets` call for the task-shaped batch. A
+batch contains 1–32 items, every resolved destination must be unique, and decoded staged content
+must stay within 64 MiB. The bridge validates every item and source before atomically committing the
+batch; one failure returns one structured error and leaves project files unchanged.
+
+For each `RAW` item provide:
 
 - `mode: "RAW"`;
 - the exact `paintSlot` and `paintIndex`;
-- the current `expectedImageHash` and node snapshot `expectedNodeFingerprint`;
 - an extensionless `outputPathStem`.
 
 The tool returns original PNG, JPEG, GIF, or WebP bytes and appends the detected extension. It does
 not reproduce crop, filters, masks, or other compositing; implement those effects in code or choose
 `RENDERED`.
 
-For `RENDERED`, call `figma_get_fingerprint` with the single source node immediately before export,
-then call `figma_export_asset` with:
+For each `RENDERED` item provide:
 
-- `mode: "RENDERED"` and the returned `expectedTreeFingerprint`;
+- `mode: "RENDERED"` and the source `nodeId`;
 - `PNG` or `JPG` with optional scale from 1 through 4, or `SVG` without scale;
 - a matching relative extension: `.png`, `.jpg`/`.jpeg`, or `.svg`.
 
-Both modes return only a workspace-relative `path` and write `status`—never Base64, SVG text,
-absolute paths, hashes, dimensions, or source identifiers. Handle status as follows:
+When the assets come from an active semantic scope, pass one `sourceGuard` containing that scope's
+`rootNodeId` and `sourceFingerprint`. Every item must be inside the guard root, and the same source
+fingerprint must match before and after the whole batch. Do not fetch or pass node, image, or tree
+fingerprints for individual items. Without a guard, the plugin still checks each item's source
+before and after its own export.
+
+The result contains `assets` in input order. Each entry returns workspace-relative `path`, write
+`status`, `mimeType`, `width`, `height`, and `dimensionUnit`—never Base64, SVG text, absolute paths,
+hashes, or source identifiers. RAW and rendered bitmap dimensions use `PIXEL`; SVG dimensions use
+`FIGMA_UNIT`. Handle status as follows:
 
 - `CREATED`: use the new file.
 - `REUSED`: the existing file already has identical bytes.
@@ -60,7 +71,7 @@ absolute paths, hashes, dimensions, or source identifiers. Handle status as foll
 Resolve `path` below the root returned by `figma_bind_export_root`. The bridge still computes and
 compares digests internally, but does not expose them in successful results.
 
-If Figma changes, the tool returns `ASSET_SOURCE_CHANGED` before writing. Re-inspect and revise the
+If Figma changes, the tool returns `ASSET_SOURCE_CHANGED` without writing. Re-inspect and revise the
 implementation instead of retrying with stale identifiers. If a destination differs, the default
 policy returns `EXPORT_TARGET_CONFLICT`; inspect the existing project file and calculate its
 SHA-256 locally before considering `OVERWRITE` with `expectedExistingSha256`. Conflict errors do

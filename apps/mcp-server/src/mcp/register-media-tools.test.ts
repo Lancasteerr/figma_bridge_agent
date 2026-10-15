@@ -29,7 +29,15 @@ afterEach(async () => {
   }
 });
 
-async function setup(rpcResult: Record<string, unknown>, options: { bind?: boolean } = {}) {
+async function setup(
+  rpcResult:
+    | Record<string, unknown>
+    | ((
+        method: string,
+        params: unknown,
+      ) => Record<string, unknown> | Promise<Record<string, unknown>>),
+  options: { bind?: boolean } = {},
+) {
   const workspace = await mkdtemp(join(tmpdir(), 'figma-media-tool-workspace-test-'));
   const home = await mkdtemp(join(tmpdir(), 'figma-media-tool-home-test-'));
   cleanupPaths.push(workspace, home);
@@ -50,7 +58,9 @@ async function setup(rpcResult: Record<string, unknown>, options: { bind?: boole
   const broker = {
     connected: true,
     pluginVersion: '2.9.2',
-    request: vi.fn(async () => rpcResult),
+    request: vi.fn(async (method: string, params: unknown) =>
+      typeof rpcResult === 'function' ? await rpcResult(method, params) : rpcResult,
+    ),
     onEvent: vi.fn(() => () => undefined),
     close: vi.fn(async () => undefined),
   } as unknown as BridgeTransport;
@@ -68,7 +78,7 @@ async function setup(rpcResult: Record<string, unknown>, options: { bind?: boole
     exports,
     broker,
     handlers,
-    handler: handlers.get('figma_export_asset')!,
+    handler: handlers.get('figma_export_assets')!,
   };
 }
 
@@ -79,7 +89,7 @@ const rawSamples = {
   webp: Buffer.from('52494646140000005745425056503820080000001000009d012a', 'hex'),
 };
 
-describe('figma_export_asset MCP 工具', () => {
+describe('figma_export_assets MCP 工具', () => {
   it.each(Object.entries(rawSamples))('识别 RAW %s 魔数并追加真实扩展名', async (ext, bytes) => {
     const { handler, workspace } = await setup({
       nodeId: 'node:1',
@@ -90,23 +100,32 @@ describe('figma_export_asset MCP 工具', () => {
       encoding: 'base64',
       width: 1,
       height: 1,
-      source: { imageHash: 'image-hash', nodeFingerprint: 'node-fingerprint' },
     });
 
     const response = await handler({
-      nodeId: 'node:1',
-      mode: 'RAW',
-      paintSlot: 'FILLS',
-      paintIndex: 0,
-      expectedImageHash: 'image-hash',
-      expectedNodeFingerprint: 'node-fingerprint',
-      outputPathStem: 'src/assets/image',
+      items: [
+        {
+          nodeId: 'node:1',
+          mode: 'RAW',
+          paintSlot: 'FILLS',
+          paintIndex: 0,
+          outputPathStem: 'src/assets/image',
+        },
+      ],
     });
 
     expect(response.isError).not.toBe(true);
     expect(response.structuredContent).toEqual({
-      status: 'CREATED',
-      path: `src/assets/image.${ext}`,
+      assets: [
+        {
+          status: 'CREATED',
+          path: `src/assets/image.${ext}`,
+          mimeType: ext === 'jpg' ? 'image/jpeg' : `image/${ext}`,
+          width: 1,
+          height: 1,
+          dimensionUnit: 'PIXEL',
+        },
+      ],
     });
     expect(response.structuredContent).not.toHaveProperty('data');
     await expect(readFile(join(workspace, `src/assets/image.${ext}`))).resolves.toEqual(bytes);
@@ -120,16 +139,19 @@ describe('figma_export_asset MCP 工具', () => {
       mimeType: 'application/octet-stream',
       data: Buffer.from('not-an-image').toString('base64'),
       encoding: 'base64',
-      source: { imageHash: 'image-hash', nodeFingerprint: 'node-fingerprint' },
+      width: 1,
+      height: 1,
     });
     const response = await handler({
-      nodeId: 'node:1',
-      mode: 'RAW',
-      paintSlot: 'FILLS',
-      paintIndex: 0,
-      expectedImageHash: 'image-hash',
-      expectedNodeFingerprint: 'node-fingerprint',
-      outputPathStem: 'assets/image',
+      items: [
+        {
+          nodeId: 'node:1',
+          mode: 'RAW',
+          paintSlot: 'FILLS',
+          paintIndex: 0,
+          outputPathStem: 'assets/image',
+        },
+      ],
     });
     expect(response.isError).toBe(true);
     expect(response.content[0]?.text).toContain('UNSUPPORTED_ASSET_FORMAT');
@@ -138,11 +160,14 @@ describe('figma_export_asset MCP 工具', () => {
   it('RENDERED 格式与扩展名不符时不请求插件', async () => {
     const { handler, broker } = await setup({});
     const response = await handler({
-      nodeId: 'node:1',
-      mode: 'RENDERED',
-      format: 'PNG',
-      expectedTreeFingerprint: 'tree-fingerprint',
-      outputPath: 'assets/logo.svg',
+      items: [
+        {
+          nodeId: 'node:1',
+          mode: 'RENDERED',
+          format: 'PNG',
+          outputPath: 'assets/logo.svg',
+        },
+      ],
     });
     expect(response.isError).toBe(true);
     expect(broker.request).not.toHaveBeenCalled();
@@ -177,22 +202,192 @@ describe('figma_export_asset MCP 工具', () => {
         mimeType: 'image/svg+xml',
         data: '<svg xmlns="http://www.w3.org/2000/svg" />',
         encoding: 'utf8',
-        source: { treeFingerprint: 'tree-fingerprint' },
+        width: 100,
+        height: 80,
       },
       { bind: false },
     );
 
-    const response = await handlers.get('figma_export_asset')!({
-      nodeId: 'node:1',
-      mode: 'RENDERED',
-      format: 'SVG',
-      expectedTreeFingerprint: 'tree-fingerprint',
-      outputPath: 'public/logo.svg',
+    const response = await handlers.get('figma_export_assets')!({
+      items: [
+        {
+          nodeId: 'node:1',
+          mode: 'RENDERED',
+          format: 'SVG',
+          outputPath: 'public/logo.svg',
+        },
+      ],
     });
     expect(response.isError).toBe(true);
     expect(response.content[0]?.text).toContain('EXPORT_ROOT_UNBOUND');
     expect(broker.request).not.toHaveBeenCalled();
     await expect(readFile(join(workspace, 'public/logo.svg'))).rejects.toBeDefined();
+  });
+
+  it('批量返回位图像素尺寸与 SVG Figma 设计尺寸', async () => {
+    const jpg = rawSamples.jpg;
+    const { handler } = await setup(async (_method, params) => {
+      const item = params as { nodeId: string; format: 'PNG' | 'JPG' | 'SVG' };
+      if (item.format === 'SVG') {
+        return {
+          nodeId: item.nodeId,
+          mode: 'RENDERED',
+          format: 'SVG',
+          mimeType: 'image/svg+xml',
+          data: '<svg xmlns="http://www.w3.org/2000/svg" />',
+          encoding: 'utf8',
+          width: 120,
+          height: 60,
+        };
+      }
+      return {
+        nodeId: item.nodeId,
+        mode: 'RENDERED',
+        format: 'JPG',
+        mimeType: 'image/jpeg',
+        data: jpg.toString('base64'),
+        encoding: 'base64',
+        width: 240,
+        height: 120,
+      };
+    });
+
+    const response = await handler({
+      items: [
+        {
+          nodeId: 'bitmap',
+          mode: 'RENDERED',
+          format: 'JPG',
+          outputPath: 'assets/photo.jpg',
+        },
+        {
+          nodeId: 'vector',
+          mode: 'RENDERED',
+          format: 'SVG',
+          outputPath: 'assets/logo.svg',
+        },
+      ],
+    });
+
+    expect(response.structuredContent).toEqual({
+      assets: [
+        expect.objectContaining({
+          mimeType: 'image/jpeg',
+          width: 240,
+          height: 120,
+          dimensionUnit: 'PIXEL',
+        }),
+        expect.objectContaining({
+          mimeType: 'image/svg+xml',
+          width: 120,
+          height: 60,
+          dimensionUnit: 'FIGMA_UNIT',
+        }),
+      ],
+    });
+  });
+
+  it('source guard 在整批前后复检，变化时不提交任何文件', async () => {
+    let guardChecks = 0;
+    const { handler, workspace, broker } = await setup(async (method) => {
+      if (method === 'checkAssetSourceGuard') {
+        guardChecks += 1;
+        return {
+          rootNodeId: 'root',
+          sourceFingerprint: guardChecks === 1 ? 'source-123' : 'source-changed',
+        };
+      }
+      return {
+        nodeId: 'node:1',
+        mode: 'RENDERED',
+        format: 'SVG',
+        mimeType: 'image/svg+xml',
+        data: '<svg xmlns="http://www.w3.org/2000/svg" />',
+        encoding: 'utf8',
+        width: 100,
+        height: 80,
+      };
+    });
+
+    const response = await handler({
+      sourceGuard: { rootNodeId: 'root', expectedSourceFingerprint: 'source-123' },
+      items: [
+        {
+          nodeId: 'node:1',
+          mode: 'RENDERED',
+          format: 'SVG',
+          outputPath: 'assets/logo.svg',
+        },
+      ],
+    });
+
+    expect(response.isError).toBe(true);
+    expect(response.content[0]?.text).toContain('ASSET_SOURCE_CHANGED');
+    expect(broker.request).toHaveBeenNthCalledWith(
+      1,
+      'checkAssetSourceGuard',
+      { rootNodeId: 'root', nodeIds: ['node:1'] },
+      60_000,
+    );
+    await expect(readFile(join(workspace, 'assets/logo.svg'))).rejects.toBeDefined();
+  });
+
+  it('解析后路径重复时整批失败且不产生部分文件', async () => {
+    const bytes = rawSamples.png;
+    const { handler, workspace } = await setup({
+      nodeId: 'node:1',
+      mode: 'RAW',
+      format: 'ORIGINAL',
+      mimeType: 'application/octet-stream',
+      data: bytes.toString('base64'),
+      encoding: 'base64',
+      width: 1,
+      height: 1,
+    });
+
+    const response = await handler({
+      items: [0, 1].map((paintIndex) => ({
+        nodeId: 'node:1',
+        mode: 'RAW',
+        paintSlot: 'FILLS',
+        paintIndex,
+        outputPathStem: 'assets/same',
+      })),
+    });
+
+    expect(response.isError).toBe(true);
+    expect(response.content[0]?.text).toContain('EXPORT_PATH_INVALID');
+    await expect(readFile(join(workspace, 'assets/same.png'))).rejects.toBeDefined();
+  });
+
+  it('总暂存数据超过 64 MiB 时拒绝整批', async () => {
+    const bytes = Buffer.alloc(8 * 1024 * 1024 + 1);
+    rawSamples.png.copy(bytes);
+    const payload = bytes.toString('base64');
+    const { handler, workspace } = await setup({
+      nodeId: 'node:1',
+      mode: 'RAW',
+      format: 'ORIGINAL',
+      mimeType: 'application/octet-stream',
+      data: payload,
+      encoding: 'base64',
+      width: 1,
+      height: 1,
+    });
+
+    const response = await handler({
+      items: Array.from({ length: 8 }, (_, index) => ({
+        nodeId: `node:${index}`,
+        mode: 'RAW',
+        paintSlot: 'FILLS',
+        paintIndex: 0,
+        outputPathStem: `assets/image-${index}`,
+      })),
+    });
+
+    expect(response.isError).toBe(true);
+    expect(response.content[0]?.text).toContain('PAYLOAD_TOO_LARGE');
+    await expect(readFile(join(workspace, 'assets/image-0.png'))).rejects.toBeDefined();
   });
 });
 

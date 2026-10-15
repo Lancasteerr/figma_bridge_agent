@@ -5,10 +5,13 @@ import {
   BridgeFault,
   BindExportRootInputSchema,
   BindExportRootResultSchema,
-  ExportAssetInputSchema,
-  ExportAssetResultSchema,
+  CheckAssetSourceGuardRpcInputSchema,
+  CheckAssetSourceGuardRpcResultSchema,
+  type ExportAssetItemSchema,
   ExportAssetRpcInputSchema,
   ExportAssetRpcResultSchema,
+  ExportAssetsInputSchema,
+  ExportAssetsResultSchema,
   RenderNodeInputSchema,
   RenderRpcResultSchema,
   RenderResultSchema,
@@ -26,6 +29,7 @@ import type { TemporaryArtifactStore } from '../temp/artifact-store.js';
 import { structuredResult, toolError } from './result.js';
 
 const MAX_EXPORT_BYTES = 9 * 1024 * 1024;
+const MAX_EXPORT_BATCH_BYTES = 64 * 1024 * 1024;
 
 /** 注册素材暂存、工程导出和视觉预览工具。 */
 export function registerMediaTools(
@@ -90,14 +94,14 @@ export function registerMediaTools(
   );
 
   server.registerTool(
-    'figma_export_asset',
+    'figma_export_assets',
     {
       description:
-        'Export an exact Figma image paint or a strongly versioned node render to a relative path under the session-bound workspace. Bind the workspace first.',
-      inputSchema: ExportAssetInputSchema,
-      outputSchema: ExportAssetResultSchema,
+        'Atomically export up to 32 exact Figma image paints or node renders under the session-bound workspace. An optional sourceGuard reuses one semantic sourceFingerprint for the entire batch.',
+      inputSchema: ExportAssetsInputSchema,
+      outputSchema: ExportAssetsResultSchema,
       annotations: {
-        title: 'Export Figma Asset',
+        title: 'Export Figma Assets',
         readOnlyHint: false,
         destructiveHint: true,
         idempotentHint: true,
@@ -106,31 +110,70 @@ export function registerMediaTools(
     },
     async (input) => {
       try {
-        const parsed = ExportAssetInputSchema.parse(input);
-        validateRequestedExtension(parsed);
+        const parsed = ExportAssetsInputSchema.parse(input);
         // 持久素材在调用插件前检查绑定，未绑定时不会执行昂贵导出。
         exports.workspace.beginWrite();
-        const rpcInput = toRpcInput(parsed);
-        const result = ExportAssetRpcResultSchema.parse(
-          await broker.request('exportAsset', rpcInput, 60_000),
-        );
-        const validated = await validateExportPayload(result);
-        const relativePath =
-          parsed.mode === 'RAW'
-            ? `${parsed.outputPathStem}.${validated.extension}`
-            : parsed.outputPath;
-        const stored = await exports.write({
-          relativePath,
-          data: validated.data,
-          writePolicy: parsed.writePolicy,
-          ...(parsed.expectedExistingSha256
-            ? { expectedExistingSha256: parsed.expectedExistingSha256 }
-            : {}),
-        });
+        const guardedNodeIds = [...new Set(parsed.items.map((item) => item.nodeId))];
+        if (parsed.sourceGuard) {
+          await assertSourceGuard(broker, parsed.sourceGuard, guardedNodeIds);
+        }
+
+        const staged: Array<{
+          relativePath: string;
+          data: Uint8Array | string;
+          writePolicy: 'REUSE_OR_FAIL' | 'OVERWRITE';
+          expectedExistingSha256?: string;
+          mimeType: string;
+          width: number;
+          height: number;
+          dimensionUnit: 'PIXEL' | 'FIGMA_UNIT';
+        }> = [];
+        let stagedBytes = 0;
+        for (const item of parsed.items) {
+          const result = ExportAssetRpcResultSchema.parse(
+            await broker.request('exportAsset', toRpcInput(item), 60_000),
+          );
+          const validated = await validateExportPayload(result);
+          stagedBytes += validated.bytes;
+          if (stagedBytes > MAX_EXPORT_BATCH_BYTES) {
+            throw new BridgeFault({
+              code: 'PAYLOAD_TOO_LARGE',
+              message: `Asset batch is ${stagedBytes} bytes; the maximum is ${MAX_EXPORT_BATCH_BYTES} bytes.`,
+              retryable: true,
+              details: { bytes: stagedBytes, maximumBytes: MAX_EXPORT_BATCH_BYTES },
+            });
+          }
+          staged.push({
+            relativePath:
+              item.mode === 'RAW'
+                ? `${item.outputPathStem}.${validated.extension}`
+                : item.outputPath,
+            data: validated.data,
+            writePolicy: item.writePolicy,
+            ...(item.expectedExistingSha256
+              ? { expectedExistingSha256: item.expectedExistingSha256 }
+              : {}),
+            mimeType: validated.mimeType,
+            width: result.width,
+            height: result.height,
+            dimensionUnit: result.format === 'SVG' ? 'FIGMA_UNIT' : 'PIXEL',
+          });
+        }
+
+        if (parsed.sourceGuard) {
+          await assertSourceGuard(broker, parsed.sourceGuard, guardedNodeIds);
+        }
+        const stored = await exports.writeBatch(staged);
         return structuredResult(
-          ExportAssetResultSchema.parse({
-            path: stored.projectRelativePath,
-            status: stored.status,
+          ExportAssetsResultSchema.parse({
+            assets: stored.map((file, index) => ({
+              path: file.projectRelativePath,
+              status: file.status,
+              mimeType: staged[index]!.mimeType,
+              width: staged[index]!.width,
+              height: staged[index]!.height,
+              dimensionUnit: staged[index]!.dimensionUnit,
+            })),
           }),
         );
       } catch (error) {
@@ -189,15 +232,13 @@ export function registerMediaTools(
   );
 }
 
-function toRpcInput(input: ReturnType<typeof ExportAssetInputSchema.parse>) {
+function toRpcInput(input: ReturnType<typeof ExportAssetItemSchema.parse>) {
   if (input.mode === 'RAW') {
     return ExportAssetRpcInputSchema.parse({
       nodeId: input.nodeId,
       mode: input.mode,
       paintSlot: input.paintSlot,
       paintIndex: input.paintIndex,
-      expectedImageHash: input.expectedImageHash,
-      expectedNodeFingerprint: input.expectedNodeFingerprint,
     });
   }
   return ExportAssetRpcInputSchema.parse({
@@ -205,24 +246,7 @@ function toRpcInput(input: ReturnType<typeof ExportAssetInputSchema.parse>) {
     mode: input.mode,
     format: input.format,
     ...(input.format === 'SVG' ? {} : { scale: input.scale }),
-    expectedTreeFingerprint: input.expectedTreeFingerprint,
   });
-}
-
-function validateRequestedExtension(input: ReturnType<typeof ExportAssetInputSchema.parse>): void {
-  if (input.mode === 'RAW') return;
-  const path = input.outputPath.toLowerCase();
-  const valid =
-    (input.format === 'PNG' && path.endsWith('.png')) ||
-    (input.format === 'JPG' && (path.endsWith('.jpg') || path.endsWith('.jpeg'))) ||
-    (input.format === 'SVG' && path.endsWith('.svg'));
-  if (!valid) {
-    throw new BridgeFault({
-      code: 'EXPORT_PATH_INVALID',
-      message: `Output extension does not match rendered format ${input.format}.`,
-      retryable: false,
-    });
-  }
 }
 
 interface ValidatedExport {
@@ -230,6 +254,7 @@ interface ValidatedExport {
   extension: 'png' | 'jpg' | 'gif' | 'webp' | 'svg';
   format: 'PNG' | 'JPG' | 'GIF' | 'WEBP' | 'SVG';
   mimeType: string;
+  bytes: number;
 }
 
 async function validateExportPayload(
@@ -257,14 +282,19 @@ async function validateExportPayload(
     };
     const match = detected ? supported[detected.ext as keyof typeof supported] : undefined;
     if (!match) throw unsupported(result.nodeId, 'RAW image is not PNG, JPEG, GIF, or WebP.');
-    return { data, extension: detected!.ext as 'png' | 'jpg' | 'gif' | 'webp', ...match };
+    return {
+      data,
+      bytes,
+      extension: detected!.ext as 'png' | 'jpg' | 'gif' | 'webp',
+      ...match,
+    };
   }
 
   if (result.format === 'SVG') {
     if (typeof data !== 'string' || !hasSvgRoot(data)) {
       throw unsupported(result.nodeId, 'Rendered SVG is malformed.');
     }
-    return { data, extension: 'svg', format: 'SVG', mimeType: 'image/svg+xml' };
+    return { data, bytes, extension: 'svg', format: 'SVG', mimeType: 'image/svg+xml' };
   }
 
   if (typeof data === 'string') throw unsupported(result.nodeId, 'Rendered raster must be binary.');
@@ -281,7 +311,30 @@ async function validateExportPayload(
     extension: expectedExtension,
     format: result.format,
     mimeType: result.format === 'PNG' ? 'image/png' : 'image/jpeg',
+    bytes,
   };
+}
+
+async function assertSourceGuard(
+  broker: BridgeTransport,
+  guard: { rootNodeId: string; expectedSourceFingerprint: string },
+  nodeIds: string[],
+): Promise<void> {
+  const result = CheckAssetSourceGuardRpcResultSchema.parse(
+    await broker.request(
+      'checkAssetSourceGuard',
+      CheckAssetSourceGuardRpcInputSchema.parse({ rootNodeId: guard.rootNodeId, nodeIds }),
+      60_000,
+    ),
+  );
+  if (result.sourceFingerprint !== guard.expectedSourceFingerprint) {
+    throw new BridgeFault({
+      code: 'ASSET_SOURCE_CHANGED',
+      message: 'The guarded Figma source no longer matches the semantic snapshot.',
+      retryable: true,
+      nodeId: guard.rootNodeId,
+    });
+  }
 }
 
 function hasSvgRoot(source: string): boolean {

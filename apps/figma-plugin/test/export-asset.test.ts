@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../src/main/serialization/node-snapshot.js', () => mocks);
 
-import { exportAsset } from '../src/main/handlers/render.js';
+import { checkAssetSourceGuard, exportAsset } from '../src/main/handlers/render.js';
 
 const page = { id: 'page:1', name: 'Page', type: 'PAGE', parent: null };
 
@@ -65,8 +65,6 @@ describe('Figma 素材导出', () => {
         mode: 'RAW',
         paintSlot: 'STROKES',
         paintIndex: 1,
-        expectedImageHash: 'raw-hash',
-        expectedNodeFingerprint: 'node-fingerprint',
       }),
     ).resolves.toMatchObject({
       mode: 'RAW',
@@ -74,17 +72,21 @@ describe('Figma 素材导出', () => {
       data: Buffer.from(bytes).toString('base64'),
       width: 20,
       height: 10,
-      source: { imageHash: 'raw-hash', nodeFingerprint: 'node-fingerprint' },
     });
     expect(image.getBytesAsync).toHaveBeenCalledOnce();
     expect(node.exportAsync).not.toHaveBeenCalled();
   });
 
-  it('RAW 节点指纹或 image hash 过期时不会读取字节', async () => {
-    const getBytesAsync = vi.fn();
+  it('RAW 导出期间节点或 image hash 变化时拒绝结果', async () => {
+    const getBytesAsync = vi.fn(async () => Uint8Array.from([1]));
     const node = makeNode();
-    stubFigma(node, { getBytesAsync, getSizeAsync: vi.fn() });
-    mocks.serializeNode.mockResolvedValue({ fingerprint: 'changed' });
+    stubFigma(node, {
+      getBytesAsync,
+      getSizeAsync: vi.fn(async () => ({ width: 1, height: 1 })),
+    });
+    mocks.serializeNode
+      .mockResolvedValueOnce({ fingerprint: 'before' })
+      .mockResolvedValueOnce({ fingerprint: 'after' });
 
     await expect(
       exportAsset({
@@ -92,17 +94,15 @@ describe('Figma 素材导出', () => {
         mode: 'RAW',
         paintSlot: 'FILLS',
         paintIndex: 0,
-        expectedImageHash: 'raw-hash',
-        expectedNodeFingerprint: 'old-node-fingerprint',
       }),
     ).rejects.toMatchObject({ bridgeError: { code: 'ASSET_SOURCE_CHANGED' } });
-    expect(getBytesAsync).not.toHaveBeenCalled();
+    expect(getBytesAsync).toHaveBeenCalledOnce();
   });
 
-  it('RENDERED 子树指纹过期时不会调用 exportAsync', async () => {
-    const node = makeNode();
+  it('RENDERED 导出期间子树变化时拒绝结果', async () => {
+    const node = makeNode({ exportAsync: vi.fn(async () => Uint8Array.from([1])) });
     stubFigma(node);
-    mocks.fingerprintNodeTree.mockResolvedValue('changed-tree');
+    mocks.fingerprintNodeTree.mockResolvedValueOnce('before').mockResolvedValueOnce('after');
 
     await expect(
       exportAsset({
@@ -110,10 +110,9 @@ describe('Figma 素材导出', () => {
         mode: 'RENDERED',
         format: 'PNG',
         scale: 2,
-        expectedTreeFingerprint: 'old-tree',
       }),
     ).rejects.toMatchObject({ bridgeError: { code: 'ASSET_SOURCE_CHANGED' } });
-    expect(node.exportAsync).not.toHaveBeenCalled();
+    expect(node.exportAsync).toHaveBeenCalledOnce();
   });
 
   it.each([
@@ -128,7 +127,6 @@ describe('Figma 素材导出', () => {
       mode: 'RENDERED',
       format,
       scale: 2,
-      expectedTreeFingerprint: 'tree-fingerprint',
     });
 
     expect(node.exportAsync).toHaveBeenCalledWith(expectedCall);
@@ -144,9 +142,13 @@ describe('Figma 素材导出', () => {
         nodeId: node.id,
         mode: 'RENDERED',
         format: 'SVG',
-        expectedTreeFingerprint: 'tree-fingerprint',
       }),
-    ).resolves.toMatchObject({ format: 'SVG', encoding: 'utf8' });
+    ).resolves.toMatchObject({
+      format: 'SVG',
+      encoding: 'utf8',
+      width: 100,
+      height: 80,
+    });
     expect(node.exportAsync).toHaveBeenCalledWith({ format: 'SVG_STRING' });
   });
 
@@ -161,8 +163,26 @@ describe('Figma 素材导出', () => {
         nodeId: node.id,
         mode: 'RENDERED',
         format: 'PNG',
-        expectedTreeFingerprint: 'tree-fingerprint',
       }),
     ).rejects.toMatchObject({ bridgeError: { code: 'PAYLOAD_TOO_LARGE' } });
+  });
+
+  it('source guard 校验根指纹并拒绝根外节点', async () => {
+    const root = makeNode({ id: 'root', parent: page });
+    const child = makeNode({ id: 'child', parent: root });
+    const outside = makeNode({ id: 'outside', parent: page });
+    vi.stubGlobal('figma', {
+      currentPage: page,
+      getNodeByIdAsync: vi.fn(
+        async (id: string) => ({ root, child, outside })[id as 'root' | 'child' | 'outside'],
+      ),
+    });
+
+    await expect(
+      checkAssetSourceGuard({ rootNodeId: 'root', nodeIds: ['child'] }),
+    ).resolves.toEqual({ rootNodeId: 'root', sourceFingerprint: 'tree-fingerprint' });
+    await expect(
+      checkAssetSourceGuard({ rootNodeId: 'root', nodeIds: ['outside'] }),
+    ).rejects.toMatchObject({ bridgeError: { code: 'NODE_NOT_IN_CURRENT_PAGE' } });
   });
 });

@@ -64,8 +64,9 @@ conservative-default rules. Do not use prototype reactions to infer product beha
   Temporary tree and render files expire after 30 minutes.
 - `assetHints` discover candidates only. Re-read a candidate with `figma_get_node` before making an
   asset decision.
-- Use `figma_get_fingerprint` for DesignPlan source and Proposal concurrency checks. A bounded node
-  snapshot fingerprint has a different scope and is not a substitute.
+- Use `figma_get_fingerprint` only for DesignPlan source and Proposal complete-tree checks. Asset
+  batches optionally reuse one semantic snapshot `sourceFingerprint`; do not assemble per-item
+  image, node, or tree fingerprint chains.
 - The bridge reads the current page only and does not query Team Library. Required library content
   must first be placed on the current page by the user.
 
