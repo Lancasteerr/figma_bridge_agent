@@ -90,8 +90,15 @@ describe('BridgeDaemon', () => {
     expect(DaemonAuthRejectedSchema.parse(rejection).code).toBe('PROTOCOL_MISMATCH');
   });
 
-  it('exits after the configured idle window', async () => {
-    const { daemon } = await startDaemon(20);
+  it('exits after the configured idle window while the plugin remains connected', async () => {
+    const { daemon, pluginAuth } = await startDaemon(50);
+    const plugin = await FakePluginClient.connect(
+      `ws://127.0.0.1:${daemon.port}`,
+      pluginAuth,
+      () => undefined,
+    );
+    plugins.push(plugin);
+
     await daemon.waitUntilStopped();
   });
 });

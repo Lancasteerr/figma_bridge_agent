@@ -344,12 +344,7 @@ export class BridgeDaemon {
     if (this.#closing) return;
     if (this.#idleTimer) clearTimeout(this.#idleTimer);
     this.#idleTimer = undefined;
-    if (
-      this.#clients.size ||
-      this.#broker.connected ||
-      this.#broker.pendingCount ||
-      this.#pairing.active
-    ) {
+    if (this.#clients.size || this.#broker.pendingCount || this.#pairing.active) {
       return;
     }
     this.#idleTimer = setTimeout(() => void this.close(), this.#idleTimeoutMs);
