@@ -1,6 +1,6 @@
 {
   "name": "@figma-agent/protocol",
-  "version": "2.9.3",
+  "version": "2.9.4",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
