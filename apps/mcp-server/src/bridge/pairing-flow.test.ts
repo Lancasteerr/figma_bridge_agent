@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import {
   BRIDGE_PROTOCOL_VERSION,
   derivePairingMaterial,
+  MAX_PAIRED_CLIENTS,
   PairingCompleteSchema,
   PairingReadySchema,
   PairingServerHelloSchema,
@@ -28,12 +29,23 @@ afterEach(async () => {
 });
 
 describe('short-lived pairing flow', () => {
-  it('derives a device token, persists it, authenticates it, then revokes it', async () => {
+  it('derives, rolls, authenticates, then revokes a device credential', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'figma-agent-pairing-'));
     closeTasks.push(() => rm(directory, { recursive: true, force: true }));
     const configPath = join(directory, 'config.json');
     const config = await createConfig(configPath);
     config.port = await freePort();
+    const oldestDeviceId = '22222222-2222-4222-8222-000000000001';
+    for (let index = 0; index < MAX_PAIRED_CLIENTS; index += 1) {
+      const suffix = String(index + 1).padStart(12, '0');
+      const timestamp = `2026-01-${String(index + 1).padStart(2, '0')}T00:00:00.000Z`;
+      config.pairedClients[`22222222-2222-4222-8222-${suffix}`] = {
+        token: Buffer.alloc(32, index + 1).toString('base64url'),
+        createdAt: timestamp,
+        lastSeenAt: timestamp,
+        pluginVersion: 'older-plugin',
+      };
+    }
     await saveConfig(config, configPath);
 
     const daemon = new BridgeDaemon(config, { configPath, idleTimeoutMs: 5_000 });
@@ -94,7 +106,10 @@ describe('short-lived pairing flow', () => {
     PairingCompleteSchema.parse(await nextMessage(socket));
 
     const token = Buffer.from(material.token).toString('base64url');
-    expect((await loadConfig(configPath)).pairedClients[deviceId]?.token).toBe(token);
+    const pairedClients = (await loadConfig(configPath)).pairedClients;
+    expect(pairedClients[deviceId]?.token).toBe(token);
+    expect(pairedClients[oldestDeviceId]).toBeUndefined();
+    expect(Object.keys(pairedClients)).toHaveLength(MAX_PAIRED_CLIENTS);
     const plugin = await FakePluginClient.connect(
       `ws://127.0.0.1:${config.port}`,
       { serverId: config.serverId, deviceId, token },
@@ -102,13 +117,17 @@ describe('short-lived pairing flow', () => {
     );
     closeTasks.push(() => plugin.close());
     await expect(control.request('status')).resolves.toBe('status');
-    await expect(control.request('$daemon.devices.list')).resolves.toEqual([
-      expect.objectContaining({ deviceId, connected: true, pluginVersion: __CLI_VERSION__ }),
-    ]);
+    await expect(control.request('$daemon.devices.list')).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ deviceId, connected: true, pluginVersion: __CLI_VERSION__ }),
+      ]),
+    );
 
     await control.request('$daemon.devices.revoke', { deviceId });
     await expect.poll(() => daemon.state.pluginConnected).toBe(false);
-    expect((await loadConfig(configPath)).pairedClients).toEqual({});
+    const remainingClients = (await loadConfig(configPath)).pairedClients;
+    expect(remainingClients[deviceId]).toBeUndefined();
+    expect(Object.keys(remainingClients)).toHaveLength(MAX_PAIRED_CLIENTS - 1);
   });
 });
 

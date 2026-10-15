@@ -4,7 +4,7 @@
 export const BRIDGE_PROTOCOL_VERSION = 10 as const;
 /** 用户显式开启配对窗口后的有效时间。 */
 export const PAIRING_SESSION_TTL_MS = 120_000;
-/** 单个本地服务允许保存的插件设备上限。 */
+/** 单个本地服务最多保留的最近使用插件凭证数量。 */
 export const MAX_PAIRED_CLIENTS = 16;
 /** 默认只监听本机，避免桥接端口意外暴露到局域网。 */
 export const DEFAULT_BRIDGE_HOST = '127.0.0.1';

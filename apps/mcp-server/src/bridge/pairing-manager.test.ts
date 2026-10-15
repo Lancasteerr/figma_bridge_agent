@@ -22,7 +22,7 @@ describe('PairingManager lifecycle', () => {
     expect(manager.active).toBe(false);
   });
 
-  it('refuses to exceed the paired device limit', () => {
+  it('allows pairing when the credential window is full', () => {
     const config = testConfig();
     const timestamp = '2026-01-01T00:00:00.000Z';
     for (let index = 0; index < MAX_PAIRED_CLIENTS; index += 1) {
@@ -34,7 +34,9 @@ describe('PairingManager lifecycle', () => {
         pluginVersion: 'test',
       };
     }
-    expect(() => new PairingManager(config).start()).toThrow(/device limit/i);
+    const manager = new PairingManager(config);
+    expect(manager.start()).toMatchObject({ state: 'waiting-plugin' });
+    manager.stop();
   });
 });
 

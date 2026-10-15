@@ -67,14 +67,6 @@ export class PairingManager {
         retryable: true,
       });
     }
-    if (Object.keys(this.#config.pairedClients).length >= MAX_PAIRED_CLIENTS) {
-      throw new BridgeFault({
-        code: 'LIMIT_EXCEEDED',
-        message: `The ${MAX_PAIRED_CLIENTS}-device limit has been reached. Revoke an old device first.`,
-        retryable: false,
-      });
-    }
-
     const privateKey = randomBytes(32);
     const sessionId = randomUUID();
     const expiresAt = Date.now() + PAIRING_SESSION_TTL_MS;
@@ -236,16 +228,28 @@ export class PairingManager {
     }
     let updated: ServerConfig;
     try {
-      updated = await updateConfig(
-        (config) => ({
-          ...config,
-          pairedClients: {
-            ...config.pairedClients,
-            [deviceId]: { token, createdAt: now, lastSeenAt: now, pluginVersion },
-          },
-        }),
-        this.#configPath,
-      );
+      updated = await updateConfig((config) => {
+        const pairedClients = {
+          ...config.pairedClients,
+          [deviceId]: { token, createdAt: now, lastSeenAt: now, pluginVersion },
+        };
+        const overflow = Object.keys(pairedClients).length - MAX_PAIRED_CLIENTS;
+        if (overflow > 0) {
+          // 新凭证必须保留；其余记录按最近使用、创建时间和 ID 稳定淘汰。
+          const staleDeviceIds = Object.entries(pairedClients)
+            .filter(([pairedDeviceId]) => pairedDeviceId !== deviceId)
+            .sort(
+              ([leftId, left], [rightId, right]) =>
+                left.lastSeenAt.localeCompare(right.lastSeenAt) ||
+                left.createdAt.localeCompare(right.createdAt) ||
+                leftId.localeCompare(rightId),
+            )
+            .slice(0, overflow)
+            .map(([pairedDeviceId]) => pairedDeviceId);
+          for (const staleDeviceId of staleDeviceIds) delete pairedClients[staleDeviceId];
+        }
+        return { ...config, pairedClients };
+      }, this.#configPath);
     } catch {
       this.#reject(socket, 'INVALID_MESSAGE', 'Unable to save the paired device.');
       this.#finish('cancelled', false);
