@@ -21,6 +21,7 @@ import {
 } from '@figma-agent/protocol';
 import type { McpServer } from '@modelcontextprotocol/server';
 import { fileTypeFromBuffer } from 'file-type';
+import { imageSize } from 'image-size';
 
 import type { BridgeTransport } from '../bridge/transport.js';
 import type { ExportStore } from '../export/export-store.js';
@@ -156,9 +157,9 @@ export function registerMediaTools(
               ? { expectedExistingSha256: item.expectedExistingSha256 }
               : {}),
             mimeType: validated.mimeType,
-            width: result.width,
-            height: result.height,
-            dimensionUnit: result.format === 'SVG' ? 'FIGMA_UNIT' : 'PIXEL',
+            width: validated.width,
+            height: validated.height,
+            dimensionUnit: validated.dimensionUnit,
           });
         }
 
@@ -258,6 +259,9 @@ interface ValidatedExport {
   format: 'PNG' | 'JPG' | 'GIF' | 'WEBP' | 'SVG';
   mimeType: string;
   bytes: number;
+  width: number;
+  height: number;
+  dimensionUnit: 'PIXEL' | 'FIGMA_UNIT';
 }
 
 async function validateExportPayload(
@@ -285,19 +289,31 @@ async function validateExportPayload(
     };
     const match = detected ? supported[detected.ext as keyof typeof supported] : undefined;
     if (!match) throw unsupported(result.nodeId, 'RAW image is not PNG, JPEG, GIF, or WebP.');
+    const dimensions = readRasterDimensions(data, result.nodeId);
     return {
       data,
       bytes,
       extension: detected!.ext as 'png' | 'jpg' | 'gif' | 'webp',
+      ...dimensions,
+      dimensionUnit: 'PIXEL',
       ...match,
     };
   }
 
   if (result.format === 'SVG') {
-    if (typeof data !== 'string' || !hasSvgRoot(data)) {
+    if (typeof data !== 'string') {
       throw unsupported(result.nodeId, 'Rendered SVG is malformed.');
     }
-    return { data, bytes, extension: 'svg', format: 'SVG', mimeType: 'image/svg+xml' };
+    const dimensions = readSvgDimensions(data, result.nodeId);
+    return {
+      data,
+      bytes,
+      extension: 'svg',
+      format: 'SVG',
+      mimeType: 'image/svg+xml',
+      ...dimensions,
+      dimensionUnit: 'FIGMA_UNIT',
+    };
   }
 
   if (typeof data === 'string') throw unsupported(result.nodeId, 'Rendered raster must be binary.');
@@ -309,12 +325,15 @@ async function validateExportPayload(
   if (detected?.ext !== expectedExtension) {
     throw unsupported(result.nodeId, `Rendered ${result.format} magic bytes do not match.`);
   }
+  const dimensions = readRasterDimensions(data, result.nodeId);
   return {
     data,
     extension: expectedExtension,
     format: result.format,
     mimeType: result.format === 'PNG' ? 'image/png' : 'image/jpeg',
     bytes,
+    ...dimensions,
+    dimensionUnit: 'PIXEL',
   };
 }
 
@@ -340,9 +359,57 @@ async function assertSourceGuard(
   }
 }
 
-function hasSvgRoot(source: string): boolean {
+function readSvgDimensions(source: string, nodeId: string): { width: number; height: number } {
   const document = new DOMParser().parseFromString(source, 'image/svg+xml');
-  return document.documentElement?.tagName.toLowerCase() === 'svg';
+  const root = document.documentElement;
+  if (root?.tagName.toLowerCase() !== 'svg') {
+    throw unsupported(nodeId, 'Rendered SVG is malformed.');
+  }
+
+  const viewBox = parseViewBox(root.getAttribute('viewBox'));
+  const width = parseSvgLength(root.getAttribute('width')) ?? viewBox?.width;
+  const height = parseSvgLength(root.getAttribute('height')) ?? viewBox?.height;
+  if (!isPositiveFinite(width) || !isPositiveFinite(height)) {
+    throw unsupported(nodeId, 'Rendered SVG has no valid intrinsic width and height.');
+  }
+  return { width, height };
+}
+
+/** SVG 根尺寸只接受无单位数值或 px；其他单位回退到 viewBox。 */
+function parseSvgLength(value: string | null): number | undefined {
+  if (value === null || !/^\s*(?:\d+(?:\.\d+)?|\.\d+)(?:px)?\s*$/i.test(value)) return undefined;
+  const parsed = Number.parseFloat(value);
+  return isPositiveFinite(parsed) ? parsed : undefined;
+}
+
+function parseViewBox(
+  value: string | null,
+): { width: number; height: number } | undefined {
+  if (value === null) return undefined;
+  const values = value
+    .trim()
+    .split(/[\s,]+/)
+    .filter(Boolean)
+    .map(Number);
+  if (values.length !== 4 || !isPositiveFinite(values[2]) || !isPositiveFinite(values[3])) {
+    return undefined;
+  }
+  return { width: values[2], height: values[3] };
+}
+
+/** 位图尺寸始终从最终字节读取，拒绝插件提供的逻辑尺寸估计。 */
+function readRasterDimensions(data: Uint8Array, nodeId: string): { width: number; height: number } {
+  try {
+    const { width, height } = imageSize(data);
+    if (isPositiveFinite(width) && isPositiveFinite(height)) return { width, height };
+  } catch {
+    // 统一转换为 MCP 可识别的结构化格式错误。
+  }
+  throw unsupported(nodeId, 'Image bytes have no valid intrinsic width and height.');
+}
+
+function isPositiveFinite(value: number | undefined): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
 function unsupported(nodeId: string, message: string): BridgeFault {
