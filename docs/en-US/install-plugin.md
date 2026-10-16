@@ -84,10 +84,11 @@ After pairing, the plugin stores an independent device credential and authentica
 
 Restart ChatGPT/Cursor, or start a new Codex or Copilot agent session, so the newly installed plugin is loaded. Then:
 
-1. Confirm the client loads only one `figma-local-agent` MCP Server.
+1. Confirm the client loads only one `figma-local-agent` MCP Server and cold start shows only `figma_status` and `figma_activate_workflow`.
 2. Ask the agent to call `figma_status`.
-3. Confirm the result includes the current Figma file, page, selection, and an `UNBOUND` or `BOUND` workspace. Protocol 9 compatibility is checked internally during connection setup.
-4. Confirm the **Local Figma Agent** Skill is available and can guide the Proposal workflow.
+3. Confirm the result includes the current Figma file, page, selection, and an `UNBOUND` or `BOUND` workspace. Protocol 10 compatibility is checked internally during connection setup; a legacy-protocol plugin must fail clearly.
+4. Ask the agent to activate `INSPECT` and confirm the tool list refreshes to 9 tools; activating `FRONTEND` or `DESIGN` should refresh it to 13 or 21 tools respectively.
+5. Confirm the **Local Figma Agent** Skill is available and can guide the Proposal workflow.
 
 ## Updates and troubleshooting
 

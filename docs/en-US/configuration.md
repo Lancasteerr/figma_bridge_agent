@@ -2,7 +2,7 @@
 
 [中文版](../zh-CN/configuration.md) · [Documentation home](README.md)
 
-Local Figma Agent has two first-class installation methods. Both connect the same local stdio MCP Server, expose the same 24 tools, and require the matching Figma development plugin to be imported and paired once. They differ only in how the MCP host receives the Server configuration and workflow guidance.
+Local Figma Agent has two first-class installation methods. Both connect the same local stdio MCP Server, use the same connection-level workflow activation, and require the matching Figma development plugin to be imported and paired once. Cold start exposes two tools; `INSPECT`, `FRONTEND`, and `DESIGN` expose 9, 13, and 21, and the client must support standard `notifications/tools/list_changed`. They differ only in how the MCP host receives the Server configuration and workflow guidance.
 
 | Installation method                                        | Intended clients                                         | MCP configuration      | Workflow Skill              | Supported channels                     |
 | ---------------------------------------------------------- | -------------------------------------------------------- | ---------------------- | --------------------------- | -------------------------------------- |

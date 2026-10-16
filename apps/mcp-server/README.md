@@ -32,9 +32,9 @@ claude mcp add --scope user --transport stdio figma-local-agent -- npx.cmd -y fi
 claude mcp add --scope user --transport stdio figma-local-agent -- npx.cmd -y figma-local-agent-mcp@<VERSION> serve
 ```
 
-Direct MCP configuration exposes the same 24 tools as the Agent Plugin, but does not install its workflow Skill automatically. See the [complete direct MCP guide](https://github.com/Lancasteerr/figma_bridge_agent/blob/master/docs/en-US/install-mcp-server.md).
+Direct MCP configuration has the same workflow activation behavior as the Agent Plugin: cold start exposes only `figma_status` and `figma_activate_workflow`; `INSPECT`, `FRONTEND`, and `DESIGN` expose 9, 13, and 21 tools respectively. Switching uses standard `notifications/tools/list_changed`, which the client must support. Direct installation does not install the workflow Skill automatically. See the [complete direct MCP guide](https://github.com/Lancasteerr/figma_bridge_agent/blob/master/docs/en-US/install-mcp-server.md).
 
-直接配置 MCP 会公开与 Agent Plugin 相同的 24 个工具，但不会自动安装其中的工作流 Skill。完整步骤见[直接 MCP 指南](https://github.com/Lancasteerr/figma_bridge_agent/blob/master/docs/zh-CN/install-mcp-server.md)。
+直接配置 MCP 与 Agent Plugin 使用相同的工作流激活机制：冷启动只暴露 `figma_status` 与 `figma_activate_workflow`，`INSPECT`、`FRONTEND`、`DESIGN` 分别暴露 9、13、21 个工具。切换使用标准 `notifications/tools/list_changed`，客户端必须支持该通知。直接安装不会自动安装工作流 Skill。完整步骤见[直接 MCP 指南](https://github.com/Lancasteerr/figma_bridge_agent/blob/master/docs/zh-CN/install-mcp-server.md)。
 
 The matching Figma plugin ZIP, Agent Plugin, and complete bilingual documentation are available from the [GitHub repository](https://github.com/Lancasteerr/figma_bridge_agent).
 

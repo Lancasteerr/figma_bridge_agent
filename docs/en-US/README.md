@@ -2,14 +2,14 @@
 
 [中文版](../zh-CN/README.md) · [Project home](../../README.en-US.md)
 
-These documents are for Local Figma Agent users, integrators, and contributors. If you only need to install it for the first time, start by [choosing an installation method](configuration.md).
+These documents are for Local Figma Agent users, integrators, and contributors. The Server exposes only `figma_status` and `figma_activate_workflow` at cold start; activating `INSPECT`, `FRONTEND`, or `DESIGN` exposes 9, 13, or 21 tools and refreshes the list through standard `notifications/tools/list_changed`. If you only need to install it for the first time, start by [choosing an installation method](configuration.md).
 
 ## Users
 
 - [Choose an installation method](configuration.md): compare the Agent Plugin and direct MCP routes.
 - [Install the Agent Plugin](install-plugin.md): install the stable plugin and Skill in Codex, Cursor, or GitHub Copilot.
 - [Configure the MCP Server directly](install-mcp-server.md): configure a stable, Development, or source build in Claude Code, Claude Desktop, and other stdio hosts.
-- [MCP tool reference](tools.md): understand the 24 public tools, their write boundaries, and recommended call sequences.
+- [MCP tool reference](tools.md): understand workflow tool sets, their write boundaries, and recommended call sequences.
 - [Security notes](security.md): understand credential, network, asset, Proposal, and workspace-export boundaries.
 
 ## Developers and contributors

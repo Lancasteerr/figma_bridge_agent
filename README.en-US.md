@@ -22,7 +22,7 @@ This unofficial developer tool is distributed through GitHub. It is not affiliat
 
 The Bridge is not a framework-specific code generator. It gives the coding agent structured design evidence, safe asset delivery, and source-freshness checks; the agent writes code using the target repository's stack, component library, and conventions.
 
-The MCP Server currently exposes 24 bounded tools. See the [MCP tool reference](docs/en-US/tools.md) for the complete list and recommended call sequences.
+The MCP Server registers 25 bounded tools, but each connection starts with only `figma_status` and `figma_activate_workflow`. Activating `INSPECT`, `FRONTEND`, or `DESIGN` exposes 9, 13, or 21 tools respectively. Switching relies on standard `notifications/tools/list_changed`, which direct MCP clients must support. See the [MCP tool reference](docs/en-US/tools.md) for the complete list and call sequences.
 
 ## Interface preview
 
@@ -58,7 +58,7 @@ Regular users do not need Git, pnpm, or a source checkout. Open the [latest GitH
 
 ### 1. Choose one installation method
 
-Both methods expose the same 24 MCP tools. Choose exactly one:
+Both methods provide the same workflow-activation behavior. Choose exactly one:
 
 - **Install the Agent Plugin**: for Codex, Cursor, and GitHub Copilot, which currently have entry points maintained by this project. It automatically supplies the MCP configuration plus design-to-code and safe Proposal workflow guidance. Follow the [Agent Plugin installation guide](docs/en-US/install-plugin.md).
 - **Configure the MCP Server directly**: for Claude Code, Claude Desktop, and other local stdio hosts. You add the MCP configuration manually, and the Skill is not installed automatically. Follow the [direct MCP installation guide](docs/en-US/install-mcp-server.md).
@@ -87,7 +87,7 @@ Click **Codes match** only when the six-digit codes in the terminal and plugin a
 
 ### 4. Verify the connection
 
-Restart the MCP client or open a new agent session, then ask the agent to call `figma_status`. A healthy result contains the current Figma file, page, selection, and an `UNBOUND` or `BOUND` workspace. Protocol 9 compatibility is checked internally during the authenticated connection.
+Restart the MCP client or open a new agent session. Confirm that only `figma_status` and `figma_activate_workflow` appear at cold start, then ask the agent to call `figma_status`. A healthy result contains the current Figma file, page, selection, and an `UNBOUND` or `BOUND` workspace. Protocol 10 compatibility is checked internally during the authenticated connection.
 
 For Development builds, source builds, and direct MCP troubleshooting, see the [direct MCP installation guide](docs/en-US/install-mcp-server.md).
 
@@ -95,7 +95,7 @@ For Development builds, source builds, and direct MCP troubleshooting, see the [
 
 ### Implement code from a design
 
-1. Open the target front-end project, then open the Design file and **Local Figma Agent Bridge** in Figma Desktop. Ask the agent to call `figma_status` first and inspect the current selection.
+1. Open the target front-end project, then open the Design file and **Local Figma Agent Bridge** in Figma Desktop. Ask the agent to call `figma_status`, then activate `FRONTEND`.
 2. Choose **high-fidelity reproduction** or **engineering adaptation** that prioritizes the existing design system. When unspecified, the Agent Plugin workflow defaults to high fidelity.
 3. Let the agent bind the current project with the latest session ID. Export one node or component directly as an `IMPLEMENTATION` semantic snapshot; for a large region or page, read `OUTLINE` first and activate bounded implementation scopes one at a time.
 4. The agent inspects existing project components, icons, and assets; safely exports images or SVGs when needed; and implements the result using the project's framework and conventions.
@@ -112,7 +112,7 @@ See the [front-end implementation workflow](plugins/figma-local-agent/skills/fig
 ### Create or edit a Proposal in Figma
 
 1. Open the target Design file and **Local Figma Agent Bridge** in Figma Desktop.
-2. Check `figma_status` first, select the relevant nodes, and describe the read, edit, or generation task.
+2. Check `figma_status`, activate `DESIGN`, select the relevant nodes, and describe the read, edit, or generation task.
 3. For an existing design, the agent first creates an isolated Proposal. For complex generation from scratch, it validates a complete DesignPlan first.
 4. Review the resulting Proposal on the canvas. Public write tools never overwrite the source artwork.
 
@@ -166,7 +166,7 @@ See [security notes](docs/en-US/security.md) for complete boundaries and operati
 | [Choose an installation method](docs/en-US/configuration.md) | Users                      | Compare the Agent Plugin and direct MCP routes           |
 | [Install the Agent Plugin](docs/en-US/install-plugin.md)     | Plugin client users        | Stable Codex, Cursor, and Copilot installation           |
 | [Configure MCP directly](docs/en-US/install-mcp-server.md)   | stdio host users           | Claude, generic hosts, Development, and source builds    |
-| [MCP tool reference](docs/en-US/tools.md)                    | Users and agent developers | 24 tools, write boundaries, and call sequences           |
+| [MCP tool reference](docs/en-US/tools.md)                    | Users and agent developers | Workflow tool sets, write boundaries, and call sequences |
 | [Architecture and safety model](docs/en-US/architecture.md)  | Developers                 | Processes, protocol, Proposal, and DesignPlan lifecycles |
 | [Development guide](docs/en-US/development.md)               | Contributors               | Monorepo, commands, tests, and builds                    |
 | [End-to-end acceptance](docs/en-US/acceptance.md)            | Contributors               | Distribution and Figma scenario validation               |

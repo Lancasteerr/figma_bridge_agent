@@ -22,7 +22,7 @@
 
 Bridge 本身不是特定框架的代码生成器。它为 Coding Agent 提供结构化设计证据、安全素材交付和来源新鲜度校验；Agent 再结合目标仓库的技术栈、组件库和工程约定编写代码。
 
-MCP Server 当前公开 24 个受限工具。完整列表和推荐调用顺序见 [MCP 工具参考](docs/zh-CN/tools.md)。
+MCP Server 注册 25 个受限工具，但每个连接冷启动只暴露 `figma_status` 与 `figma_activate_workflow`；激活 `INSPECT`、`FRONTEND`、`DESIGN` 后分别可见 9、13、21 个工具。切换依赖标准 `notifications/tools/list_changed`，直接 MCP 客户端必须支持该通知。完整列表和调用顺序见 [MCP 工具参考](docs/zh-CN/tools.md)。
 
 ## 界面预览
 
@@ -58,7 +58,7 @@ Agent 的修改会出现在 Figma 画布上的隔离 Proposal 中，便于与源
 
 ### 1. 选择一种安装方式
 
-两种方式公开相同的 24 个 MCP 工具，只需选择其中一种：
+两种方式提供相同的工作流激活能力，只需选择其中一种：
 
 - **安装 Agent Plugin**：适用于本项目当前已适配的 Codex、Cursor 和 GitHub Copilot；自动提供 MCP 配置，以及设计稿实现代码与安全 Proposal 工作流 Skill。请按[插件安装指南](docs/zh-CN/install-plugin.md)操作。
 - **直接配置 MCP Server**：适用于 Claude Code、Claude Desktop及其他本地 stdio 主机；需要手工添加 MCP 配置，且不会自动安装 Skill。请按[直接 MCP 安装指南](docs/zh-CN/install-mcp-server.md)操作。
@@ -87,7 +87,7 @@ npx -y figma-local-agent-mcp@<VERSION> pair
 
 ### 4. 验证连接
 
-重启 MCP 客户端或新建 Agent 会话，然后让 Agent 调用 `figma_status`。正常结果会包含当前 Figma 文件、页面、选区，以及 `UNBOUND` 或 `BOUND` 工作区状态。插件与 Server 内部使用 Bridge 协议 9。
+重启 MCP 客户端或新建 Agent 会话，确认冷启动只出现 `figma_status` 和 `figma_activate_workflow`，然后让 Agent 调用 `figma_status`。正常结果会包含当前 Figma 文件、页面、选区，以及 `UNBOUND` 或 `BOUND` 工作区状态。插件与 Server 内部使用 Bridge 协议 10。
 
 Development build、源码构建和直接 MCP 故障排查见[直接 MCP 安装指南](docs/zh-CN/install-mcp-server.md)。
 
@@ -95,7 +95,7 @@ Development build、源码构建和直接 MCP 故障排查见[直接 MCP 安装�
 
 ### 从设计稿实现代码
 
-1. 打开目标前端工程，并在 Figma Desktop 中打开 Design 文件和 **Local Figma Agent Bridge**；让 Agent 先调用 `figma_status` 检查连接与当前选区。
+1. 打开目标前端工程，并在 Figma Desktop 中打开 Design 文件和 **Local Figma Agent Bridge**；让 Agent 先调用 `figma_status`，再激活 `FRONTEND`。
 2. 说明采用**高保真还原**，还是优先复用现有设计系统的**工程化适配**。未指定时，Agent Plugin 的工作流默认采用高保真还原。
 3. 让 Agent 用最新 session ID 绑定当前工程。单节点或组件直接导出 `IMPLEMENTATION` 语义快照；大型区域或页面先读取 `OUTLINE`，再逐个激活有界实现范围。
 4. Agent 检查仓库中的现有组件、图标和素材，按需安全导出图片或 SVG，并按照项目的框架与约定实现代码。
@@ -112,7 +112,7 @@ Development build、源码构建和直接 MCP 故障排查见[直接 MCP 安装�
 ### 在 Figma 中创建或修改 Proposal
 
 1. 在 Figma Desktop 打开目标 Design 文件和 **Local Figma Agent Bridge**。
-2. 在 Agent 中先检查 `figma_status`，再选择要处理的节点并描述读取、修改或生成目标。
+2. 在 Agent 中先检查 `figma_status`，再激活 `DESIGN`，选择要处理的节点并描述读取、修改或生成目标。
 3. 修改现有设计时，Agent 会先创建隔离 Proposal；从零生成复杂界面时，会先验证完整 DesignPlan。
 4. 在画布中审查生成的 Proposal；公开写工具不会覆盖源稿。
 
@@ -166,7 +166,7 @@ Coding Agent
 | [选择安装方式](docs/zh-CN/configuration.md)       | 使用者               | 对比插件与直接 MCP 两条路线                 |
 | [安装 Agent Plugin](docs/zh-CN/install-plugin.md) | 插件客户端用户       | Codex、Cursor、Copilot 稳定版安装           |
 | [直接配置 MCP](docs/zh-CN/install-mcp-server.md)  | stdio 主机用户       | Claude、通用主机、Development 与源码构建    |
-| [MCP 工具参考](docs/zh-CN/tools.md)               | 使用者、Agent 开发者 | 24 个工具、写入边界和调用流程               |
+| [MCP 工具参考](docs/zh-CN/tools.md)               | 使用者、Agent 开发者 | 工作流工具集合、写入边界和调用流程          |
 | [架构与安全模型](docs/zh-CN/architecture.md)      | 开发者               | 进程、协议、Proposal 和 DesignPlan 生命周期 |
 | [开发指南](docs/zh-CN/development.md)             | 贡献者               | Monorepo、常用命令、测试和构建              |
 | [端到端验收](docs/zh-CN/acceptance.md)            | 贡献者               | 发行产物和 Figma 场景验收                   |

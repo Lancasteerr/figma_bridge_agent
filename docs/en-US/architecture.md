@@ -24,6 +24,8 @@ An explicit CLI pairing session temporarily enables `ws://127.0.0.1:3900/pair`; 
 
 `packages/protocol` owns transport-independent Zod schemas, including separate plugin RPC and public MCP result contracts. Each MCP adapter owns one stdio session, an initially unbound Agent workspace, and an independent export session ID. The automatically managed Bridge Daemon owns the loopback listener, forwards data only, and multiplexes any number of authenticated MCP adapters onto one plugin connection; it never writes a front-end project. Plugin UI owns plugin-side authentication and reconnect behavior. Plugin main is the only process allowed to hold Figma objects.
 
+Each Adapter also owns independent workflow activation state. The Server registers all 25 tools and immediately disables workflow-specific handles, leaving only `figma_status` and `figma_activate_workflow` visible at cold start. Activation toggles SDK tool handles and the SDK sends `notifications/tools/list_changed`. The state is never persisted to disk, the Daemon, or the Figma plugin and disappears when the connection closes.
+
 The first adapter starts the Daemon when needed. Closing one host only closes its adapter. The Daemon exits after both the last adapter and the plugin have been disconnected for 30 seconds.
 
 ## Trust boundaries
@@ -41,7 +43,7 @@ The first adapter starts the Daemon when needed. Closing one host only closes it
 1. Compact node reads enumerate Image Paint, export-setting, vector, and mask facts. Image dimensions are cached by hash during one serialization context, while internal canonical snapshots retain complete consistency fingerprints.
 2. `figma_export_assets` accepts at most 32 RAW or RENDERED items. A guarded batch checks that every item is under one semantic-snapshot root and that its `sourceFingerprint` matches before and after the whole export. Without a guard, each item compares its internal source before and after export.
 3. The plugin returns original bytes, rendered bytes, or an SVG string through protocol 10 RPC, with a 9 MiB per-item limit. The Adapter limits decoded batch staging to 64 MiB. Public MCP results never expose those bodies or source fingerprints.
-4. The Adapter rechecks RAW PNG/JPEG/GIF/WebP magic bytes and checks RENDERED format, extension, dimensions, and payload size. Resolved output paths must be unique.
+4. The Adapter rechecks RAW PNG/JPEG/GIF/WebP magic bytes, checks RENDERED format, extension, and payload size, then reads raster pixel dimensions from final bytes. SVG uses root width/height or `viewBox`. Missing valid intrinsic dimensions reject the whole batch. Resolved output paths must be unique.
 5. After every source, format, path, and overwrite condition passes, the Adapter writes all content into a transient session staging directory, rechecks targets for concurrent changes, and publishes the complete files as one recoverable batch. A failure restores backed-up targets and does not leave a partial project update.
 6. Identical content at the same path returns `REUSED`; different content returns `EXPORT_TARGET_CONFLICT` by default. Explicit overwrite requires the existing SHA-256 and rechecks it immediately before commit.
 7. Binding must happen before any export write. The same canonical root is idempotent, and a session cannot switch to another root. An unbound request fails with `EXPORT_ROOT_UNBOUND`; success returns ordered `{path,status,mimeType,width,height,dimensionUnit}` entries without file digests.
@@ -58,9 +60,9 @@ The first adapter starts the Daemon when needed. Closing one host only closes it
 4. The shared safe writer commits JSONL and optional PNG first, then writes `manifest.json` as the
    completed-revision marker. Public MCP results contain the workspace-relative manifest path,
    source fingerprint, completeness, and optional truncation only.
-5. The Agent creates lightweight `work-units/<scopeId>.json` with ordinary file editing. It references
-   the manifest and records code mappings, status, and unresolved differences; the tool generates no
-   subjective roles or page state machine.
+5. The Agent may keep ordinary task notes when useful, referencing the manifest and recording code
+   mappings, status, or unresolved differences. A `work-units/<scopeId>.json` file is not required,
+   and the tool generates no subjective roles or page state machine.
 6. Before completing a scope, the Agent calls `figma_check_semantic_scope` to compare the stored
    fingerprint with the current complete subtree without re-exporting bodies.
 

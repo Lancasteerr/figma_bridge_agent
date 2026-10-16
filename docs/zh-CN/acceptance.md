@@ -14,10 +14,10 @@
 6. 重启 Figma 和 MCP 主机，确认无需再次配对即可自动连接。
 7. 运行 `devices list`，撤销当前设备，并确认插件立即返回配对界面。
 8. 运行 `pnpm check:agent-marketplaces`，确认三份源索引与生成的 Codex、Cursor、Copilot 固定入口同步。
-9. npm `<VERSION>` 和 GitHub `v<VERSION>` tag 公开后，运行 `codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v<VERSION>`，通过 `/plugins` 安装 **Local Figma Agent**，新建会话，并确认无需手工配置 MCP 即可发现恰好 24 个工具和随插件提供的 Skill。
-10. 在 Copilot CLI 中运行 `copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v<VERSION>` 和 `copilot plugin install figma-local-agent@figma-bridge-marketplace`；新建会话并确认相同的 24 个工具和 Skill 可用。
-11. 在 Cursor 团队中通过 **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo** 导入 `https://github.com/Lancasteerr/figma_bridge_agent`；从 **Customize** 安装 **Local Figma Agent**，并确认相同的 24 个工具和 Skill 可用。
-12. 在未安装 Agent Plugin 的干净 Claude Code 配置中，按[直接 MCP 指南](install-mcp-server.md#claude-code)注册 npm 稳定版；确认能够发现相同的 24 个工具，但不会自动出现 **Local Figma Agent** Skill。
+9. npm `<VERSION>` 和 GitHub `v<VERSION>` tag 公开后，运行 `codex plugin marketplace add Lancasteerr/figma_bridge_agent --ref v<VERSION>`，通过 `/plugins` 安装 **Local Figma Agent**，新建会话，并确认无需手工配置 MCP 即可发现冷启动工具 `figma_status`、`figma_activate_workflow` 和随插件提供的 Skill。
+10. 在 Copilot CLI 中运行 `copilot plugin marketplace add Lancasteerr/figma_bridge_agent#v<VERSION>` 和 `copilot plugin install figma-local-agent@figma-bridge-marketplace`；新建会话并确认相同的两个冷启动工具和 Skill 可用。
+11. 在 Cursor 团队中通过 **Dashboard → Plugins & MCPs → Add Marketplace → Import from Repo** 导入 `https://github.com/Lancasteerr/figma_bridge_agent`；从 **Customize** 安装 **Local Figma Agent**，并确认相同的两个冷启动工具和 Skill 可用。
+12. 在未安装 Agent Plugin 的干净 Claude Code 配置中，按[直接 MCP 指南](install-mcp-server.md#claude-code)注册 npm 稳定版；确认能够发现相同的两个冷启动工具，但不会自动出现 **Local Figma Agent** Skill。
 13. 检查 Agent Plugin ZIP，确认其中包含 `skills/figma-local-agent/references/design-plan-v1.md`、`skills/figma-local-agent/references/asset-export.md`、`skills/figma-local-agent/references/frontend-implementation.md` 和 `skills/figma-local-agent/references/semantic-snapshots.md`，但不包含任何仓库级 marketplace 文件。
 
 如果此门禁失败，不要继续验收。
@@ -25,14 +25,15 @@
 ## 2. 连接和读取路径
 
 1. 先使用已安装的 Agent Plugin 启动 Codex；再在未安装该插件的独立 Claude Code 配置中，按[直接 MCP 指南](install-mcp-server.md)重复关键连接检查。两个客户端都只能加载一个 `figma-local-agent` Server。
-2. 调用 `figma_status`；确认协议 10 已在内部通过校验，且公共结果只包含文件/页面元数据、选择摘要以及带 session ID 的 `UNBOUND` 工作区。2.9.2 插件或 Server 不得与协议 10 混用，而应明确失败。
+2. 确认冷启动列表恰好包含 `figma_status` 和 `figma_activate_workflow`。调用 `figma_status`；确认协议 10 已在内部通过校验，且公共结果只包含文件/页面元数据、选择摘要以及带 session ID 的 `UNBOUND` 工作区。2.9.2 插件或 Server 不得与协议 10 混用，而应明确失败。
 3. 关闭插件并再次调用；确认约一秒内返回 `PLUGIN_NOT_CONNECTED`，而不是一直挂起。
 4. 重新打开插件，确认能够自动重连。
-5. 再打开两个 Codex 任务，确认三个任务都发现相同的 24 个工具，并能通过同一插件调用 `figma_status`。
-6. 关闭其中一个任务，确认另两个任务仍保持连接。运行 `bridge status`，确认客户端数量变化且插件不断线。
-7. 选择粗略的 ArticleCard，使用 `figma_status` 返回的选区并调用 node、tree 和 render 工具；确认 `figma_get_selection` 与 `figma_get_variables` 不存在。
-8. 确认 `figma_get_node` 接受稳定字段组，始终返回名称/类型/父节点，只有显式请求才返回 `CHILDREN`，并省略默认布尔值、零旋转、空集合、无效蒙版外壳、重复 render bounds 及公开 snapshot fingerprint。按需读取时仍应保留 Auto Layout/Grid、尺寸约束、子项对齐、文本截断与样式、描边、独立圆角、真实渲染边界和素材事实。clipping/overflow 只能作为静态事实，不能据此声称页面、容器、吸顶或其他滚动行为已确定。
-9. 调用 `figma_get_raw_node` 时确认默认不含 `children`；`depth: 1` 只保留一层，`fields` 最多接受 32 个唯一顶层字段并始终保留 `id`、`name`、`type`，且投影发生在 256 KiB/2 MiB 字节检查之前。模拟空 image hash、找不到图片和尺寸查询异常；确认 paint 定位和错误状态保留，整次节点读取仍成功。修改布局、文本、形状、图片、裁剪、矢量、蒙版或导出设置事实，确认新的语义快照得到不同 `sourceFingerprint`，而 `figma_get_node` 仍不公开指纹。
+5. 再打开两个 Codex 任务，确认三个任务都从相同的两个冷启动工具开始，并能通过同一插件调用 `figma_status`。
+6. 在一个任务中激活 `INSPECT`；确认收到标准 `notifications/tools/list_changed`，工具总数变为 9。重复激活 `INSPECT` 应幂等且集合不变；另两个任务仍只显示两个冷启动工具。切换到 `FRONTEND` 后确认总数为 13 且 DESIGN 专用工具不可调用；切换到 `DESIGN` 后确认总数为 21 且 FRONTEND 专用工具不可调用。
+7. 关闭其中一个任务，确认另两个任务仍保持连接。运行 `bridge status`，确认客户端数量变化且插件不断线。
+8. 在已激活 `INSPECT` 的任务中选择粗略的 ArticleCard，使用 `figma_status` 返回的选区并调用 node、tree 和 render 工具；确认 `figma_get_selection` 与 `figma_get_variables` 不存在。
+9. 确认 `figma_get_node` 接受稳定字段组，始终返回名称/类型/父节点，只有显式请求才返回 `CHILDREN`，并省略默认布尔值、零旋转、空集合、无效蒙版外壳、重复 render bounds 及公开 snapshot fingerprint。按需读取时仍应保留 Auto Layout/Grid、尺寸约束、子项对齐、文本截断与样式、描边、独立圆角、真实渲染边界和素材事实。clipping/overflow 只能作为静态事实，不能据此声称页面、容器、吸顶或其他滚动行为已确定。
+10. 调用 `figma_get_raw_node` 时确认默认不含 `children`；`depth: 1` 只保留一层，`fields` 最多接受 32 个唯一顶层字段并始终保留 `id`、`name`、`type`，且投影发生在 256 KiB/2 MiB 字节检查之前。模拟空 image hash、找不到图片和尺寸查询异常；确认 paint 定位和错误状态保留，整次节点读取仍成功。修改布局、文本、形状、图片、裁剪、矢量、蒙版或导出设置事实，确认新的语义快照得到不同 `sourceFingerprint`，而 `figma_get_node` 仍不公开指纹。
 
 ## 3. 基础 Proposal 路径
 
@@ -48,8 +49,8 @@
 
 ## 4. 声明式 DesignPlan 路径
 
-1. 检查 `tools/list` 中的 `figma_validate_design_plan`；确认 `plan.root` 解析为 Proposal `FRAME` 定义，且其 `children` 引用了全部受支持节点类型。
-2. 检查 MCP 主机提供给模型的工具声明；若递归字段被简化为 `unknown`，确认 Agent 会读取随插件提供的 DesignPlan reference，而不是试探 validator。
+1. 激活 `DESIGN` 并检查 `tools/list` 中的 `figma_validate_design_plan`；确认公开 `plan` 是紧凑的通用 JSON，不携带递归节点定义，同时仍公开 `returnRefs`。
+2. 确认 Agent 从随插件提供的 DesignPlan reference 读取完整结构。分别提交合法计划和缺少必需字段的计划，确认服务端内部的完整 `DesignPlanSchema` 仍严格接受前者并拒绝后者，而不是依赖 Agent 试探 validator。
 3. 构建根为 360 × 180 卡片 Proposal 的 v1 计划，包含 Auto Layout 和文本；确认该根被视为隔离技术容器，而不是 Figma Page 或完整页面。
 4. 对卡片执行一次验证和应用，渲染结果，获取最新完整树指纹并丢弃；确认源稿没有变化。
 5. 对于带来源的计划，使用包含非 Frame Clone 来源和可复用 Component/Instance 的有序根节点调用 `figma_get_fingerprint`；把相同 ID 顺序和返回指纹写入来源声明，并确认颠倒多个根的顺序会改变指纹。
@@ -68,7 +69,7 @@
 6. 强制中途异常并确认节点/资源清理；模拟 `BUILDING` 标记并确认下一次写操作恢复；丢弃成功 Proposal 后确认已提交资源仍保留。
 7. 在 Plan 模式探查裁剪头像、背景图、多 Image Fill、图片描边、多 Vector Logo、蒙版和混合效果；记录实现决策、paint 位置、格式与相对路径，并确认工程没有新增文件，也没有组装逐项 fingerprint 链。
 8. 对同一有界根分别导出 `OUTLINE` 和 `IMPLEMENTATION`；确认 manifest v2 声明 `COMPACT_V1`，OUTLINE 标记 `factsStatus: "NOT_REQUESTED"` 且没有空 `facts.jsonl`，IMPLEMENTATION 标记 `WRITTEN`。保留返回的语义 `sourceFingerprint` 供素材批次使用。
-9. 启动 Agent Plugin 后先调用 `figma_status`，确认初始状态为独立的 `UNBOUND` 会话且不存在暂存导出目录。由 Agent 在自身任务执行环境取得准确的绝对 cwd，并使用最新 `workspace.sessionId` 调用 `figma_bind_export_root`；确认状态切换到真实项目的 `BOUND`。在一个带 guard 的批次内导出头像/背景 RAW item 和渲染 SVG；确认 PNG/JPEG/GIF/WebP 按魔数追加扩展名且不合成裁剪/滤镜或转码，SVG 拒绝 scale，渲染扩展名必须匹配，结果包含 MIME、尺寸及 `PIXEL`/`FIGMA_UNIT`。
+9. 启动 Agent Plugin 后先调用 `figma_status`，激活 `FRONTEND`，确认初始状态为独立的 `UNBOUND` 会话且不存在暂存导出目录。由 Agent 在自身任务执行环境取得准确的绝对 cwd，并使用最新 `workspace.sessionId` 调用 `figma_bind_export_root`；确认状态切换到真实项目的 `BOUND`。在一个带 guard 的批次内导出头像/背景 RAW item 和渲染 SVG；确认 PNG/JPEG/GIF/WebP 按魔数追加扩展名且不合成裁剪/滤镜或转码，SVG 拒绝 scale，渲染扩展名必须匹配，结果包含 MIME、最终文件固有尺寸及 `PIXEL`/`FIGMA_UNIT`。对 SVG fixture 确认源节点 `18.75 × 17.835`、最终画布 `23 × 22` 时返回 `23 × 22`；覆盖数值属性、`px` 属性和 `viewBox` 回退。无有效 SVG 尺寸时应返回结构化格式错误并使整批保持原子性。`figma_render_node` 的尺寸也必须与最终 PNG 字节一致。
 10. 在新的未绑定 MCP Adapter 中确认 `figma_status` 返回独立 `UNBOUND` session。使用错误 session ID、相对路径、文件系统根、用户主目录和插件目录绑定时应分别得到稳定错误；同根重复绑定应幂等成功，改绑应返回 `EXPORT_ROOT_CONFLICT`。保持未绑定并确认素材/语义写入返回 `EXPORT_ROOT_UNBOUND`，同时临时存储中的树 artifact 与渲染仍可用。
 11. 修改 Figma 图片 hash、裁剪参数或 Logo 子节点，再使用旧语义 `sourceFingerprint` guard 导出；确认返回 `ASSET_SOURCE_CHANGED` 且不产生文件。guard 中含根外节点也必须失败且不写入。
 12. 重复导出相同内容，确认返回 `REUSED`。修改本地目标后用默认策略导出，确认返回 `EXPORT_TARGET_CONFLICT` 且现有文件不变。
@@ -80,7 +81,7 @@
 
 使用以下验收提示词：
 
-> 检查选中的粗略 ArticleCard 和参考网页。读取有界树、渲染、字体及当前页设计资源；构建 DesignPlan 前先读取随插件提供的 DesignPlan v1 reference，再获取全部来源根的有序完整树指纹；把所需图片/SVG 以 Base64 提供，构建一个完整候选且不查询 Team Library，只验证一次并应用为隔离 Proposal，然后重新读取并渲染结果。遇到依赖过期、素材错误、资源冲突或显式字体不可用时停止，不要绕过校验。
+> 先调用 `figma_status` 并激活 `DESIGN`。检查选中的粗略 ArticleCard 和参考网页。读取有界树、渲染、字体及当前页设计资源；构建 DesignPlan 前先读取随插件提供的 DesignPlan v1 reference，再获取全部来源根的有序完整树指纹；把所需图片/SVG 以 Base64 提供，构建一个完整候选且不查询 Team Library，只验证一次并应用为隔离 Proposal，然后重新读取并渲染结果。遇到依赖过期、素材错误、资源冲突或显式字体不可用时停止，不要绕过校验。
 
 通过标准：源截图、指纹和层级结构保持不变；Proposal 具备预期的 Auto Layout；没有 Instance 被分离；取消或失败后不留下临时节点；插件重启后仍能识别 Proposal；实施所需素材安全落到当前 Adapter 绑定的工作区，且公开结果不含素材正文、摘要、内部路径或输入回显。
 

@@ -2,14 +2,14 @@
 
 [English](../en-US/README.md) · [项目首页](../../README.md)
 
-这里的文档面向 Local Figma Agent 的使用者、集成者和贡献者。若只想完成首次安装，请先[选择安装方式](configuration.md)。
+这里的文档面向 Local Figma Agent 的使用者、集成者和贡献者。Server 冷启动只暴露 `figma_status` 与 `figma_activate_workflow`；激活 `INSPECT`、`FRONTEND`、`DESIGN` 后分别可见 9、13、21 个工具，并通过标准 `notifications/tools/list_changed` 刷新。若只想完成首次安装，请先[选择安装方式](configuration.md)。
 
 ## 使用者
 
 - [选择安装方式](configuration.md)：对比 Agent Plugin 与直接 MCP 两条正式路线。
 - [安装 Agent Plugin](install-plugin.md)：在 Codex、Cursor 或 GitHub Copilot 中安装稳定版插件及 Skill。
 - [直接配置 MCP Server](install-mcp-server.md)：在 Claude Code、Claude Desktop及其他 stdio 主机中配置稳定版、Development build 或源码构建。
-- [MCP 工具参考](tools.md)：了解 24 个公开工具、读写边界和推荐调用流程。
+- [MCP 工具参考](tools.md)：了解工作流工具集合、读写边界和推荐调用流程。
 - [安全说明](security.md)：了解凭据、网络、素材、Proposal 和工作区导出的安全边界。
 
 ## 开发者与贡献者

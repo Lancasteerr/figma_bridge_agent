@@ -24,6 +24,8 @@ Figma 插件主进程
 
 `packages/protocol` 负责与传输无关的 Zod schema，并分别定义插件 RPC 与公共 MCP 结果契约。每个 MCP Adapter 负责一个 stdio 会话、初始未绑定的 Agent 工作区和独立导出 session ID。自动管理的 Bridge Daemon 独占回环监听，只转发数据并把任意数量的已认证 MCP Adapter 复用到一个插件连接；它永远不写前端工程。插件 UI 负责插件侧身份验证和重连行为。插件主进程是唯一允许持有 Figma 对象的进程。
 
+每个 Adapter 同时持有独立的工作流激活状态。Server 注册全部 25 个工具后立即禁用专用工具，因此冷启动只可见 `figma_status` 与 `figma_activate_workflow`。激活工具直接切换 SDK 工具句柄，由 SDK 发送 `notifications/tools/list_changed`；状态不进入磁盘、Daemon 或 Figma 插件，连接关闭即丢失。
+
 首个 Adapter 会在需要时启动 Daemon。关闭某个主机只会关闭自己的 Adapter。当最后一个 Adapter 和插件都断开 30 秒后，Daemon 自动退出。
 
 ## 信任边界
@@ -41,7 +43,7 @@ Figma 插件主进程
 1. 紧凑节点读取枚举 Image Paint、导出设置、矢量和蒙版事实；同一序列化上下文按 image hash 缓存尺寸查询，内部 canonical snapshot 继续保留完整一致性指纹。
 2. `figma_export_assets` 最多接受 32 个 RAW 或 RENDERED item。有 guard 时，插件确认所有 item 位于同一个语义快照根内，并在整批前后匹配其 `sourceFingerprint`；无 guard 时逐项比较导出前后的内部来源。
 3. 插件通过协议 10 RPC 返回单项不超过 9 MiB 的原始字节、渲染字节或 SVG 字符串，Adapter 将整批解码后暂存限制为 64 MiB。公共 MCP 结果不会透出正文或来源指纹。
-4. Adapter 对 RAW 再做 PNG/JPEG/GIF/WebP 魔数识别，对 RENDERED 核对格式、扩展名、尺寸和载荷上限；解析后的输出路径必须唯一。
+4. Adapter 对 RAW 再做 PNG/JPEG/GIF/WebP 魔数识别，对 RENDERED 核对格式、扩展名和载荷上限，并从最终字节读取位图像素尺寸；SVG 使用根宽高或 `viewBox`。无法得到有效固有尺寸时拒绝整批；解析后的输出路径必须唯一。
 5. 所有来源、格式、路径和覆盖条件通过后，Adapter 才把全部内容写入瞬时会话暂存目录，复检目标并发变化，再以可恢复批次发布完整文件。任一步失败都会恢复备份目标，不留下部分项目更新。
 6. 同路径同 hash 返回 `REUSED`；不同 hash 默认返回 `EXPORT_TARGET_CONFLICT`。显式覆盖要求现有 SHA-256，并在提交前再次核对以防并发修改。
 7. 绑定必须在任何导出写入前完成，相同规范根可幂等重试，会话内不得切换到其他根。未绑定请求返回 `EXPORT_ROOT_UNBOUND`；成功按顺序返回 `{path,status,mimeType,width,height,dimensionUnit}`，不公开文件摘要。
@@ -52,7 +54,7 @@ Figma 插件主进程
 2. 序列化后再计算指纹。来源改变返回 `SEMANTIC_SOURCE_CHANGED`；正文超过 12 MiB 返回 `PAYLOAD_TOO_LARGE`，两者都不写文件。
 3. Adapter 以 node ID 短哈希作为 scope ID，并在来源指纹下使用请求变体哈希，因此同一设计状态的 OUTLINE、焦点集、渲染和预算不会相互覆盖。
 4. Adapter 经共享安全写入层依次提交 JSONL、可选 PNG，最后写 `manifest.json` 作为完整修订标记。公开 MCP 结果只返回工作区相对 manifest 路径、来源指纹、完整性和可选截断信息。
-5. Agent 用普通文件编辑创建轻量 `work-units/<scopeId>.json`，只引用 manifest 并保存代码映射、状态和未解决差异；工具不会生成主观角色或页面状态机。
+5. Agent 可按任务需要保留普通工作笔记，引用 manifest 并记录代码映射、状态或未解决差异；不要求 `work-units/<scopeId>.json`，工具也不会生成主观角色或页面状态机。
 6. 完成范围前，Agent 通过 `figma_check_semantic_scope` 比较已存指纹与当前完整子树，不重新导出正文。
 
 ## 源稿不可变

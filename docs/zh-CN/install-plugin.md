@@ -84,10 +84,11 @@ figma-agent-bridge-plugin/manifest.json
 
 重启 ChatGPT/Cursor，或为 Codex、Copilot 新建 Agent 会话，使新安装的插件生效。然后：
 
-1. 确认客户端只加载一个 `figma-local-agent` MCP Server。
+1. 确认客户端只加载一个 `figma-local-agent` MCP Server，冷启动只显示 `figma_status` 与 `figma_activate_workflow`。
 2. 让 Agent 调用 `figma_status`。
-3. 确认结果包含当前 Figma 文件、页面、选区以及 `UNBOUND` 或 `BOUND` 工作区。协议 10 兼容性由连接建立阶段在内部校验，协议 9 客户端必须明确失败。
-4. 确认 **Local Figma Agent** Skill 可用，并能指导 Agent 使用 Proposal 工作流。
+3. 确认结果包含当前 Figma 文件、页面、选区以及 `UNBOUND` 或 `BOUND` 工作区。协议 10 兼容性由连接建立阶段在内部校验，旧协议插件必须明确失败。
+4. 让 Agent 激活 `INSPECT`，确认工具列表刷新为 9 个工具；激活 `FRONTEND`、`DESIGN` 时应分别刷新为 13、21 个。
+5. 确认 **Local Figma Agent** Skill 可用，并能指导 Agent 使用 Proposal 工作流。
 
 ## 更新与排查
 
