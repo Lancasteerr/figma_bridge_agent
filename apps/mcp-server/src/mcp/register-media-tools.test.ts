@@ -59,7 +59,7 @@ async function setup(
   } as unknown as McpServer;
   const broker = {
     connected: true,
-    pluginVersion: '2.9.5',
+    pluginVersion: '3.0.0',
     request: vi.fn(async (method: string, params: unknown) =>
       typeof rpcResult === 'function' ? await rpcResult(method, params) : rpcResult,
     ),
