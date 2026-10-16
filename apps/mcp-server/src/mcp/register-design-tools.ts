@@ -8,10 +8,15 @@ import type { McpServer } from '@modelcontextprotocol/server';
 
 import type { BridgeTransport } from '../bridge/transport.js';
 import { structuredResult, toolError } from './result.js';
+import type { RegisteredToolMap } from './tool-registry.js';
 
 /** 注册 DesignPlan 的只读验证和原子应用入口。 */
-export function registerDesignTools(server: McpServer, broker: BridgeTransport): void {
-  server.registerTool(
+export function registerDesignTools(
+  server: McpServer,
+  broker: BridgeTransport,
+): RegisteredToolMap {
+  const tools: RegisteredToolMap = {};
+  tools.figma_validate_design_plan = server.registerTool(
     'figma_validate_design_plan',
     {
       description:
@@ -40,7 +45,7 @@ export function registerDesignTools(server: McpServer, broker: BridgeTransport):
     },
   );
 
-  server.registerTool(
+  tools.figma_apply_design_plan = server.registerTool(
     'figma_apply_design_plan',
     {
       description:
@@ -68,4 +73,5 @@ export function registerDesignTools(server: McpServer, broker: BridgeTransport):
       }
     },
   );
+  return tools;
 }

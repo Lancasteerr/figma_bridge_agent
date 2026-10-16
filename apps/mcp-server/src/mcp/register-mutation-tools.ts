@@ -17,10 +17,15 @@ import type { McpServer } from '@modelcontextprotocol/server';
 
 import type { BridgeTransport } from '../bridge/transport.js';
 import { structuredResult, toolError } from './result.js';
+import type { RegisteredToolMap } from './tool-registry.js';
 
 /** 注册所有 Proposal 内部写操作，并为每个工具声明输入、输出和 destructive hints。 */
-export function registerMutationTools(server: McpServer, broker: BridgeTransport): void {
-  server.registerTool(
+export function registerMutationTools(
+  server: McpServer,
+  broker: BridgeTransport,
+): RegisteredToolMap {
+  const tools: RegisteredToolMap = {};
+  tools.figma_duplicate_as_proposal = server.registerTool(
     'figma_duplicate_as_proposal',
     {
       description:
@@ -47,7 +52,7 @@ export function registerMutationTools(server: McpServer, broker: BridgeTransport
     },
   );
 
-  server.registerTool(
+  tools.figma_create_frame = server.registerTool(
     'figma_create_frame',
     {
       description:
@@ -74,7 +79,7 @@ export function registerMutationTools(server: McpServer, broker: BridgeTransport
     },
   );
 
-  server.registerTool(
+  tools.figma_reparent_nodes = server.registerTool(
     'figma_reparent_nodes',
     {
       description:
@@ -101,7 +106,7 @@ export function registerMutationTools(server: McpServer, broker: BridgeTransport
     },
   );
 
-  server.registerTool(
+  tools.figma_set_layout = server.registerTool(
     'figma_set_layout',
     {
       description:
@@ -128,7 +133,7 @@ export function registerMutationTools(server: McpServer, broker: BridgeTransport
     },
   );
 
-  server.registerTool(
+  tools.figma_update_text = server.registerTool(
     'figma_create_component_from_node',
     {
       description:
@@ -157,7 +162,7 @@ export function registerMutationTools(server: McpServer, broker: BridgeTransport
     },
   );
 
-  server.registerTool(
+  tools.figma_set_instance_properties = server.registerTool(
     'figma_set_instance_properties',
     {
       description:
@@ -184,7 +189,7 @@ export function registerMutationTools(server: McpServer, broker: BridgeTransport
     },
   );
 
-  server.registerTool(
+  tools.figma_create_component_from_node = server.registerTool(
     'figma_update_text',
     {
       description:
@@ -211,7 +216,7 @@ export function registerMutationTools(server: McpServer, broker: BridgeTransport
     },
   );
 
-  server.registerTool(
+  tools.figma_discard_proposal = server.registerTool(
     'figma_discard_proposal',
     {
       description:
@@ -239,4 +244,5 @@ export function registerMutationTools(server: McpServer, broker: BridgeTransport
       }
     },
   );
+  return tools;
 }

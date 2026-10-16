@@ -13,14 +13,16 @@ import type { McpServer } from '@modelcontextprotocol/server';
 import type { BridgeTransport } from '../bridge/transport.js';
 import type { SemanticSnapshotStore } from '../semantic/semantic-snapshot-store.js';
 import { structuredResult, toolError } from './result.js';
+import type { RegisteredToolMap } from './tool-registry.js';
 
 /** 注册只返回磁盘引用的语义快照工具，正文仅在插件与本机 Adapter 之间传递。 */
 export function registerSemanticTools(
   server: McpServer,
   broker: BridgeTransport,
   snapshots: SemanticSnapshotStore,
-): void {
-  server.registerTool(
+): RegisteredToolMap {
+  const tools: RegisteredToolMap = {};
+  tools.figma_export_semantic_scope = server.registerTool(
     'figma_export_semantic_scope',
     {
       description:
@@ -62,7 +64,7 @@ export function registerSemanticTools(
     },
   );
 
-  server.registerTool(
+  tools.figma_check_semantic_scope = server.registerTool(
     'figma_check_semantic_scope',
     {
       description:
@@ -97,6 +99,7 @@ export function registerSemanticTools(
       }
     },
   );
+  return tools;
 }
 
 function assertSession(expectedSessionId: string, snapshots: SemanticSnapshotStore): void {

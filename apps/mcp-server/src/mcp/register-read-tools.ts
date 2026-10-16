@@ -24,6 +24,7 @@ import type { McpServer } from '@modelcontextprotocol/server';
 import type { BridgeTransport } from '../bridge/transport.js';
 import type { TemporaryArtifactStore } from '../temp/artifact-store.js';
 import { structuredResult, toolError } from './result.js';
+import type { RegisteredToolMap } from './tool-registry.js';
 import { deliverTreeResult } from './tree-delivery.js';
 
 /** 注册节点、树、设计资源、CSS 和原始 JSON 等只读工具。 */
@@ -31,8 +32,9 @@ export function registerReadTools(
   server: McpServer,
   broker: BridgeTransport,
   artifacts: TemporaryArtifactStore,
-): void {
-  server.registerTool(
+): RegisteredToolMap {
+  const tools: RegisteredToolMap = {};
+  tools.figma_get_design_resources = server.registerTool(
     'figma_get_design_resources',
     {
       description:
@@ -61,7 +63,7 @@ export function registerReadTools(
     },
   );
 
-  server.registerTool(
+  tools.figma_list_fonts = server.registerTool(
     'figma_list_fonts',
     {
       description:
@@ -88,7 +90,7 @@ export function registerReadTools(
     },
   );
 
-  server.registerTool(
+  tools.figma_get_raw_node = server.registerTool(
     'figma_get_raw_node',
     {
       description:
@@ -116,7 +118,7 @@ export function registerReadTools(
     },
   );
 
-  server.registerTool(
+  tools.figma_get_css = server.registerTool(
     'figma_get_css',
     {
       description:
@@ -142,7 +144,7 @@ export function registerReadTools(
     },
   );
 
-  server.registerTool(
+  tools.figma_get_node = server.registerTool(
     'figma_get_node',
     {
       description:
@@ -168,7 +170,7 @@ export function registerReadTools(
     },
   );
 
-  server.registerTool(
+  tools.figma_get_tree = server.registerTool(
     'figma_get_tree',
     {
       description:
@@ -200,7 +202,7 @@ export function registerReadTools(
     },
   );
 
-  server.registerTool(
+  tools.figma_get_fingerprint = server.registerTool(
     'figma_get_fingerprint',
     {
       description:
@@ -229,4 +231,5 @@ export function registerReadTools(
       }
     },
   );
+  return tools;
 }

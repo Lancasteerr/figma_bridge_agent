@@ -11,6 +11,7 @@ import { registerDesignTools } from './mcp/register-design-tools.js';
 import { registerMutationTools } from './mcp/register-mutation-tools.js';
 import { registerStatusTool } from './mcp/register-status.js';
 import { registerSemanticTools } from './mcp/register-semantic-tools.js';
+import { registerWorkflowActivationTool } from './mcp/register-workflow-tool.js';
 import { SemanticSnapshotStore } from './semantic/semantic-snapshot-store.js';
 import { TemporaryArtifactStore } from './temp/artifact-store.js';
 import { SessionWorkspace } from './storage/session-workspace.js';
@@ -21,7 +22,7 @@ export interface RunningServer {
   close(): Promise<void>;
 }
 
-/** 创建 MCP 工具集合；工具按读、媒体、Proposal 写入和布局计划分组注册。 */
+/** 创建 MCP 工具集合；冷启动仅暴露状态和连接级工作流开关。 */
 export function createMcpServer(
   broker: BridgeTransport,
   assets: TemporaryArtifactStore,
@@ -32,11 +33,14 @@ export function createMcpServer(
 ): McpServer {
   const server = new McpServer({ name: 'figma-local-agent', version: __CLI_VERSION__ });
   registerStatusTool(server, broker, exports);
-  registerReadTools(server, broker, assets);
-  registerMediaTools(server, broker, assets, exports);
-  registerSemanticTools(server, broker, snapshots);
-  registerMutationTools(server, broker);
-  registerDesignTools(server, broker);
+  const workflowTools = {
+    ...registerReadTools(server, broker, assets),
+    ...registerMediaTools(server, broker, assets, exports),
+    ...registerSemanticTools(server, broker, snapshots),
+    ...registerMutationTools(server, broker),
+    ...registerDesignTools(server, broker),
+  };
+  registerWorkflowActivationTool(server, workflowTools);
   return server;
 }
 

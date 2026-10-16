@@ -27,6 +27,7 @@ import type { ExportStore } from '../export/export-store.js';
 import { validateInboundAsset } from '../inbound/asset-validator.js';
 import type { TemporaryArtifactStore } from '../temp/artifact-store.js';
 import { structuredResult, toolError } from './result.js';
+import type { RegisteredToolMap } from './tool-registry.js';
 
 const MAX_EXPORT_BYTES = 9 * 1024 * 1024;
 const MAX_EXPORT_BATCH_BYTES = 64 * 1024 * 1024;
@@ -37,8 +38,9 @@ export function registerMediaTools(
   broker: BridgeTransport,
   previews: TemporaryArtifactStore,
   exports: ExportStore,
-): void {
-  server.registerTool(
+): RegisteredToolMap {
+  const tools: RegisteredToolMap = {};
+  tools.figma_bind_export_root = server.registerTool(
     'figma_bind_export_root',
     {
       description:
@@ -64,7 +66,7 @@ export function registerMediaTools(
     },
   );
 
-  server.registerTool(
+  tools.figma_stage_asset = server.registerTool(
     'figma_stage_asset',
     {
       description:
@@ -93,7 +95,7 @@ export function registerMediaTools(
     },
   );
 
-  server.registerTool(
+  tools.figma_export_assets = server.registerTool(
     'figma_export_assets',
     {
       description:
@@ -182,7 +184,7 @@ export function registerMediaTools(
     },
   );
 
-  server.registerTool(
+  tools.figma_render_node = server.registerTool(
     'figma_render_node',
     {
       description:
@@ -230,6 +232,7 @@ export function registerMediaTools(
       }
     },
   );
+  return tools;
 }
 
 function toRpcInput(input: ReturnType<typeof ExportAssetItemSchema.parse>) {

@@ -5,14 +5,16 @@ import { z } from 'zod';
 import type { BridgeTransport } from '../bridge/transport.js';
 import type { ExportStore } from '../export/export-store.js';
 import { structuredResult, toolError } from './result.js';
+import type { RegisteredToolMap } from './tool-registry.js';
 
 /** 注册只读状态工具，作为 MCP 侧判断桥接是否可用的入口。 */
 export function registerStatusTool(
   server: McpServer,
   broker: BridgeTransport,
   exports: ExportStore,
-): void {
-  server.registerTool(
+): RegisteredToolMap {
+  const tools: RegisteredToolMap = {};
+  tools.figma_status = server.registerTool(
     'figma_status',
     {
       description:
@@ -48,4 +50,5 @@ export function registerStatusTool(
       }
     },
   );
+  return tools;
 }
