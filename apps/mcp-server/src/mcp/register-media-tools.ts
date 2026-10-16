@@ -219,12 +219,13 @@ export function registerMediaTools(
         if (detected?.ext !== 'png') {
           throw unsupported(result.nodeId, 'Rendered PNG magic bytes do not match.');
         }
+        const dimensions = readRasterDimensions(data, result.nodeId);
         const stored = await previews.write(`${result.nodeId}.png`, data);
         return structuredResult(
           RenderResultSchema.parse({
             localPath: stored.localPath,
-            width: result.width,
-            height: result.height,
+            width: dimensions.width,
+            height: dimensions.height,
             expiresAt: stored.expiresAt,
           }),
         );
