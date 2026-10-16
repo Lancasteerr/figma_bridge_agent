@@ -1,83 +1,41 @@
-# Semantic snapshot workflow
+# Semantic snapshots
 
-Use semantic snapshots when implementing a node, component, region, or page from the current Figma
-document and the structural evidence would otherwise occupy substantial conversation context. The
-bridge persists objective Figma facts; it does not decide component roles, implementation
-boundaries, or code mappings.
+Read this reference only in `FRONTEND` when a large page/region would otherwise fill the
+conversation, or when durable queryable evidence is useful. Small components normally need only
+targeted tree and node reads.
 
-## Use the session workspace
+Follow the single workspace-binding procedure in [SKILL.md](../SKILL.md) before the first persistent
+write. Pass the latest `workspace.sessionId` as `expectedSessionId`.
 
-Follow the shared binding procedure in `SKILL.md` before the first persistent semantic or asset
-write. Pass the latest `workspace.sessionId` as `expectedSessionId` to semantic tools; never reuse an
-ID from a previous Adapter process.
+## Scope and storage
 
-A bound snapshot is stored below
-`.figma_bridge_agent/sessions/<sessionId>/scopes/<scopeId>/<sourceFingerprint>/<variant>/`. The
-variant keeps different profiles, focus sets, render choices, and budgets immutable even when the
-Figma source fingerprint is unchanged. The cache root contains its own `.gitignore`; do not add
-snapshot files to product source or copy their bodies into the conversation.
+Snapshots live below
+`.figma_bridge_agent/sessions/<sessionId>/scopes/<scopeId>/<sourceFingerprint>/<variant>/`.
+They are local evidence, not product source; do not copy their bodies into the conversation.
 
-Every new snapshot uses manifest `schemaVersion: 2` and `normalization: "COMPACT_V1"`. Check
-`factsStatus` before reading facts: `OUTLINE` records `NOT_REQUESTED` and intentionally has no
-`facts.jsonl`; `IMPLEMENTATION` records `WRITTEN` and includes that file even when its selected fact
-set is empty. Do not infer a missing OUTLINE facts file is corruption.
+- `OUTLINE` maps a large bounded scope and intentionally has no `facts.jsonl`.
+- `IMPLEMENTATION` contains detailed facts for its bounded root or `focusNodeIds`.
+- A temporary tree JSONL is a 30-minute navigation artifact, not a durable snapshot or freshness
+  record.
 
-A temporary JSONL returned by `figma_get_tree` is only a 30-minute navigation artifact. It is not a
-semantic snapshot, does not bind a workspace, and must not be used as durable implementation
-evidence or freshness state.
+For one region, export it directly with `IMPLEMENTATION`. For a large page, export one `OUTLINE`,
+choose task-shaped child scopes from the user goal and repository, then work through one bounded
+`IMPLEMENTATION` scope at a time. There is no required page decomposition.
 
-## Choose the smallest task-shaped scope
+Read `manifest.json`, then query JSONL by exact node ID or name with `rg` or another line-oriented
+search. Never load a complete `facts.jsonl` into model context. Narrow the root or
+`focusNodeIds` when one record is too large.
 
-For one node or component:
+`DEPTH_LIMIT`, `NODE_LIMIT`, or `BYTE_LIMIT` means the structural evidence is incomplete;
+split or narrow before relying on it. `TEXT_LIMIT` keeps structural coverage but requires a
+targeted export when omitted text matters.
 
-1. Export that node directly with `profile: "IMPLEMENTATION"`; do not create a page-level state
-   machine or inspect unrelated page regions.
-2. Use `focusNodeIds` when only a few nodes need detailed facts. The outline still describes the
-   bounded scope, while `facts.jsonl` contains details only for the focus nodes.
-3. Read `manifest.json`, then query JSONL by exact node ID or name with `rg` or an equivalent
-   line-oriented search.
+## Notes and freshness
 
-For a large region or page:
+Keep ordinary task notes only when useful. A `work-units/<scopeId>.json` ledger is not required.
+Notes may link the manifest, source fingerprint, target files, important node-to-code mappings,
+assumptions, and unresolved differences; do not duplicate semantic records.
 
-1. Export the requested root with `profile: "OUTLINE"`.
-2. Inspect `outline.jsonl` and let the user goal plus repository structure determine useful child
-   scopes. There is no fixed page decomposition.
-3. Export and activate one bounded child scope at a time with `profile: "IMPLEMENTATION"`.
-4. Leave completed scopes on disk and retain only their lightweight work-unit summaries while
-   working on the next scope.
-
-Keep only one implementation scope active in model context. A completed scope remains available on
-disk but contributes only its work-unit summary to later decisions.
-
-Never read an entire `facts.jsonl` into model context. Use `rg` with an exact node ID/name and a
-small context window. If one matching line is still too large, re-export with a narrower root or
-`focusNodeIds`. A snapshot with `complete: false` because of `DEPTH_LIMIT`, `NODE_LIMIT`, or
-`BYTE_LIMIT` is not complete implementation evidence; split or narrow the scope before relying on
-it. `TEXT_LIMIT` preserves structural completeness but requires a targeted re-export when omitted
-text affects the implementation.
-
-## Create a lightweight work unit
-
-The bridge creates snapshots. The Agent creates
-`.figma_bridge_agent/sessions/<sessionId>/work-units/<scopeId>.json` with ordinary local file tools.
-It is a compact implementation ledger, not another semantic-tree copy. Keep only:
-
-- the source `manifest.json` path and fingerprint;
-- the requested scope and fidelity policy;
-- confirmed interactions, conservative assumptions, and out-of-scope behavior;
-- target code files;
-- key Figma node IDs mapped to code symbols or selectors;
-- evidence paths for material layout, typography, shapes, assets, and validation;
-- `planned`, `implementing`, `blocked`, or `complete` state;
-- unresolved material differences.
-
-Do not paste outline or facts records into the work unit. Update mappings and unresolved differences
-as implementation decisions change.
-
-## Freshness and completion
-
-Before completing an implemented scope, call `figma_check_semantic_scope` with the manifest root
-node ID and stored fingerprint. `STALE` requires a new export and review of affected decisions;
-`FRESH` confirms only that the Figma source did not change. Perform the local component/page checks
-required by the user's task, but do not invent an independent reviewer role or automatically expand
-a component request into whole-page validation.
+Before completing a scope whose decisions depend on a snapshot, call
+`figma_check_semantic_scope`. `STALE` requires re-export and review of affected decisions.
+`FRESH` confirms only that the Figma source is unchanged; it is not visual acceptance.

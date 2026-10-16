@@ -1,111 +1,81 @@
-# Front-end implementation workflow
+# Front-end implementation
 
-Use this reference when implementing a web page, application screen, or reusable UI component from
-the current Figma document. It supplements the read and asset-export workflows; it does not change
-the user's requested framework, repository conventions, or product scope.
+Read this reference after activating `FRONTEND`. It defines how static Figma evidence becomes a
+front-end implementation and when high-fidelity work is complete.
 
-## Choose the fidelity policy
+## Set the boundary
 
-When the request does not already establish a fidelity priority, ask the user to choose before the
-implementation plan is finalized:
+Honor an explicit request for exact reproduction, adaptation, or an existing design system. If the
+priority is unstated and materially changes the solution, ask; otherwise default to high fidelity
+and state that assumption.
 
-- **High-fidelity reproduction:** preserve the visible design and use Figma evidence for material
-  implementation choices.
-- **Engineering adaptation:** prefer the target project's design system, component library, and
-  maintainability even when they introduce visible differences.
+Figma establishes visible layout, text, styling, assets, clipping, and materialized states. It does
+not establish navigation, network calls, persistence, responsive reordering, scrolling ownership,
+or unseen loading/error/empty states. Inspect the repository for those contracts before asking the
+user. If they remain unknown and the user asks to proceed, keep semantic controls and normal
+document flow, but do not invent APIs, routes, persistence, breakpoints, sticky regions, inner
+scrolling, or unseen states. `clipsContent`, overflow fields, and prototype reactions are not
+browser behavior contracts.
 
-Do not repeat this question when terms such as pixel-accurate, exact reproduction, adapt, redesign,
-or use the existing design system already answer it. If interactive clarification is unavailable or
-the user asks to continue without choosing, use high fidelity and state the assumption.
+Exclude annotations, state boards, and neighboring reference frames from the implementation target
+unless the user includes them.
 
-## Confirm the static implementation boundary
+## Gather the smallest useful evidence
 
-Figma is static visual evidence. It can establish materialized layout, styling, text, assets,
-clipping, and visible states, but it cannot establish product behavior. Before finalizing an
-implementation plan, separate the inspected content into:
+- For one component or bounded region, use `figma_get_tree`, targeted `figma_get_node` calls,
+  and a render only when appearance must be checked.
+- For a large page/region or durable evidence, read
+  [semantic snapshots](semantic-snapshots.md); use an `OUTLINE` and then one bounded
+  `IMPLEMENTATION` scope at a time.
+- Inspect exact leaves whose treatment affects the result: selected-state indicators, distinctive
+  icons, text, image crops, masks, transforms, overlays, effects, and candidates for an existing
+  project component.
+- Use normalized snapshots as structural truth. CSS is a hint; raw-node projection is a targeted
+  fallback. Preserve uncertainty instead of inventing a visual value.
 
-- the page, component, or region that is the implementation target;
-- annotations, component state boards, and adjacent frames that are reference material only; and
-- behavior that the static evidence cannot establish.
+## Interpret geometry and exported size
 
-Inspect the target repository for existing routes, components, API clients, state conventions,
-responsive rules, and scrolling conventions. Ask the user only about material behavior that
-remains unresolved after that inspection. Do not repeat a question when the user's request already
-sets the boundary, such as a request for a static or pixel-accurate reproduction.
+| Decision | Field |
+| --- | --- |
+| Position and size inside the immediate parent | `geometry.local` |
+| Position on the Figma Page | `geometry.absolute` |
+| Visible ink including outer strokes and shadows | `absoluteRenderBounds` |
+| Display size of an exported file | export result `width` / `height` |
 
-Material unknowns include:
+Export dimensions describe the final file's intrinsic canvas: pixels for raster files and SVG root
+dimensions (or its `viewBox` fallback) for SVG. Source-node logical dimensions remain available
+from `figma_get_node`. Never scale an already exported SVG again from an internal path's bounds.
 
-- the result of clicking, submitting, selecting, or switching a control;
-- network requests, persistence, or other side effects;
-- modal, drawer, pagination, and multi-state behavior;
-- responsive breakpoints or content reordering;
-- page versus inner-container scrolling, sticky or fixed regions, infinite loading, scroll
-  restoration, scroll-linked animation, and custom scrollbar treatment; and
-- required loading, empty, error, or disabled states.
+## Choose code or an asset
 
-Use the host's structured question UI when available and group related unknowns into no more than
-three questions per round. Do not ask the user to decide colors, spacing, or other facts that the
-design and repository can establish. Do not query prototype reactions to infer product behavior.
+Read [asset export](asset-export.md) only when a material element may become a project file. Use
+code for text, layout, interaction, and ordinary CSS shapes. In high-fidelity mode, replace an icon
+with a library icon only after its silhouette, fill/stroke, stroke details, view box, spacing, and
+optical alignment agree; otherwise export the exact node. Do not normalize unusual geometry or add
+effects without Figma or user evidence.
 
-Treat Figma `clipsContent`, `overflowDirection`, and fixed-child facts only as static layout hints.
-They do not determine the browser's scrolling contract. When scrolling materially affects the
-implementation, confirm whether the page or an inner region scrolls, which regions remain fixed,
-and whether pagination, infinite loading, restoration, animation, or custom scrollbars are
-required.
+In engineering-adaptation mode, repository components may take priority. Record material visible
+deviations in the plan and final handoff.
 
-Do not finalize the implementation plan until material unknowns are confirmed. If interaction is
-unavailable or the user explicitly asks to continue, preserve semantic controls and basic keyboard
-behavior but do not invent APIs, navigation destinations, persistence, mobile layouts, unseen
-loading/error/empty states, inner scrolling, sticky or fixed positioning, infinite loading, scroll
-restoration, scroll animation, or custom scrollbars. Use normal document flow; content taller than
-the viewport may produce ordinary browser page scrolling. Record that as an engineering default,
-not Figma evidence. Reproduce only visible clipping and record confirmed behavior, conservative
-assumptions, and out-of-scope behavior separately.
+## High-fidelity completion gate
 
-## Gather implementation evidence
+Before claiming completion, check every relevant visible element in the target, including:
 
-1. Follow [semantic snapshots](semantic-snapshots.md) for implementation evidence. Export a single
-   component directly with `IMPLEMENTATION`; for a large region or page, inspect `OUTLINE` and then
-   activate only one bounded `IMPLEMENTATION` scope at a time. Treat a render as appearance
-   evidence, not a substitute for node structure. A render result is a 30-minute local PNG path;
-   open it with the Agent's visual tool only when inspection is necessary and regenerate it after
-   expiry.
-2. Read only leaf nodes whose exact treatment affects the result, especially selected-state
-   indicators, distinctive icons, text, image crops, masks, overlays, and effects. Also inspect any
-   element that may be replaced by an existing project component or icon.
-3. Use normalized snapshots as the structural source of truth. Call `figma_get_css` only when its
-   Inspect output resolves a material front-end styling decision. Use a self-only, field-projected
-   `figma_get_raw_node` result only for a known fact that normalized data still omits; do not fetch
-   raw data speculatively or use it as the ordinary implementation source.
-4. Record the relevant Figma fact and implementation decision for each material element in a
-   lightweight work unit. Reference the source manifest instead of copying semantic records. If a
-   fact cannot be established, preserve the uncertainty instead of inventing a visual value.
+- lines, vectors, and icons;
+- typography that changes the visible result;
+- images with crop, mask, or transform;
+- visible selected, hover, or other state;
+- elements whose layout box differs from their rendered ink boundary.
 
-## Decide between code and assets
+Fix the viewport, device-pixel ratio, zoom, fonts, and page state. Compare a fresh Figma render with
+the complete implementation state, then verify geometry and computed styles for position, size,
+color, opacity, effects, icon silhouette, typography, crop/transform, clipping, and overflow.
+Renderer antialiasing noise is tolerable only when geometry and computed values agree.
 
-- Read [asset export](asset-export.md) whenever a material leaf may require a project file. That
-  reference owns the code, `RAW`, and `RENDERED` decision and the delivery procedure.
-- A familiar meaning does not make an icon visually simple. In high-fidelity mode, reuse a library
-  icon only after verifying outline, fill versus stroke, stroke details, view box, internal spacing,
-  and optical alignment. Otherwise export the exact icon node as `RENDERED` SVG.
-- Do not add blur, shadow, letter spacing, gradients, or other visual treatment without Figma or
-  explicit user evidence. Do not silently normalize unusual geometry into a conventional UI shape.
-- In engineering-adaptation mode, existing components and icon libraries may take priority. List
-  each material visible deviation in the plan and repeat the final deviations in the handoff.
+Whole-page similarity never overrides a failed local element. If any material difference remains,
+report the affected element and cause; do not state that visual validation passed. A semantic
+`FRESH` result means only that the Figma source did not change.
 
-## Validate before completion
-
-1. Load the intended fonts and fix the browser viewport, device-pixel ratio, zoom, and page state.
-   Match the target frame dimensions and avoid scrollbar-induced viewport changes.
-2. Capture the complete implementation state and obtain a fresh Figma render of the same scope.
-3. Compare numeric geometry and computed styles alongside the images. Check position, size, color,
-   opacity, effects, icon silhouette, typography, image transform/crop, clipping, and overflow.
-4. Treat antialiasing and other small renderer-specific edge noise as tolerable only when geometry
-   and computed values agree. Wrong shapes, colors, effects, crops, or layout are material failures.
-5. Correct material differences and repeat the comparison. If a difference cannot be resolved,
-   report it with its affected element and cause; never claim that visual validation passed.
-
-High fidelity means evidence-based static visual equivalence in a controlled environment, not
-guaranteed byte-identical pixels across Figma, browser, operating-system, or renderer versions. By
-default, validate the initial `scrollTop = 0` state only. Do not claim that interaction, responsive,
-or scrolling behavior was reproduced unless it was established separately and tested.
+This is a documentation-level completion rule. Do not invent `FIDELITY_PASS`, a leaf-ledger
+protocol, an automatic crop service, or another MCP acceptance tool. Ordinary task notes are
+enough.
