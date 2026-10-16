@@ -21,6 +21,8 @@ const artifactStores: TemporaryArtifactStore[] = [];
 const SESSION_ID = '11111111-1111-4111-8111-111111111111';
 const PNG_1X1 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+const JPG_1X1 =
+  '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABBQJ//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPwF//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAgEBPwF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQAGPwJ//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPyF//9oADAMBAAIAAwAAABD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAEDAQE/EB//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/EB//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAE/EB//2Q==';
 
 afterEach(async () => {
   for (const store of artifactStores.splice(0).reverse()) await store.close();
@@ -83,14 +85,23 @@ async function setup(
 }
 
 const rawSamples = {
-  png: Buffer.from('89504e470d0a1a0a0000000d4948445200000001000000010806000000', 'hex'),
-  jpg: Buffer.from('ffd8ffe000104a46494600010100000100010000ffdb', 'hex'),
-  gif: Buffer.from('47494638396101000100800000000000ffffff21f904', 'hex'),
-  webp: Buffer.from('52494646140000005745425056503820080000001000009d012a', 'hex'),
+  png: { bytes: Buffer.from(PNG_1X1, 'base64'), width: 1, height: 1 },
+  jpg: { bytes: Buffer.from(JPG_1X1, 'base64'), width: 1, height: 1 },
+  gif: {
+    bytes: Buffer.from('47494638396101000100800000000000ffffff21f904', 'hex'),
+    width: 1,
+    height: 1,
+  },
+  webp: {
+    bytes: Buffer.from('UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA', 'base64'),
+    width: 1,
+    height: 1,
+  },
 };
 
 describe('figma_export_assets MCP 工具', () => {
-  it.each(Object.entries(rawSamples))('识别 RAW %s 魔数并追加真实扩展名', async (ext, bytes) => {
+  it.each(Object.entries(rawSamples))('识别 RAW %s 魔数和最终字节尺寸', async (ext, sample) => {
+    const { bytes, width, height } = sample;
     const { handler, workspace } = await setup({
       nodeId: 'node:1',
       mode: 'RAW',
@@ -121,8 +132,8 @@ describe('figma_export_assets MCP 工具', () => {
           status: 'CREATED',
           path: `src/assets/image.${ext}`,
           mimeType: ext === 'jpg' ? 'image/jpeg' : `image/${ext}`,
-          width: 1,
-          height: 1,
+          width,
+          height,
           dimensionUnit: 'PIXEL',
         },
       ],
@@ -224,8 +235,8 @@ describe('figma_export_assets MCP 工具', () => {
     await expect(readFile(join(workspace, 'public/logo.svg'))).rejects.toBeDefined();
   });
 
-  it('批量返回位图像素尺寸与 SVG Figma 设计尺寸', async () => {
-    const jpg = rawSamples.jpg;
+  it('忽略源节点逻辑尺寸并返回最终 JPG 与 SVG 的固有尺寸', async () => {
+    const jpg = rawSamples.jpg.bytes;
     const { handler } = await setup(async (_method, params) => {
       const item = params as { nodeId: string; format: 'PNG' | 'JPG' | 'SVG' };
       if (item.format === 'SVG') {
@@ -234,10 +245,10 @@ describe('figma_export_assets MCP 工具', () => {
           mode: 'RENDERED',
           format: 'SVG',
           mimeType: 'image/svg+xml',
-          data: '<svg xmlns="http://www.w3.org/2000/svg" />',
+          data: '<svg xmlns="http://www.w3.org/2000/svg" width="23" height="22" />',
           encoding: 'utf8',
-          width: 120,
-          height: 60,
+          width: 18.75,
+          height: 17.835,
         };
       }
       return {
@@ -273,18 +284,88 @@ describe('figma_export_assets MCP 工具', () => {
       assets: [
         expect.objectContaining({
           mimeType: 'image/jpeg',
-          width: 240,
-          height: 120,
+          width: 1,
+          height: 1,
           dimensionUnit: 'PIXEL',
         }),
         expect.objectContaining({
           mimeType: 'image/svg+xml',
-          width: 120,
-          height: 60,
+          width: 23,
+          height: 22,
           dimensionUnit: 'FIGMA_UNIT',
         }),
       ],
     });
+  });
+
+  it.each([
+    ['px 属性', '<svg xmlns="http://www.w3.org/2000/svg" width="23px" height="22px" />'],
+    ['viewBox 回退', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 22" />'],
+  ])('解析 SVG %s 的固有尺寸', async (_label, data) => {
+    const { handler } = await setup({
+      nodeId: 'vector',
+      mode: 'RENDERED',
+      format: 'SVG',
+      mimeType: 'image/svg+xml',
+      data,
+      encoding: 'utf8',
+      width: 18.75,
+      height: 17.835,
+    });
+
+    const response = await handler({
+      items: [
+        {
+          nodeId: 'vector',
+          mode: 'RENDERED',
+          format: 'SVG',
+          outputPath: 'assets/vector.svg',
+        },
+      ],
+    });
+    expect(response.structuredContent).toMatchObject({
+      assets: [{ width: 23, height: 22, dimensionUnit: 'FIGMA_UNIT' }],
+    });
+  });
+
+  it('SVG 缺少有效尺寸时整批失败且不写入已验证项目', async () => {
+    const png = rawSamples.png.bytes;
+    const { handler, workspace } = await setup(async (_method, params) => {
+      const item = params as { nodeId: string };
+      if (item.nodeId === 'bitmap') {
+        return {
+          nodeId: item.nodeId,
+          mode: 'RENDERED',
+          format: 'PNG',
+          mimeType: 'image/png',
+          data: png.toString('base64'),
+          encoding: 'base64',
+          width: 100,
+          height: 100,
+        };
+      }
+      return {
+        nodeId: item.nodeId,
+        mode: 'RENDERED',
+        format: 'SVG',
+        mimeType: 'image/svg+xml',
+        data: '<svg xmlns="http://www.w3.org/2000/svg" />',
+        encoding: 'utf8',
+        width: 100,
+        height: 80,
+      };
+    });
+
+    const response = await handler({
+      items: [
+        { nodeId: 'bitmap', mode: 'RENDERED', format: 'PNG', outputPath: 'assets/ok.png' },
+        { nodeId: 'vector', mode: 'RENDERED', format: 'SVG', outputPath: 'assets/bad.svg' },
+      ],
+    });
+    expect(response.isError).toBe(true);
+    expect(response.content[0]?.text).toContain('UNSUPPORTED_ASSET_FORMAT');
+    await expect(readFile(join(workspace, 'assets/ok.png'))).rejects.toBeDefined();
+    await expect(readFile(join(workspace, 'assets/bad.svg'))).rejects.toBeDefined();
   });
 
   it('source guard 在整批前后复检，变化时不提交任何文件', async () => {
@@ -302,7 +383,7 @@ describe('figma_export_assets MCP 工具', () => {
         mode: 'RENDERED',
         format: 'SVG',
         mimeType: 'image/svg+xml',
-        data: '<svg xmlns="http://www.w3.org/2000/svg" />',
+        data: '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80" />',
         encoding: 'utf8',
         width: 100,
         height: 80,
@@ -333,7 +414,7 @@ describe('figma_export_assets MCP 工具', () => {
   });
 
   it('解析后路径重复时整批失败且不产生部分文件', async () => {
-    const bytes = rawSamples.png;
+    const bytes = rawSamples.png.bytes;
     const { handler, workspace } = await setup({
       nodeId: 'node:1',
       mode: 'RAW',
@@ -362,7 +443,7 @@ describe('figma_export_assets MCP 工具', () => {
 
   it('总暂存数据超过 64 MiB 时拒绝整批', async () => {
     const bytes = Buffer.alloc(8 * 1024 * 1024 + 1);
-    rawSamples.png.copy(bytes);
+    rawSamples.png.bytes.copy(bytes);
     const payload = bytes.toString('base64');
     const { handler, workspace } = await setup({
       nodeId: 'node:1',
@@ -426,7 +507,7 @@ describe('figma_stage_asset MCP 工具', () => {
 
 describe('figma_render_node MCP 工具', () => {
   it('只返回临时 PNG 元数据，不回填 base64 或 image 内容块', async () => {
-    const bytes = rawSamples.png;
+    const bytes = rawSamples.png.bytes;
     const { artifactRoot, handlers } = await setup(
       {
         nodeId: 'node:1',
@@ -444,8 +525,8 @@ describe('figma_render_node MCP 工具', () => {
     expect(response.content).toEqual([]);
     expect(response.structuredContent).toMatchObject({
       localPath: expect.any(String),
-      width: 100,
-      height: 80,
+      width: 1,
+      height: 1,
       expiresAt: expect.any(String),
     });
     expect(response.structuredContent).not.toHaveProperty('data');

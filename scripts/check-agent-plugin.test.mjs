@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 
-import { validatePackagedMarkdownLinks } from './check-agent-plugin.mjs';
+import { AGENT_PLUGIN_FILES, validatePackagedMarkdownLinks } from './check-agent-plugin.mjs';
 
 async function withPlugin(files, run) {
   const root = await mkdtemp(join(tmpdir(), 'figma-agent-plugin-links-'));
@@ -58,4 +58,20 @@ test('rejects a Markdown link that escapes the plugin root', async () => {
       );
     },
   );
+});
+
+test('keeps cold-start skill context within budget and all packaged references resolvable', async () => {
+  const pluginRoot = resolve(import.meta.dirname, '../plugins/figma-local-agent');
+  const skill = await readFile(resolve(pluginRoot, 'skills/figma-local-agent/SKILL.md'), 'utf8');
+  const frontend = await readFile(
+    resolve(pluginRoot, 'skills/figma-local-agent/references/frontend-implementation.md'),
+    'utf8',
+  );
+
+  assert.ok(skill.length <= 4_500, `SKILL.md is ${skill.length} characters.`);
+  assert.ok(
+    skill.length + frontend.length <= 10_000,
+    `Cold-start plus front-end reference is ${skill.length + frontend.length} characters.`,
+  );
+  await validatePackagedMarkdownLinks(pluginRoot, AGENT_PLUGIN_FILES);
 });

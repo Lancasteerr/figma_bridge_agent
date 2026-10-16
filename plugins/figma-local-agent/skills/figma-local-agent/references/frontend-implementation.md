@@ -35,12 +35,12 @@ unless the user includes them.
 
 ## Interpret geometry and exported size
 
-| Decision | Field |
-| --- | --- |
-| Position and size inside the immediate parent | `geometry.local` |
-| Position on the Figma Page | `geometry.absolute` |
-| Visible ink including outer strokes and shadows | `absoluteRenderBounds` |
-| Display size of an exported file | export result `width` / `height` |
+| Decision                                        | Field                            |
+| ----------------------------------------------- | -------------------------------- |
+| Position and size inside the immediate parent   | `geometry.local`                 |
+| Position on the Figma Page                      | `geometry.absolute`              |
+| Visible ink including outer strokes and shadows | `absoluteRenderBounds`           |
+| Display size of an exported file                | export result `width` / `height` |
 
 Export dimensions describe the final file's intrinsic canvas: pixels for raster files and SVG root
 dimensions (or its `viewBox` fallback) for SVG. Source-node logical dimensions remain available

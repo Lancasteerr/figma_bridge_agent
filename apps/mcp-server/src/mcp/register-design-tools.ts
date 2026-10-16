@@ -12,10 +12,7 @@ import { structuredResult, toolError } from './result.js';
 import type { RegisteredToolMap } from './tool-registry.js';
 
 /** 注册 DesignPlan 的只读验证和原子应用入口。 */
-export function registerDesignTools(
-  server: McpServer,
-  broker: BridgeTransport,
-): RegisteredToolMap {
+export function registerDesignTools(server: McpServer, broker: BridgeTransport): RegisteredToolMap {
   const tools: RegisteredToolMap = {};
   tools.figma_validate_design_plan = server.registerTool(
     'figma_validate_design_plan',

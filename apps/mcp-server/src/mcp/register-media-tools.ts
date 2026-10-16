@@ -383,9 +383,7 @@ function parseSvgLength(value: string | null): number | undefined {
   return isPositiveFinite(parsed) ? parsed : undefined;
 }
 
-function parseViewBox(
-  value: string | null,
-): { width: number; height: number } | undefined {
+function parseViewBox(value: string | null): { width: number; height: number } | undefined {
   if (value === null) return undefined;
   const values = value
     .trim()
