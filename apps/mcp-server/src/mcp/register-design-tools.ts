@@ -3,6 +3,7 @@ import {
   DesignPlanApplyResultSchema,
   DesignPlanValidationResultSchema,
   ValidateDesignPlanInputSchema,
+  ValidateDesignPlanToolInputSchema,
 } from '@figma-agent/protocol';
 import type { McpServer } from '@modelcontextprotocol/server';
 
@@ -21,7 +22,7 @@ export function registerDesignTools(
     {
       description:
         'Validate a complete declarative DesignPlan without modifying Figma. Optional returnRefs selects up to 200 node or resource mappings for apply; it is not part of the plan digest. A valid result contains a single-use ID that expires after five minutes.',
-      inputSchema: ValidateDesignPlanInputSchema,
+      inputSchema: ValidateDesignPlanToolInputSchema,
       outputSchema: DesignPlanValidationResultSchema,
       annotations: {
         title: 'Validate Figma Design Plan',
@@ -33,7 +34,9 @@ export function registerDesignTools(
     },
     async (input) => {
       try {
-        const parsed = ValidateDesignPlanInputSchema.parse(input);
+        const publicInput = ValidateDesignPlanToolInputSchema.parse(input);
+        // 公开 schema 只控制工具体积，内部边界仍拒绝不完整或非法计划。
+        const parsed = ValidateDesignPlanInputSchema.parse(publicInput);
         return structuredResult(
           DesignPlanValidationResultSchema.parse(
             await broker.request('validateDesignPlan', parsed, 30_000),

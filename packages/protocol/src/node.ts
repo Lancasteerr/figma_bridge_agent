@@ -2,12 +2,14 @@ import { z } from 'zod';
 
 /** 节点在本地父级和页面绝对坐标系中的几何信息。 */
 export const GeometrySchema = z.object({
-  local: z.object({
-    x: z.number(),
-    y: z.number(),
-    width: z.number().nonnegative(),
-    height: z.number().nonnegative(),
-  }),
+  local: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number().nonnegative(),
+      height: z.number().nonnegative(),
+    })
+    .describe('Bounds in the immediate parent coordinate system; use for parent-child layout.'),
   absolute: z
     .object({
       x: z.number(),
@@ -15,7 +17,8 @@ export const GeometrySchema = z.object({
       width: z.number().nonnegative(),
       height: z.number().nonnegative(),
     })
-    .nullable(),
+    .nullable()
+    .describe('Bounds in Figma Page coordinates; use for positioning nodes on the page.'),
   /** 包含阴影和外描边的页面绝对渲染边界；轻量树可以省略。 */
   absoluteRenderBounds: z
     .object({
@@ -25,7 +28,10 @@ export const GeometrySchema = z.object({
       height: z.number().nonnegative(),
     })
     .nullable()
-    .optional(),
+    .optional()
+    .describe(
+      'Visible ink bounds in Figma Page coordinates, including outer strokes and effects such as shadows.',
+    ),
   rotation: z.number(),
 });
 /** 节点几何快照类型。 */

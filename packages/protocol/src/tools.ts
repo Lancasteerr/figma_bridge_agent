@@ -327,16 +327,26 @@ export const DiscardProposalInputSchema = z.object({
   proposalRootId: z.string().min(1),
   expectedFingerprint: z.string().min(8),
 });
+const DesignPlanReturnRefsSchema = z
+  .array(z.string().min(1).max(200))
+  .max(200)
+  .refine((refs) => new Set(refs).size === refs.length, {
+    message: 'returnRefs must be unique.',
+  })
+  .optional();
+
+/** 插件 RPC 使用完整结构严格校验 DesignPlan。 */
 export const ValidateDesignPlanInputSchema = z
   .object({
     plan: DesignPlanSchema,
-    returnRefs: z
-      .array(z.string().min(1).max(200))
-      .max(200)
-      .refine((refs) => new Set(refs).size === refs.length, {
-        message: 'returnRefs must be unique.',
-      })
-      .optional(),
+    returnRefs: DesignPlanReturnRefsSchema,
+  })
+  .strict();
+/** MCP 公开入口保持紧凑；服务端接收后仍用完整 schema 二次解析。 */
+export const ValidateDesignPlanToolInputSchema = z
+  .object({
+    plan: z.json().describe('Complete DesignPlan JSON; see the DESIGN workflow reference.'),
+    returnRefs: DesignPlanReturnRefsSchema,
   })
   .strict();
 export const ApplyDesignPlanInputSchema = z.object({ validationId: z.string().min(1) });
@@ -357,8 +367,8 @@ export const RenderRpcResultSchema = z
 export const RenderResultSchema = z
   .object({
     localPath: z.string().min(1),
-    width: z.number().positive(),
-    height: z.number().positive(),
+    width: z.number().positive().describe('Actual pixel width decoded from the final PNG bytes.'),
+    height: z.number().positive().describe('Actual pixel height decoded from the final PNG bytes.'),
     expiresAt: z.string().datetime(),
   })
   .strict();
@@ -386,8 +396,14 @@ export const ExportAssetsResultSchema = z
           path: z.string().min(1),
           status: z.enum(['CREATED', 'REUSED', 'UPDATED']),
           mimeType: z.string().min(1),
-          width: z.number().positive(),
-          height: z.number().positive(),
+          width: z
+            .number()
+            .positive()
+            .describe('Intrinsic width decoded from the final exported file.'),
+          height: z
+            .number()
+            .positive()
+            .describe('Intrinsic height decoded from the final exported file.'),
           dimensionUnit: z.enum(['PIXEL', 'FIGMA_UNIT']),
         })
         .strict(),
