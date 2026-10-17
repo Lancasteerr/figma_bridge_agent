@@ -6,16 +6,6 @@ import { PositioningSchema } from './node.js';
 
 /** MCP 工具输入和输出 schema 集中定义，服务端与插件共享同一边界。 */
 export const EmptyInputSchema = z.object({});
-/** 工作流名称由公开枚举固定，调用方无需从自然语言推断内部协议。 */
-export const WorkflowSchema = z.enum(['INSPECT', 'FRONTEND', 'DESIGN']);
-export type Workflow = z.infer<typeof WorkflowSchema>;
-export const ActivateWorkflowInputSchema = z.object({ workflow: WorkflowSchema }).strict();
-export const ActivateWorkflowResultSchema = z
-  .object({
-    workflow: WorkflowSchema,
-    enabledTools: z.array(z.string().min(1)),
-  })
-  .strict();
 /** 节点读取按稳定字段组投影；children 必须由调用方显式请求。 */
 export const NodeFieldSchema = z.enum([
   'BOUNDS',

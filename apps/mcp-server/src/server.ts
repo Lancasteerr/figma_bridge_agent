@@ -12,7 +12,6 @@ import { registerDesignTools } from './mcp/register-design-tools.js';
 import { registerMutationTools } from './mcp/register-mutation-tools.js';
 import { registerStatusTool } from './mcp/register-status.js';
 import { registerFrontendTools } from './mcp/register-frontend-tools.js';
-import { registerWorkflowActivationTool } from './mcp/register-workflow-tool.js';
 import { TemporaryArtifactStore } from './temp/artifact-store.js';
 import { SessionWorkspace } from './storage/session-workspace.js';
 
@@ -22,7 +21,7 @@ export interface RunningServer {
   close(): Promise<void>;
 }
 
-/** 创建 MCP 工具集合；冷启动仅暴露状态和连接级工作流开关。 */
+/** 创建静态 MCP 工具集合；领域前缀直接表达使用场景。 */
 export function createMcpServer(
   broker: BridgeTransport,
   assets: TemporaryArtifactStore,
@@ -33,14 +32,11 @@ export function createMcpServer(
 ): McpServer {
   const server = new McpServer({ name: 'figma-local-agent', version: __CLI_VERSION__ });
   registerStatusTool(server, broker, exports);
-  const workflowTools = {
-    ...registerReadTools(server, broker, assets),
-    ...registerMediaTools(server, broker, assets, exports, contexts),
-    ...registerFrontendTools(server, broker, contexts),
-    ...registerMutationTools(server, broker),
-    ...registerDesignTools(server, broker),
-  };
-  registerWorkflowActivationTool(server, workflowTools);
+  registerReadTools(server, broker, assets);
+  registerMediaTools(server, broker, assets, exports, contexts);
+  registerFrontendTools(server, broker, contexts);
+  registerMutationTools(server, broker);
+  registerDesignTools(server, broker);
   return server;
 }
 

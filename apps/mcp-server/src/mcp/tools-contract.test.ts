@@ -10,14 +10,61 @@ import { DaemonBridgeClient } from '../bridge/daemon-client.js';
 import { ExportStore } from '../export/export-store.js';
 import { TemporaryArtifactStore } from '../temp/artifact-store.js';
 import { createMcpServer } from '../server.js';
-import {
-  DESIGN_TOOL_NAMES,
-  FRONTEND_TOOL_NAMES,
-  INSPECT_TOOL_NAMES,
-} from './register-workflow-tool.js';
 
-const BASE_TOOLS = ['figma_activate_workflow', 'figma_status'];
 const CONTRACT_SESSION_ID = '33333333-3333-4333-8333-333333333333';
+const STATIC_TOOL_NAMES = [
+  'figma_status',
+  'figma_inspect_browse_nodes',
+  'figma_inspect_read_node_facts',
+  'figma_inspect_read_css_hint',
+  'figma_inspect_render_preview',
+  'figma_inspect_read_raw_fields',
+  'figma_inspect_read_design_resources',
+  'figma_inspect_list_fonts',
+  'figma_frontend_bind_workspace',
+  'figma_frontend_index_scope',
+  'figma_frontend_prepare_workunit',
+  'figma_frontend_check_workunit_source',
+  'figma_frontend_export_assets',
+  'figma_design_read_source_fingerprint',
+  'figma_design_stage_asset',
+  'figma_design_duplicate_as_proposal',
+  'figma_design_create_frame',
+  'figma_design_reparent_nodes',
+  'figma_design_set_layout',
+  'figma_design_update_text',
+  'figma_design_set_instance_properties',
+  'figma_design_create_component_from_node',
+  'figma_design_discard_proposal',
+  'figma_design_validate_plan',
+  'figma_design_apply_plan',
+].sort();
+const LEGACY_TOOL_NAMES = [
+  'figma_activate_workflow',
+  'figma_get_tree',
+  'figma_get_node',
+  'figma_get_css',
+  'figma_render_node',
+  'figma_get_raw_node',
+  'figma_get_design_resources',
+  'figma_list_fonts',
+  'figma_get_fingerprint',
+  'figma_bind_export_root',
+  'figma_export_semantic_scope',
+  'figma_check_semantic_scope',
+  'figma_export_assets',
+  'figma_stage_asset',
+  'figma_duplicate_as_proposal',
+  'figma_create_frame',
+  'figma_reparent_nodes',
+  'figma_set_layout',
+  'figma_update_text',
+  'figma_set_instance_properties',
+  'figma_create_component_from_node',
+  'figma_discard_proposal',
+  'figma_validate_design_plan',
+  'figma_apply_design_plan',
+];
 const servers: ReturnType<typeof createMcpServer>[] = [];
 const daemonClients: DaemonBridgeClient[] = [];
 
@@ -27,58 +74,33 @@ afterEach(async () => {
 });
 
 describe('MCP tool contract', () => {
-  it('冷启动只暴露状态和工作流激活工具', async () => {
-    const { mcp } = createTestServer();
+  it('冷启动静态公开全部领域工具且不存在激活入口', async () => {
+    const { mcp, broker } = createTestServer();
     const client = await connectServer(mcp);
     const tools = await client.listTools();
 
     expect(client.serverInfo?.version).toBe(__CLI_VERSION__);
-    expect(namesOf(tools)).toEqual(BASE_TOOLS);
-    expect(tools).toHaveLength(2);
-    expect(
-      tools.find((tool) => tool.name === 'figma_activate_workflow')?.inputSchema,
-    ).toMatchObject({
-      properties: { workflow: { enum: ['INSPECT', 'FRONTEND', 'DESIGN'] } },
-    });
-    expect(
-      tools.find((tool) => tool.name === 'figma_activate_workflow')?.annotations,
-    ).toMatchObject({
-      readOnlyHint: false,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: false,
-    });
-    expect(JSON.stringify(tools).length).toBeLessThanOrEqual(5_000);
+    expect(namesOf(tools)).toEqual(STATIC_TOOL_NAMES);
+    expect(tools).toHaveLength(STATIC_TOOL_NAMES.length);
+    expect(tools.every((tool) => allowedPrefix(tool.name))).toBe(true);
+    expect(tools.find((tool) => tool.name === 'figma_activate_workflow')).toBeUndefined();
+    expect(client.listChangedCount()).toBe(0);
+    expect(broker.request).not.toHaveBeenCalled();
   });
 
-  it('按连接切换三个工作流并原生发送 tools/list_changed', async () => {
-    const { mcp, broker, exports } = createTestServer();
-    const client = await connectServer(mcp);
-
-    await expectActivation(client, 'INSPECT', expectedNames(INSPECT_TOOL_NAMES));
-    const firstNotificationCount = client.listChangedCount();
-    expect(firstNotificationCount).toBeGreaterThan(0);
-
-    // 重复激活不切换句柄，因此不会产生额外的列表变更通知。
-    await expectActivation(client, 'INSPECT', expectedNames(INSPECT_TOOL_NAMES));
-    expect(client.listChangedCount()).toBe(firstNotificationCount);
-
-    await expectActivation(client, 'FRONTEND', expectedNames(FRONTEND_TOOL_NAMES));
-    const frontendTools = await client.listTools();
-    expect(JSON.stringify(frontendTools).length).toBeLessThanOrEqual(45_000);
+  it('保留关键 schema 与 destructive annotations', async () => {
+    const { mcp } = createTestServer();
+    const tools = await (await connectServer(mcp)).listTools();
     expect(
-      frontendTools.find((tool) => tool.name === 'figma_frontend_export_assets')?.annotations,
-    ).toMatchObject({
-      readOnlyHint: false,
-      destructiveHint: true,
-      idempotentHint: true,
-    });
+      tools.find((tool) => tool.name === 'figma_frontend_export_assets')?.annotations,
+    ).toMatchObject({ readOnlyHint: false, destructiveHint: true, idempotentHint: true });
     const exportAssetsSchema = JSON.stringify(
-      frontendTools.find((tool) => tool.name === 'figma_frontend_export_assets')?.inputSchema,
+      tools.find((tool) => tool.name === 'figma_frontend_export_assets')?.inputSchema,
     );
     expect(exportAssetsSchema).toContain('workUnitId');
     expect(exportAssetsSchema).not.toContain('sourceGuard');
-    const nodeSchema = frontendTools.find(
+
+    const nodeSchema = tools.find(
       (tool) => tool.name === 'figma_inspect_read_node_facts',
     )?.outputSchema;
     expect(propertyDescriptions(nodeSchema, 'inParent')).toContain(
@@ -90,33 +112,27 @@ describe('MCP tool contract', () => {
     expect(propertyDescriptions(nodeSchema, 'renderOnPage')).toContain(
       'Visible ink bounds in Figma Page coordinates, including outer strokes and effects such as shadows.',
     );
-
-    await expectActivation(client, 'DESIGN', expectedNames(DESIGN_TOOL_NAMES));
-    const designTools = await client.listTools();
-    expect(JSON.stringify(designTools).length).toBeLessThanOrEqual(55_000);
     expect(
-      designTools.find((tool) => tool.name === 'figma_design_discard_proposal')?.annotations,
-    ).toMatchObject({
-      destructiveHint: true,
-    });
-    const validatePlan = designTools.find((tool) => tool.name === 'figma_design_validate_plan');
-    const validateSchema = JSON.stringify(validatePlan?.inputSchema);
+      tools.find((tool) => tool.name === 'figma_design_discard_proposal')?.annotations,
+    ).toMatchObject({ destructiveHint: true });
+    const validateSchema = JSON.stringify(
+      tools.find((tool) => tool.name === 'figma_design_validate_plan')?.inputSchema,
+    );
     expect(validateSchema.length).toBeLessThan(5_000);
     expect(validateSchema).toContain('Complete DesignPlan JSON');
-    expect(validateSchema).not.toContain('"kind"');
-
-    const beforeSwitch = client.listChangedCount();
-    await expectActivation(client, 'INSPECT', expectedNames(INSPECT_TOOL_NAMES));
-    expect(client.listChangedCount()).toBeGreaterThan(beforeSwitch);
-    const disabled = await client.callTool('figma_frontend_export_assets', { items: [] });
-    expect(disabled).toHaveProperty('error');
-
-    // 激活过程只操作本地句柄，不访问 Figma，也不改变工作区绑定。
-    expect(broker.request).not.toHaveBeenCalled();
-    expect(exports.status.state).toBe('UNBOUND');
   });
 
-  it('每个未激活的 MCP 连接都保持独立冷启动集合', async () => {
+  it('全部旧工具名都未注册且调用被拒绝', async () => {
+    const { mcp } = createTestServer();
+    const client = await connectServer(mcp);
+    const listed = namesOf(await client.listTools());
+    for (const legacyName of LEGACY_TOOL_NAMES) {
+      expect(listed).not.toContain(legacyName);
+      await expect(client.callTool(legacyName, {})).resolves.toHaveProperty('error');
+    }
+  });
+
+  it('多个连接得到相同的静态工具集合', async () => {
     const toolSets = await Promise.all(
       Array.from({ length: 3 }, async () => {
         const client = new DaemonBridgeClient(
@@ -140,14 +156,12 @@ describe('MCP tool contract', () => {
         return namesOf(await (await connectServer(mcp)).listTools());
       }),
     );
-
-    for (const tools of toolSets) expect(tools).toEqual(BASE_TOOLS);
+    for (const tools of toolSets) expect(tools).toEqual(STATIC_TOOL_NAMES);
   });
 });
 
 interface ListedTool {
   name: string;
-  description?: string;
   inputSchema: unknown;
   outputSchema: unknown;
   annotations?: Record<string, unknown>;
@@ -158,15 +172,13 @@ interface ServerInfo {
   version?: string;
 }
 
-type Workflow = 'INSPECT' | 'FRONTEND' | 'DESIGN';
-
-/** 创建不会实际连接 Figma 的服务端，便于证明激活路径没有外部副作用。 */
+/** 创建不会实际连接 Figma 的服务端，证明静态工具枚举没有外部副作用。 */
 function createTestServer() {
   const broker = {
     connected: false,
     pluginVersion: undefined,
     request: vi.fn(async () => {
-      throw new Error('Workflow activation must not call the broker.');
+      throw new Error('Listing static tools must not call the broker.');
     }),
     onEvent: vi.fn(() => () => undefined),
     close: vi.fn(async () => undefined),
@@ -178,11 +190,16 @@ function createTestServer() {
     exports,
   );
   servers.push(mcp);
-  return { mcp, broker, exports };
+  return { mcp, broker };
 }
 
-function expectedNames(workflowTools: readonly string[]): string[] {
-  return [...BASE_TOOLS, ...workflowTools].sort();
+function allowedPrefix(name: string): boolean {
+  return (
+    name === 'figma_status' ||
+    name.startsWith('figma_inspect_') ||
+    name.startsWith('figma_frontend_') ||
+    name.startsWith('figma_design_')
+  );
 }
 
 function namesOf(tools: ListedTool[]): string[] {
@@ -214,23 +231,7 @@ function propertyDescriptions(
   return descriptions;
 }
 
-async function expectActivation(
-  client: Awaited<ReturnType<typeof connectServer>>,
-  workflow: Workflow,
-  expected: string[],
-): Promise<void> {
-  const message = await client.callTool('figma_activate_workflow', { workflow });
-  if (!('result' in message)) throw new Error(`Activation failed: ${JSON.stringify(message)}`);
-  const result = message.result as {
-    isError?: boolean;
-    structuredContent?: { workflow?: string; enabledTools?: string[] };
-  };
-  expect(result.isError).not.toBe(true);
-  expect(result.structuredContent).toEqual({ workflow, enabledTools: expected });
-  expect(namesOf(await client.listTools())).toEqual(expected);
-}
-
-/** 建立一个最小 MCP 客户端并保留列表变更通知，覆盖真实 SDK 行为。 */
+/** 建立最小 MCP 客户端，并记录不应出现的工具列表变更通知。 */
 async function connectServer(server: ReturnType<typeof createMcpServer>) {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const responses = new Map<number, (message: JSONRPCMessage) => void>();
