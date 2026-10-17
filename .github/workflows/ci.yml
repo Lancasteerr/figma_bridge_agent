@@ -22,11 +22,8 @@ jobs:
           node-version: 22.13.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm check
-      - name: Build release artifacts
-        run: |
-          pnpm --filter @figma-agent/figma-plugin build -- --release
-          node scripts/release-artifacts.mjs
+      - name: Check and build release artifacts
+        run: pnpm build:release
       - name: Verify packed CLI in a clean directory
         shell: pwsh
         run: |
@@ -39,8 +36,6 @@ jobs:
           & "$testDirectory/node_modules/.bin/figma-local-agent-mcp.cmd" --version
           if ($LASTEXITCODE -ne 0) { throw "Packed CLI smoke test failed" }
           Pop-Location
-      - name: Verify portable Agent Plugin archive
-        run: pnpm check:agent-plugin-archive
       - uses: actions/upload-artifact@v4
         with:
           name: windows-release-artifacts

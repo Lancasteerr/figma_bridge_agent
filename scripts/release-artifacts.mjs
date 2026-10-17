@@ -8,10 +8,8 @@ import JSZip from 'jszip';
 import {
   AGENT_PLUGIN_ARCHIVE_ROOT,
   AGENT_PLUGIN_FILES,
-  checkAgentPlugin,
   getAgentPluginArchiveName,
 } from './check-agent-plugin.mjs';
-import { syncAgentMarketplaces } from './sync-agent-marketplaces.mjs';
 
 const workspace = resolve(import.meta.dirname, '..');
 const artifacts = resolve(workspace, 'artifacts');
@@ -21,18 +19,10 @@ if (dirname(artifacts) !== workspace || basename(artifacts) !== 'artifacts') {
 const pluginRoot = resolve(workspace, 'apps/figma-plugin');
 const serverRoot = resolve(workspace, 'apps/mcp-server');
 const agentPluginRoot = resolve(workspace, 'plugins/figma-local-agent');
-const pluginPackage = JSON.parse(await readFile(resolve(pluginRoot, 'package.json'), 'utf8'));
 const serverPackage = JSON.parse(await readFile(resolve(serverRoot, 'package.json'), 'utf8'));
 
-if (pluginPackage.version !== serverPackage.version) {
-  throw new Error('Plugin and npm package versions must match.');
-}
+// 发行元数据与市场入口由唯一公开入口 pnpm build:release 在生成产物前统一校验。
 const version = serverPackage.version;
-const checkedAgentPlugin = await checkAgentPlugin();
-await syncAgentMarketplaces({ mode: 'check' });
-if (checkedAgentPlugin.version !== version) {
-  throw new Error('Agent Plugin and npm package versions must match.');
-}
 const manifest = JSON.parse(await readFile(resolve(pluginRoot, 'dist/manifest.json'), 'utf8'));
 if (manifest.id !== '1685966253180273328') throw new Error('Release plugin ID is invalid.');
 if (
