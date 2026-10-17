@@ -27,7 +27,7 @@ async function setup(bind = true) {
     workspace,
     store: new FrontendContextStore(workspace, {
       now: () => new Date('2026-10-11T00:00:00.000Z'),
-      pluginVersion: () => '3.0.0',
+      pluginVersion: () => '3.0.1',
     }),
   };
 }

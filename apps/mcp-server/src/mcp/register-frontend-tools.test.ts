@@ -55,7 +55,7 @@ async function setup(bind = true) {
   };
   const broker = {
     connected: true,
-    pluginVersion: '3.0.0',
+    pluginVersion: '3.0.1',
     request: vi.fn(async (method: string, params: Record<string, unknown>) => {
       if (method === 'indexScope') return { ...common, request: params };
       if (method === 'prepareWorkunitSource') {
