@@ -1,7 +1,8 @@
 # DesignPlan v1
 
-Read this reference only when constructing a declarative DesignPlan. For edits to existing artwork,
-prefer `figma_design_duplicate_as_proposal`, including when the selected Page child is not a Frame.
+Read this reference only when constructing a declarative DesignPlan for a new isolated Proposal.
+For edits to existing artwork, use `figma_design_duplicate_as_proposal`, including when the selected
+Page child is not a Frame, and then use targeted Proposal mutations.
 
 ## Root semantics
 
@@ -67,8 +68,9 @@ This plan creates a card-sized Proposal rather than a complete page.
 ## Source-backed Proposal
 
 Collect every Clone or Instance source under the ordered `source.rootNodeIds`, call
-`figma_design_read_source_fingerprint` with that exact order, then copy both the returned order and fingerprint into
-the plan. A Clone source may be a supported non-Frame SceneNode, but it cannot be inside an Instance.
+`figma_design_read_source_fingerprint` with that exact order, then copy both the returned order and
+fingerprint into the plan. A Clone source may be a supported non-Frame SceneNode, but it cannot be
+inside an Instance.
 
 ```json
 {
@@ -106,9 +108,10 @@ the plan. A Clone source may be a supported non-Frame SceneNode, but it cannot b
 
 `CREATE_INSTANCE` requires a current-page Component or an Instance with an accessible main
 component. `CLONE_INSTANCE` requires a current-page Instance. Request exact fonts with
-`figma_inspect_list_fonts` before validation and use resources or staged assets only when the plan needs
-them. A staged asset reference carries only its `assetId`; its internal digest is not part of the
-DesignPlan.
+`figma_inspect_list_fonts` before validation. Read reusable current-page styles, variables,
+Components, and Instances with `figma_inspect_read_design_resources` only when the plan needs them.
+Stage a supplied bitmap or SVG with `figma_design_stage_asset`; the DesignPlan asset reference
+carries only the returned `assetId`, never its internal digest.
 
 Validate each complete candidate once. If validation reports a specific error, correct it and treat
 the changed plan as a new candidate; do not probe the schema with repeated validation calls. Put up

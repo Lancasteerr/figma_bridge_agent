@@ -19,14 +19,21 @@ identify the domain: `figma_inspect_*`, `figma_frontend_*`, and `figma_design_*`
 
 ## Read only the reference needed now
 
-- For front-end implementation and completion rules, read
-  [front-end implementation](references/frontend-implementation.md), then read
-  [workunits](references/workunits.md). A workunit is the only front-end implementation context;
-  create every implementation scope with `figma_frontend_prepare_workunit` before visual coding.
+- For front-end fidelity, interaction boundaries, and completion rules, read
+  [front-end implementation](references/frontend-implementation.md). Read
+  [workunits](references/workunits.md) before preparing or maintaining implementation evidence.
 - Read [asset export](references/asset-export.md) only when a material element may become a project
   file.
 - Read [DesignPlan v1](references/design-plan-v1.md) before the declarative validate/apply path.
   Targeted Proposal edits do not require that full reference.
+
+## Static front-end evidence boundary
+
+For front-end implementation, Inspect results, workunit facts, and previews are static visual
+evidence. They can establish materialized layout, styling, text, assets, clipping, and visible
+states, but not runtime interaction, responsive behavior, data effects, state transitions, or
+scrolling behavior. Read [front-end implementation](references/frontend-implementation.md) and
+confirm material behavior that remains unresolved after inspecting the request and repository.
 
 ## Shared read boundaries
 
@@ -39,7 +46,8 @@ identify the domain: `figma_inspect_*`, `figma_frontend_*`, and `figma_design_*`
   appearance check. Do not build pixel-diff infrastructure.
 - Never paste a complete tree artifact or `facts.jsonl` into conversation. Query local JSONL by
   exact node ID or name and narrow a truncated scope.
-- The bridge reads the current page only and never queries Team Library.
+- The bridge reads the current page only and never queries Team Library. Ask the user to place
+  required library content on the current page.
 
 ## Persistent workspace writes
 
@@ -50,8 +58,9 @@ SHA-256 as `expectedExistingSha256`.
 
 ## Proposal write boundaries
 
-- Never edit source artwork directly. Duplicate it with `figma_design_duplicate_as_proposal`, then
-  use only the returned `proposalRootId` and requested `targetMap`.
+- Never edit source artwork directly. For changes to existing artwork, duplicate it with
+  `figma_design_duplicate_as_proposal`, then use only the returned `proposalRootId` and requested
+  `targetMap`. A DesignPlan may instead create a new isolated Proposal.
 - Chain each mutation's `proposalFingerprint` into the next `expectedFingerprint`; adopt
   `newProposalRootId` after root component conversion.
 - Change Instances only through exposed properties. Re-read or render affected content after

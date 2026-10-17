@@ -5,13 +5,17 @@ state small while full Figma facts remain in local JSONL.
 
 ## Create the scope
 
-1. Call `figma_status`, then `figma_frontend_bind_workspace` with the exact project root and latest
-   session ID.
-2. For a large page, call `figma_frontend_index_scope` first. Read the structure-only outline and
+After the connection and workspace-binding steps in [SKILL.md](../SKILL.md):
+
+1. For a large page, call `figma_frontend_index_scope` first. Read the structure-only outline and
    choose a bounded root based on repository responsibility.
-3. Call `figma_frontend_prepare_workunit` for every implementation range. `factNodeIds` limits
-   detailed facts without changing the outline; omit it to include all nodes in the bounded range.
-4. Keep only one workunit active in the task. Do not mix mappings or completion state across roots.
+2. Call `figma_frontend_prepare_workunit` for every implementation range. `factNodeIds` limits
+   detailed facts without changing the outline. Omitting it includes every traversed node that
+   remains inside the requested depth, node, text, and byte limits.
+3. Inspect `evidenceComplete`, `truncation`, and `requiresMappingReview` before relying on the
+   source. Narrow incomplete evidence and review affected mappings after a source refresh.
+4. Keep only one current workunit in task context. Do not mix mappings or completion state across
+   roots; there is no server-side workunit activation state.
 
 ## Storage and ownership
 
@@ -28,23 +32,28 @@ Workunits live under:
 `workUnitId` is stable for the same root and sorted fact-node set. Refreshing writes a new immutable
 source revision and updates `source/current.json`. If the implementation fingerprint is older,
 review mappings and affected decisions before changing `implementation.json.sourceFingerprint`.
+The `fidelityPolicy` input initializes a new implementation file only; for an existing workunit,
+the Agent-owned `implementation.json` is authoritative.
 
 ## Maintain implementation.json
 
-Before writing corresponding visual code, record only mappings that produce code:
+The file has the fixed fields `sourceFingerprint`, `fidelityPolicy`, `state`, `targetFiles`,
+`mappings`, `assumptions`, and `unresolvedDifferences`. Before writing corresponding visual code,
+record only mappings that produce code:
 
 - component or selector implementations;
 - exported resources;
 - special geometry whose treatment is not obvious.
 
 Each mapping is `nodeId -> [{path,symbolOrSelector}]`. Keep `targetFiles`, `assumptions`, and
-`unresolvedDifferences` current. State progresses through `PLANNED`, `IMPLEMENTING`, `BLOCKED`, and
-`COMPLETE`; it is not an automatic leaf checklist.
+`unresolvedDifferences` current. `PLANNED` means the bounded evidence and intended mappings are
+ready, `IMPLEMENTING` means code is changing, `BLOCKED` means a required fact or decision is
+missing, and `COMPLETE` means the requested scope and required checks are finished. The state is
+not an automatic leaf checklist, and non-empty `unresolvedDifferences` prevents an unqualified
+high-fidelity claim.
 
 Read facts with `rg` by exact ID or name. Never inject the whole JSONL file into conversation.
 `DEPTH_LIMIT`, `NODE_LIMIT`, `TEXT_LIMIT`, or `BYTE_LIMIT` means relevant evidence must be narrowed
 or refreshed before relying on it.
 
-Project asset export requires the same `workUnitId`. The server resolves the root and fingerprint;
-the caller must not assemble a source guard. Export is rejected while the Agent-owned fingerprint
-does not match `source/current.json`.
+Read [asset export](asset-export.md) when the current workunit needs a project asset.

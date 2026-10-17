@@ -7,11 +7,13 @@ Read this reference when a front-end workunit needs Figma-derived project files.
 
 Inspect candidates with `figma_inspect_browse_nodes` and targeted
 `figma_inspect_read_node_facts` calls. Tree `assetHints` are counts and booleans only; the node's
-`assetSources` fields contain exact paint, export, vector, and mask facts.
+`assetSources` fields contain exact paint, export, vector, and mask facts. Inspect the repository
+before deciding that a new project file is necessary.
 
 Choose:
 
-- code for text, layout, interaction, and ordinary CSS shapes;
+- code for text, layout, ordinary CSS shapes, and interaction whose behavior is established
+  separately;
 - `RAW` for original Image Paint bytes when code can reproduce crop, radius, opacity, filters,
   masks, and layout;
 - `RENDERED` for a distinctive icon/logo, complex vector, mask, or baked compositing.
@@ -21,11 +23,10 @@ Planning must not call `figma_frontend_export_assets`.
 ## Export atomically
 
 At implementation time, follow the one workspace-binding procedure in [SKILL.md](../SKILL.md),
-re-read chosen nodes, and send one task-shaped `figma_frontend_export_assets` batch with the active
-`workUnitId`. Use unique
-workspace-relative destinations. A batch has 1–32 items and at most 64 MiB decoded content. Every
-source and payload is validated before the atomic write; one failure leaves all project files
-unchanged.
+re-read chosen nodes, and send one task-shaped `figma_frontend_export_assets` batch with the current
+task's `workUnitId`. Use unique workspace-relative destinations. A batch has 1–32 items and at most
+64 MiB decoded content. Every source and payload is validated before the atomic write; one failure
+leaves all project files unchanged.
 
 For `RAW`, provide the exact `paintSlot`, zero-based `paintIndex`, and extensionless
 `outputPathStem`. The bridge appends the detected PNG/JPEG/GIF/WebP extension. RAW does not bake
