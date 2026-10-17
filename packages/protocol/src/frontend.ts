@@ -128,7 +128,6 @@ export type PrepareWorkunitRpcResult = z.infer<typeof PrepareWorkunitRpcResultSc
 export const IndexScopeResultSchema = z
   .object({
     indexManifestPath: z.string().min(1),
-    sourceFingerprint: z.string().min(8),
     structureComplete: z.boolean(),
     truncation: ScopeTruncationSchema.optional(),
   })
@@ -206,23 +205,10 @@ const StoredSourceFilesSchema = z
     preview: z.literal('preview.png').optional(),
   })
   .strict();
-const StoredSourceHashesSchema = z
-  .object({
-    outline: z.string().regex(/^[a-f0-9]{64}$/),
-    facts: z
-      .string()
-      .regex(/^[a-f0-9]{64}$/)
-      .optional(),
-    preview: z
-      .string()
-      .regex(/^[a-f0-9]{64}$/)
-      .optional(),
-  })
-  .strict();
 
 export const ScopeIndexManifestSchema = z
   .object({
-    schemaVersion: z.literal(3),
+    schemaVersion: z.literal(4),
     kind: z.literal('STRUCTURE_INDEX'),
     sessionId: z.string().uuid(),
     indexId: z.string(),
@@ -235,14 +221,13 @@ export const ScopeIndexManifestSchema = z
     structureComplete: z.boolean(),
     truncation: ScopeTruncationSchema.nullable(),
     files: StoredSourceFilesSchema,
-    sha256: StoredSourceHashesSchema,
     createdAt: z.string().datetime(),
   })
   .strict();
 
 export const WorkunitSourceManifestSchema = z
   .object({
-    schemaVersion: z.literal(3),
+    schemaVersion: z.literal(4),
     kind: z.literal('WORKUNIT_SOURCE'),
     normalization: z.literal('COMPACT_V2'),
     sessionId: z.string().uuid(),
@@ -256,9 +241,6 @@ export const WorkunitSourceManifestSchema = z
     evidenceComplete: z.boolean(),
     truncation: ScopeTruncationSchema.nullable(),
     files: StoredSourceFilesSchema.extend({ facts: z.literal('facts.jsonl') }),
-    sha256: StoredSourceHashesSchema.extend({
-      facts: z.string().regex(/^[a-f0-9]{64}$/),
-    }),
     createdAt: z.string().datetime(),
   })
   .strict();

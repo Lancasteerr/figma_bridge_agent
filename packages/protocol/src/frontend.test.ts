@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  IndexScopeResultSchema,
   IndexScopeInputSchema,
   PrepareWorkunitInputSchema,
+  ScopeIndexManifestSchema,
   ScopeTruncationSchema,
   WorkunitFactRecordSchema,
   WorkunitImplementationSchema,
@@ -72,9 +74,9 @@ describe('前端 workunit 协议', () => {
     expect(WorkunitIdInputSchema.safeParse({ ...input, rootNodeId: '84:681' }).success).toBe(false);
   });
 
-  it('来源 manifest 始终包含 facts 且不接受旧 profile', () => {
+  it('v4 来源 manifest 保留事实文件且拒绝摘要和旧字段', () => {
     const manifest = {
-      schemaVersion: 3 as const,
+      schemaVersion: 4 as const,
       kind: 'WORKUNIT_SOURCE' as const,
       normalization: 'COMPACT_V2' as const,
       sessionId,
@@ -95,12 +97,60 @@ describe('前端 workunit 协议', () => {
       evidenceComplete: true,
       truncation: null,
       files: { outline: 'outline.jsonl' as const, facts: 'facts.jsonl' as const },
-      sha256: { outline: 'a'.repeat(64), facts: 'b'.repeat(64) },
       createdAt: '2026-10-15T00:00:00.000Z',
     };
     expect(WorkunitSourceManifestSchema.safeParse(manifest).success).toBe(true);
     expect(
+      WorkunitSourceManifestSchema.safeParse({
+        ...manifest,
+        sha256: { outline: 'a'.repeat(64), facts: 'b'.repeat(64) },
+      }).success,
+    ).toBe(false);
+    expect(WorkunitSourceManifestSchema.safeParse({ ...manifest, schemaVersion: 3 }).success).toBe(
+      false,
+    );
+    expect(
       WorkunitSourceManifestSchema.safeParse({ ...manifest, profile: 'IMPLEMENTATION' }).success,
+    ).toBe(false);
+  });
+
+  it('索引公开结果和 v4 manifest 都拒绝无控制用途的摘要', () => {
+    const result = {
+      indexManifestPath: '.figma_bridge_agent/sessions/session/indexes/index/manifest.json',
+      structureComplete: true,
+    };
+    expect(IndexScopeResultSchema.parse(result)).toEqual(result);
+    expect(
+      IndexScopeResultSchema.safeParse({ ...result, sourceFingerprint: '12345678' }).success,
+    ).toBe(false);
+
+    const manifest = {
+      schemaVersion: 4 as const,
+      kind: 'STRUCTURE_INDEX' as const,
+      sessionId,
+      indexId: 'index-1234567890abcdef',
+      rootNodeId: '84:681',
+      rootNodeName: 'Root',
+      page: { id: 'page:1', name: 'Home' },
+      request: {
+        rootNodeId: '84:681',
+        depth: 8,
+        maxNodes: 200,
+        maxTextLength: 500,
+      },
+      sourceFingerprint: '12345678',
+      nodeCount: 1,
+      structureComplete: true,
+      truncation: null,
+      files: { outline: 'outline.jsonl' as const },
+      createdAt: '2026-10-15T00:00:00.000Z',
+    };
+    expect(ScopeIndexManifestSchema.safeParse(manifest).success).toBe(true);
+    expect(
+      ScopeIndexManifestSchema.safeParse({
+        ...manifest,
+        sha256: { outline: 'a'.repeat(64) },
+      }).success,
     ).toBe(false);
   });
 

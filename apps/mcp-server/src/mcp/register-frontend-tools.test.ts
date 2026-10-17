@@ -84,10 +84,10 @@ describe('前端 workunit MCP 工具', () => {
     });
     expect(response.structuredContent).toEqual({
       indexManifestPath: expect.stringContaining('.figma_bridge_agent/sessions/'),
-      sourceFingerprint: '12345678abcdef00',
       structureComplete: true,
     });
     expect(response.structuredContent).not.toHaveProperty('outlineJsonl');
+    expect(response.structuredContent).not.toHaveProperty('sourceFingerprint');
   });
 
   it('prepare 返回稳定 workunit 引用且不公开 facts', async () => {

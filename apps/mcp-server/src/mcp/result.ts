@@ -1,4 +1,4 @@
-import { toBridgeError } from '@figma-agent/protocol';
+import { BridgeFault, toBridgeError } from '@figma-agent/protocol';
 
 /** 成功结果只保留一份结构化内容，避免同一 JSON 重复进入模型上下文。 */
 export function structuredResult<T extends Record<string, unknown>>(value: T) {
@@ -11,13 +11,18 @@ export function structuredResult<T extends Record<string, unknown>>(value: T) {
 
 /** 将任意异常转换为稳定的 MCP error payload，不把原始异常对象直接跨边界暴露。 */
 export function toolError(value: unknown) {
+  if (!(value instanceof BridgeFault)) {
+    // 未知异常仅写入本地诊断；MCP 客户端只接收稳定的通用错误。
+    console.error('[figma-bridge] Unexpected MCP tool error:', value);
+  }
   const error = toBridgeError(value);
+  const internal = error.code === 'INTERNAL_ERROR';
   const details = publicErrorDetails(error.code, error.details);
   const publicError = {
     code: error.code,
-    message: error.message,
+    message: internal ? 'Internal bridge error.' : error.message,
     retryable: error.retryable,
-    ...(error.nodeId ? { nodeId: error.nodeId } : {}),
+    ...(!internal && error.nodeId ? { nodeId: error.nodeId } : {}),
     ...(details ? { details } : {}),
   };
   return {

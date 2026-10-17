@@ -56,13 +56,13 @@ export class FrontendContextStore {
     const indexId = `index-${shortHash(result.rootNodeId)}`;
     const variant = `index-${shortHash(JSON.stringify(result.request))}`;
     const directory = `${sessionRoot(this.workspace.sessionId)}/indexes/${indexId}/${result.sourceFingerprint}/${variant}`;
-    const outline = await this.#writer.write({
+    await this.#writer.write({
       relativePath: `${directory}/outline.jsonl`,
       data: result.outlineJsonl,
       writePolicy: 'REUSE_OR_FAIL',
     });
     const manifest = ScopeIndexManifestSchema.parse({
-      schemaVersion: 3,
+      schemaVersion: 4,
       kind: 'STRUCTURE_INDEX',
       sessionId: this.workspace.sessionId,
       indexId,
@@ -75,7 +75,6 @@ export class FrontendContextStore {
       structureComplete: result.complete,
       truncation: result.truncation,
       files: { outline: 'outline.jsonl' },
-      sha256: { outline: outline.sha256 },
       createdAt: this.#createdAt,
     });
     const manifestFile = await this.#writer.write({
@@ -85,7 +84,6 @@ export class FrontendContextStore {
     });
     return {
       indexManifestPath: manifestFile.projectRelativePath,
-      sourceFingerprint: result.sourceFingerprint,
       structureComplete: result.complete,
       ...(result.truncation ? { truncation: result.truncation } : {}),
     };
@@ -104,25 +102,25 @@ export class FrontendContextStore {
     const workUnitDirectory = `${sessionRoot(this.workspace.sessionId)}/work-units/${workUnitId}`;
     const sourceDirectory = `${workUnitDirectory}/source/${result.sourceFingerprint}/${variant}`;
 
-    const outline = await this.#writer.write({
+    await this.#writer.write({
       relativePath: `${sourceDirectory}/outline.jsonl`,
       data: result.outlineJsonl,
       writePolicy: 'REUSE_OR_FAIL',
     });
-    const facts = await this.#writer.write({
+    await this.#writer.write({
       relativePath: `${sourceDirectory}/facts.jsonl`,
       data: result.factsJsonl,
       writePolicy: 'REUSE_OR_FAIL',
     });
-    const preview = result.preview
-      ? await this.#writer.write({
-          relativePath: `${sourceDirectory}/preview.png`,
-          data: decodePng(result.preview.data),
-          writePolicy: 'REUSE_OR_FAIL',
-        })
-      : undefined;
+    if (result.preview) {
+      await this.#writer.write({
+        relativePath: `${sourceDirectory}/preview.png`,
+        data: decodePng(result.preview.data),
+        writePolicy: 'REUSE_OR_FAIL',
+      });
+    }
     const manifest = WorkunitSourceManifestSchema.parse({
-      schemaVersion: 3,
+      schemaVersion: 4,
       kind: 'WORKUNIT_SOURCE',
       normalization: 'COMPACT_V2',
       sessionId: this.workspace.sessionId,
@@ -138,12 +136,7 @@ export class FrontendContextStore {
       files: {
         outline: 'outline.jsonl',
         facts: 'facts.jsonl',
-        ...(preview ? { preview: 'preview.png' as const } : {}),
-      },
-      sha256: {
-        outline: outline.sha256,
-        facts: facts.sha256,
-        ...(preview ? { preview: preview.sha256 } : {}),
+        ...(result.preview ? { preview: 'preview.png' as const } : {}),
       },
       createdAt: this.#createdAt,
     });

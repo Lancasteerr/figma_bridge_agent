@@ -85,9 +85,41 @@ describe('FrontendContextStore', () => {
     });
     const current = JSON.parse(await readFile(join(root, 'source', 'current.json'), 'utf8'));
     expect(current).toMatchObject({ workUnitId: stored.workUnitId, rootNodeId: '84:681' });
+    const manifest = JSON.parse(await readFile(join(project, current.manifestPath), 'utf8'));
+    expect(manifest).toMatchObject({ schemaVersion: 4, kind: 'WORKUNIT_SOURCE' });
+    expect(manifest).not.toHaveProperty('sha256');
     await expect(
       readFile(join(root, 'source', '12345678abcdef00', current.variant, 'facts.jsonl'), 'utf8'),
     ).resolves.toContain('84:682');
+  });
+
+  it('结构索引只公开 manifest 路径且 v4 落盘不包含摘要', async () => {
+    const { project, store } = await setup();
+    const stored = await store.writeIndex({
+      rootNodeId: '84:681',
+      rootNodeName: '侧栏',
+      document: { name: 'Community' },
+      page: { id: 'page:1', name: 'Home' },
+      request: {
+        rootNodeId: '84:681',
+        depth: 8,
+        maxNodes: 200,
+        maxTextLength: 500,
+      },
+      sourceFingerprint: '12345678abcdef00',
+      nodeCount: 2,
+      complete: true,
+      truncation: null,
+      outlineJsonl: '{"nodeId":"84:681"}\n',
+    });
+
+    expect(stored).toEqual({
+      indexManifestPath: expect.stringContaining('/indexes/'),
+      structureComplete: true,
+    });
+    const manifest = JSON.parse(await readFile(join(project, stored.indexManifestPath), 'utf8'));
+    expect(manifest).toMatchObject({ schemaVersion: 4, kind: 'STRUCTURE_INDEX' });
+    expect(manifest).not.toHaveProperty('sha256');
   });
 
   it('相同事实范围幂等复用并忽略 factNodeIds 顺序', async () => {

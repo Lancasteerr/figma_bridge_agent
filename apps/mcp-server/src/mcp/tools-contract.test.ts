@@ -122,6 +122,35 @@ describe('MCP tool contract', () => {
     expect(validateSchema).toContain('Complete DesignPlan JSON');
   });
 
+  it('公开 output schema 不声明内部摘要、正文或未授权路径', async () => {
+    const { mcp } = createTestServer();
+    const tools = await (await connectServer(mcp)).listTools();
+    const forbidden = new Set([
+      'sha256',
+      'digest',
+      'bytes',
+      'data',
+      'dataBase64',
+      'svgText',
+      'outlineJsonl',
+      'factsJsonl',
+      'manifestPath',
+      'outlinePath',
+      'factsPath',
+      'previewPath',
+      'workspaceRoot',
+      'sourceGuard',
+    ]);
+
+    for (const tool of tools) {
+      const exposed = schemaPropertyNames(tool.outputSchema);
+      expect(
+        [...exposed].filter((name) => forbidden.has(name)),
+        `${tool.name} 暴露了内部 output 字段`,
+      ).toEqual([]);
+    }
+  });
+
   it('全部旧工具名都未注册且调用被拒绝', async () => {
     const { mcp } = createTestServer();
     const client = await connectServer(mcp);
@@ -170,6 +199,21 @@ interface ListedTool {
 interface ServerInfo {
   name?: string;
   version?: string;
+}
+
+/** 递归收集 JSON Schema 中实际公开的属性名，忽略描述文本中的技术词。 */
+function schemaPropertyNames(value: unknown, result = new Set<string>()): Set<string> {
+  if (Array.isArray(value)) {
+    for (const item of value) schemaPropertyNames(item, result);
+    return result;
+  }
+  if (!value || typeof value !== 'object') return result;
+  const record = value as Record<string, unknown>;
+  if (record.properties && typeof record.properties === 'object') {
+    for (const name of Object.keys(record.properties)) result.add(name);
+  }
+  for (const child of Object.values(record)) schemaPropertyNames(child, result);
+  return result;
 }
 
 /** 创建不会实际连接 Figma 的服务端，证明静态工具枚举没有外部副作用。 */
