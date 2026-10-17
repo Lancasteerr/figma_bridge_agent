@@ -13,6 +13,7 @@
     "check:agent-plugin": "node scripts/check-agent-plugin.mjs",
     "sync:agent-marketplaces": "node scripts/sync-agent-marketplaces.mjs --write",
     "check:agent-marketplaces": "node scripts/sync-agent-marketplaces.mjs --check",
+    "check:docs": "node scripts/check-doc-release-versions.mjs",
     "check:agent-plugin-archive": "node scripts/check-agent-plugin-archive.mjs",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint .",
@@ -20,7 +21,7 @@
     "format:check": "prettier --check .",
     "test:scripts": "node --test scripts/check-agent-plugin.test.mjs scripts/check-agent-plugin-archive.test.mjs scripts/check-doc-release-versions.test.mjs scripts/sync-agent-marketplaces.test.mjs",
     "test": "pnpm test:scripts && vitest run",
-    "check": "pnpm check:agent-plugin && pnpm check:agent-marketplaces && pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build"
+    "check": "pnpm check:agent-plugin && pnpm check:agent-marketplaces && pnpm check:docs && pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",

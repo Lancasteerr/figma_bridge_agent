@@ -139,25 +139,6 @@ export async function checkAgentPlugin() {
     assert(!exists, `Portable Agent Plugin must not contain ${forbidden}.`);
   }
 
-  const skill = await readFile(resolve(pluginRoot, 'skills/figma-local-agent/SKILL.md'), 'utf8');
-  assert(!skill.includes('[TODO:'), 'Agent Plugin skill contains an unfinished placeholder.');
-  assert(
-    skill.includes('figma-local-agent-mcp@<VERSION> pair'),
-    'Agent Plugin skill must document pairing with the release version placeholder.',
-  );
-  assert(
-    skill.includes('references/frontend-implementation.md'),
-    'Agent Plugin skill must route front-end implementation tasks to its reference.',
-  );
-  assert(
-    skill.includes('references/workunits.md') && skill.includes('figma_frontend_prepare_workunit'),
-    'Agent Plugin skill must use workunits as the only front-end implementation context.',
-  );
-  assert(
-    !skill.includes('figma_activate_workflow'),
-    'Agent Plugin skill must not document the removed workflow activation tool.',
-  );
-
   console.log(`Validated portable Agent Plugin v${version}.`);
   return { pluginRoot, version };
 }

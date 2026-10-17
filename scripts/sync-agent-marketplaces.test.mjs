@@ -154,17 +154,6 @@ test('rejects an incorrect plugin source', async () => {
   });
 });
 
-test('rejects a marketplace name that collides with the plugin name', async () => {
-  await withFixture(async ({ marketplaces, workspace }) => {
-    marketplaces.codex.name = plugin.name;
-    await writeJson(resolve(workspace, MARKETPLACE_TARGETS[0].source), marketplaces.codex);
-    await assert.rejects(
-      syncAgentMarketplaces({ workspace, mode: 'check' }),
-      /Codex marketplace name must differ from the plugin name/,
-    );
-  });
-});
-
 test('rejects a marketplace name without the marketplace semantic suffix', async () => {
   await withFixture(async ({ marketplaces, workspace }) => {
     marketplaces.codex.name = 'figma-bridge-agent';

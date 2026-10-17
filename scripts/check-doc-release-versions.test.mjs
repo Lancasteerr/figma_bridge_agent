@@ -1,15 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
-  checkDocReleaseVersions,
-  findPinnedReleaseReferences,
-} from './check-doc-release-versions.mjs';
-
-test('accepts the repository documentation placeholders', async () => {
-  const result = await checkDocReleaseVersions();
-  assert.deepEqual(result.violations, []);
-});
+import { findPinnedReleaseReferences } from './check-doc-release-versions.mjs';
 
 test('reports project-specific pinned release references', () => {
   const source = [

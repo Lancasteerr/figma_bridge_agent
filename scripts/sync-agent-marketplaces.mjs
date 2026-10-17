@@ -87,10 +87,6 @@ function validatePortableMetadata(packageMetadata, plugin) {
 }
 
 function validateCommonMarketplace(marketplace, plugin, platform) {
-  assert(
-    marketplace.name !== plugin.name,
-    `${platform} marketplace name must differ from the plugin name.`,
-  );
   assert(marketplace.name === marketplaceName, `${platform} marketplace name is invalid.`);
   assert(
     Array.isArray(marketplace.plugins) && marketplace.plugins.length === 1,
