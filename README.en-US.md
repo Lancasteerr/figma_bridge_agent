@@ -10,19 +10,19 @@ This unofficial developer tool is distributed through GitHub. It is not affiliat
 
 ## What it does
 
-| Capability             | Description                                                                                         |
-| ---------------------- | --------------------------------------------------------------------------------------------------- |
-| Design-to-code         | Give the agent bounded design semantics, assets, and freshness evidence for repository-aware coding |
-| Local reads            | Read the current file, selection, node tree, asset facts, styles, variables, fonts, and Inspect CSS |
-| Semantic snapshots     | Persist scoped outline/facts data without loading a whole page of design facts into conversation    |
-| Asset delivery         | Extract original images or render nodes into an explicitly bound Agent workspace                    |
-| Safe edits             | Clone targets and required layout context, then edit only inside an isolated Proposal               |
-| Declarative generation | Validate a complete DesignPlan before atomically creating a new Proposal                            |
-| Multi-client reuse     | Share one managed Bridge Daemon across multiple local MCP Adapters                                  |
+| Capability               | Description                                                                                         |
+| ------------------------ | --------------------------------------------------------------------------------------------------- |
+| Design-to-code           | Give the agent bounded design semantics, assets, and freshness evidence for repository-aware coding |
+| Local reads              | Read the current file, selection, node tree, asset facts, styles, variables, fonts, and Inspect CSS |
+| Implementation workunits | Keep facts in disk JSONL while tracking code mappings, state, and source freshness in a workunit    |
+| Asset delivery           | Extract original images or render nodes into an explicitly bound Agent workspace                    |
+| Safe edits               | Clone targets and required layout context, then edit only inside an isolated Proposal               |
+| Declarative generation   | Validate a complete DesignPlan before atomically creating a new Proposal                            |
+| Multi-client reuse       | Share one managed Bridge Daemon across multiple local MCP Adapters                                  |
 
 The Bridge is not a framework-specific code generator. It gives the coding agent structured design evidence, safe asset delivery, and source-freshness checks; the agent writes code using the target repository's stack, component library, and conventions.
 
-The MCP Server registers 25 bounded tools, but each connection starts with only `figma_status` and `figma_activate_workflow`. Activating `INSPECT`, `FRONTEND`, or `DESIGN` exposes 9, 13, or 21 tools respectively. Switching relies on standard `notifications/tools/list_changed`, which direct MCP clients must support. See the [MCP tool reference](docs/en-US/tools.md) for the complete list and call sequences.
+The MCP Server statically registers 25 bounded tools. Apart from `figma_status`, names use the `figma_inspect_`, `figma_frontend_`, and `figma_design_` domain prefixes; there is no activation step. See the [MCP tool reference](docs/en-US/tools.md) for the complete list and call sequences.
 
 ## Interface preview
 
@@ -58,7 +58,7 @@ Regular users do not need Git, pnpm, or a source checkout. Open the [latest GitH
 
 ### 1. Choose one installation method
 
-Both methods provide the same workflow-activation behavior. Choose exactly one:
+Both methods provide the same static tools and workflow guidance. Choose exactly one:
 
 - **Install the Agent Plugin**: for Codex, Cursor, and GitHub Copilot, which currently have entry points maintained by this project. It automatically supplies the MCP configuration plus design-to-code and safe Proposal workflow guidance. Follow the [Agent Plugin installation guide](docs/en-US/install-plugin.md).
 - **Configure the MCP Server directly**: for Claude Code, Claude Desktop, and other local stdio hosts. You add the MCP configuration manually, and the Skill is not installed automatically. Follow the [direct MCP installation guide](docs/en-US/install-mcp-server.md).
@@ -87,7 +87,7 @@ Click **Codes match** only when the six-digit codes in the terminal and plugin a
 
 ### 4. Verify the connection
 
-Restart the MCP client or open a new agent session. Confirm that only `figma_status` and `figma_activate_workflow` appear at cold start, then ask the agent to call `figma_status`. A healthy result contains the current Figma file, page, selection, and an `UNBOUND` or `BOUND` workspace. Protocol 10 compatibility is checked internally during the authenticated connection.
+Restart the MCP client or open a new agent session. Confirm that all 25 static tools are discoverable, then ask the agent to call `figma_status`. A healthy result contains the current Figma file, page, selection, and an `UNBOUND` or `BOUND` workspace. Protocol 10 compatibility is checked internally during the authenticated connection.
 
 For Development builds, source builds, and direct MCP troubleshooting, see the [direct MCP installation guide](docs/en-US/install-mcp-server.md).
 
@@ -95,24 +95,24 @@ For Development builds, source builds, and direct MCP troubleshooting, see the [
 
 ### Implement code from a design
 
-1. Open the target front-end project, then open the Design file and **Local Figma Agent Bridge** in Figma Desktop. Ask the agent to call `figma_status`, then activate `FRONTEND`.
+1. Open the target front-end project, then open the Design file and **Local Figma Agent Bridge** in Figma Desktop. Ask the agent to call `figma_status`, then bind the real workspace with `figma_frontend_bind_workspace`.
 2. Choose **high-fidelity reproduction** or **engineering adaptation** that prioritizes the existing design system. When unspecified, the Agent Plugin workflow defaults to high fidelity.
-3. Let the agent bind the current project with the latest session ID. Export one node or component directly as an `IMPLEMENTATION` semantic snapshot; for a large region or page, read `OUTLINE` first and activate bounded implementation scopes one at a time.
-4. The agent inspects existing project components, icons, and assets; safely exports images or SVGs when needed; and implements the result using the project's framework and conventions.
-5. Before completion, call `figma_check_semantic_scope` to confirm that the design source is still `FRESH`, then compare a fresh Figma render with an implementation screenshot.
+3. For a large page, call `figma_frontend_index_scope` first and choose a bounded root. Every implementation scope starts with `figma_frontend_prepare_workunit`, with only one active workunit at a time.
+4. Before visual code, the agent updates node-to-code mappings in `implementation.json`, reads JSONL facts only by node ID or name, and exports images or SVGs through the corresponding `workUnitId`.
+5. Before completion, call `figma_frontend_check_workunit_source` and require `FRESH`. Screenshots are a final appearance check, not a pixel-diff infrastructure.
 
 Example requests:
 
 - “Implement the selected card as a high-fidelity React component in this project. Prefer existing tokens, then compare the result with a fresh Figma render.”
-- “Read the current page OUTLINE first, propose implementation scopes that fit this repository, then generate the code scope by scope without loading the entire page's facts.”
+- “Index the current page first, choose bounded workunits that fit this repository, then generate code one scope at a time without loading the entire page's facts.”
 - “Implement the current page using the existing design system and list every visible adaptation from Figma.”
 
-See the [front-end implementation workflow](plugins/figma-local-agent/skills/figma-local-agent/references/frontend-implementation.md) and [semantic snapshot workflow](plugins/figma-local-agent/skills/figma-local-agent/references/semantic-snapshots.md) for scope selection, asset decisions, and visual acceptance rules.
+See the [front-end implementation workflow](plugins/figma-local-agent/skills/figma-local-agent/references/frontend-implementation.md) and [workunit workflow](plugins/figma-local-agent/skills/figma-local-agent/references/workunits.md) for scope selection, asset decisions, and visual acceptance rules.
 
 ### Create or edit a Proposal in Figma
 
 1. Open the target Design file and **Local Figma Agent Bridge** in Figma Desktop.
-2. Check `figma_status`, activate `DESIGN`, select the relevant nodes, and describe the read, edit, or generation task.
+2. Check `figma_status`, use the `figma_inspect_` and `figma_design_` tools directly, select the relevant nodes, and describe the read, edit, or generation task.
 3. For an existing design, the agent first creates an isolated Proposal. For complex generation from scratch, it validates a complete DesignPlan first.
 4. Review the resulting Proposal on the canvas. Public write tools never overwrite the source artwork.
 
@@ -134,13 +134,13 @@ Local Bridge Daemon
 MCP Adapter
   ↕ independent stdio session
 Coding Agent
-  ├─ reads design facts, semantic snapshots, and assets → generates code in a local front-end project
+  ├─ reads design facts, workunits, and assets → generates code in a local front-end project
   └─ sends bounded design writes → creates or edits an isolated Proposal in Figma
 ```
 
 During first-time pairing, the user compares a six-digit code. Later connections authenticate each plugin device with an independent credential and fresh proofs. The Bridge listens only on `127.0.0.1`; it has no remote or cloud transport.
 
-When implementing code from a design, the agent can persist a single component directly as an `IMPLEMENTATION` snapshot. For a large region or page, it reads `OUTLINE` first and then chooses bounded scopes. Public MCP results contain paths, fingerprints, and summaries only. The agent queries local JSONL by node ID or name and uses the target project to decide component boundaries and code mappings.
+When implementing code from a design, every bounded scope starts with a stable workunit. A large region or page can be structurally indexed before scopes are selected. Complete facts remain in immutable disk JSONL while public MCP results contain only paths, fingerprints, and summaries. `implementation.json` tracks source, state, code mappings, assumptions, and unresolved differences and is never overwritten after creation.
 
 When editing an existing design, the Bridge clones the targets and required layout context into a Page-level Proposal. Consecutive writes use complete-tree fingerprints to protect concurrent edits. To generate a complex design from scratch, an agent can validate a DesignPlan and then use the single-use, five-minute validation ID to create the Proposal atomically.
 
@@ -151,8 +151,8 @@ See the [architecture and safety model](docs/en-US/architecture.md) for implemen
 - Public write tools can only create a Proposal or edit nodes inside a Bridge-marked Proposal root.
 - Input assets accept Base64 only. The Server does not fetch URLs or read caller-provided local files.
 - Team Library is never queried. Place an external Instance on the current page before reusing it.
-- Semantic snapshot bodies are written only to the session directory. Public results contain paths, summaries, fingerprints, and completeness information rather than injecting complete design facts into conversation.
-- Semantic snapshots and asset exports share one immutable workspace binding. Every MCP Adapter starts `UNBOUND`; during implementation, the agent submits the exact cwd from its own task execution environment with the latest session ID before either persistent write begins. Temporary tree and render artifacts remain available while unbound.
+- Workunit source bodies are written only to the session directory. Public results contain paths, summaries, fingerprints, and completeness information rather than injecting complete design facts into conversation.
+- Structural indexes, workunits, and asset exports share one immutable workspace binding. Every MCP Adapter starts `UNBOUND`; during implementation, the agent submits the exact cwd from its own task execution environment with the latest session ID before persistent writes begin. Temporary tree and render artifacts remain available while unbound.
 - The Bridge does not decide component responsibilities, code mappings, or framework patterns. The agent makes those implementation decisions from the user's request and target repository.
 - Only one Figma plugin window can be active at a time. Remote-only agents cannot reach the local Bridge.
 
@@ -187,7 +187,7 @@ See the [development guide](docs/en-US/development.md) for the environment and r
 
 ## Current scope
 
-The current stable release supports Windows, local stdio, multiple MCP Adapters, one active Figma plugin, and the current page of the current Design file. It supports reads, renders, asset exports, session-persisted semantic snapshots, controlled Proposal edits, and validated DesignPlans. A connected coding agent can use these capabilities to generate code in a local front-end project.
+The current stable release supports Windows, local stdio, multiple MCP Adapters, one active Figma plugin, and the current page of the current Design file. It supports reads, renders, workunits, asset exports, controlled Proposal edits, and validated DesignPlans. A connected coding agent can use these capabilities to generate code in a local front-end project.
 
 The current release does not provide a Windows installer, automatic updates, remote transport, cloud sync, arbitrary JavaScript, direct source-artwork writes, general deletion, Instance detaching, or Team Library queries. The Bridge also has no built-in one-click generator for a particular framework; the connected coding agent performs code generation.
 

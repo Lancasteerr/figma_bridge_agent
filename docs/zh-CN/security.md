@@ -15,7 +15,7 @@
 - 配对默认关闭。只有显式运行 `pair` 才会开启一个 120 秒会话，并且必须由用户核对六位 SAS 短码后才保存设备凭据。
 - X25519 与 HKDF-SHA-256 为每个插件派生独立 token。token 不会通过 WebSocket 传输，并与 MCP Adapter 使用的 Daemon 凭据隔离。
 - 持久文件输出受 9 MiB 单项载荷限制，并且必须先显式绑定工作区；未绑定 Adapter 不会创建暂存导出目录。
-- 首次素材或语义写入前，Agent 必须提交自身任务执行环境的绝对 cwd 与最新 session ID；Adapter 会执行 realpath、目录类型、可写性和危险路径校验，并把规范根冻结到当前会话。
+- 首次素材、结构索引或 Workunit 写入前，Agent 必须提交自身任务执行环境的绝对 cwd 与最新 session ID；Adapter 会执行 realpath、目录类型、可写性和危险路径校验，并把规范根冻结到当前会话。
 - 绑定拒绝文件系统根、用户主目录、插件根和插件数据目录。同一规范根可幂等重复绑定，会话不能改绑到另一目录；共享 Daemon 永远不写工程文件。
 - 导出拒绝路径穿越、盘符、UNC、NUL、symlink/junction 越界和非普通目标。缺失的普通子目录只能在冻结根内创建。
 - 文件通过同目录临时文件和 rename 提交。同路径同内容复用；不同内容默认拒绝。覆盖必须携带调用方刚检查过的现有 SHA-256，并在提交前再次核对。
@@ -29,7 +29,7 @@
 - 不要通过代理或端口转发暴露 3900 端口。
 - 仅在使用桥接工具期间保持 Figma 插件状态窗口打开。
 - 将 Proposal 复制到生产稿前，先进行视觉审查。
-- `figma_status` 显示 `UNBOUND` 或 `BOUND`。实施阶段必须在持久素材或语义写入前使用最新 session ID 调用 `figma_bind_export_root`。未绑定时临时树和渲染仍可用，但持久写入会返回 `EXPORT_ROOT_UNBOUND`。
+- `figma_status` 显示 `UNBOUND` 或 `BOUND`。实施阶段必须在持久素材、结构索引或 Workunit 写入前使用最新 session ID 调用 `figma_frontend_bind_workspace`。未绑定时临时树和渲染仍可用，但持久写入会返回 `EXPORT_ROOT_UNBOUND`。
 - 用户要求修改历史记录时，请使用 Figma 原生 Undo。桥接工具只会在带锚点的写入边界内为刚刚失败的操作使用 undo；只读校验失败绝不会触发 undo。
 
 ## 明确不支持的目标

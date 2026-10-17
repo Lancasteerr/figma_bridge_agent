@@ -2,7 +2,7 @@
 
 [中文版](../zh-CN/README.md) · [Project home](../../README.en-US.md)
 
-These documents are for Local Figma Agent users, integrators, and contributors. The Server exposes only `figma_status` and `figma_activate_workflow` at cold start; activating `INSPECT`, `FRONTEND`, or `DESIGN` exposes 9, 13, or 21 tools and refreshes the list through standard `notifications/tools/list_changed`. If you only need to install it for the first time, start by [choosing an installation method](configuration.md).
+These documents are for Local Figma Agent users, integrators, and contributors. The Server statically registers 25 tools and separates domains with the `figma_inspect_`, `figma_frontend_`, and `figma_design_` prefixes. If you only need to install it for the first time, start by [choosing an installation method](configuration.md).
 
 ## Users
 

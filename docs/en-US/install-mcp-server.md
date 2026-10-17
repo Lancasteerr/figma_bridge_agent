@@ -2,7 +2,7 @@
 
 [中文版](../zh-CN/install-mcp-server.md) · [Choose an installation method](configuration.md) · [Documentation home](README.md)
 
-This guide is for Claude Code, Claude Desktop, and other clients that can start a local stdio MCP Server on Windows. Direct configuration uses the same connection-level workflow activation as the Agent Plugin, but it does not automatically install the workflow Skill under `plugins/figma-local-agent/skills/`.
+This guide is for Claude Code, Claude Desktop, and other clients that can start a local stdio MCP Server on Windows. Direct configuration exposes the same static domain tools as the Agent Plugin, but it does not automatically install the workflow Skill under `plugins/figma-local-agent/skills/`.
 
 Claude Code has its own plugin system, but this project does not currently publish a matching plugin marketplace entry. The recommended integration is therefore the direct stdio configuration on this page. This is a first-class installation method, not a degraded fallback.
 
@@ -10,7 +10,7 @@ Claude Code has its own plugin system, but this project does not currently publi
 
 - Windows
 - Node.js 20 or newer
-- A client that supports standard MCP `notifications/tools/list_changed`
+- A client that supports local stdio MCP
 - Figma Desktop
 - A client that supports local stdio MCP servers
 
@@ -128,9 +128,9 @@ The exact settings file and UI label depend on the host. Remote-only environment
 Restart the MCP client or open a new session after saving the configuration. Then:
 
 1. Confirm the client loads only one `figma-local-agent` Server.
-2. Confirm cold start exposes only `figma_status` and `figma_activate_workflow`.
+2. Confirm that all 25 static tools are discoverable.
 3. Call `figma_status` and check the current Figma file, page, selection, and an `UNBOUND` or `BOUND` workspace. Protocol 10 compatibility is checked internally during connection setup; a legacy-protocol plugin must fail clearly.
-4. Call `figma_activate_workflow({workflow:"INSPECT"})` and confirm that `tools/list_changed` refreshes the visible set to 9 tools; activating `FRONTEND` or `DESIGN` should refresh it to 13 or 21 tools respectively.
+4. Confirm that tool names are grouped by the `figma_inspect_`, `figma_frontend_`, and `figma_design_` prefixes and that no activation tool exists.
 
 Direct configuration does not automatically load the Agent Plugin Skill. Read the [MCP tool reference](tools.md), especially the Proposal and DesignPlan workflows, before performing writes.
 

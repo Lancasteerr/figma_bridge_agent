@@ -1,7 +1,7 @@
 # DesignPlan v1
 
 Read this reference only when constructing a declarative DesignPlan. For edits to existing artwork,
-prefer `figma_duplicate_as_proposal`, including when the selected Page child is not a Frame.
+prefer `figma_design_duplicate_as_proposal`, including when the selected Page child is not a Frame.
 
 ## Root semantics
 
@@ -67,7 +67,7 @@ This plan creates a card-sized Proposal rather than a complete page.
 ## Source-backed Proposal
 
 Collect every Clone or Instance source under the ordered `source.rootNodeIds`, call
-`figma_get_fingerprint` with that exact order, then copy both the returned order and fingerprint into
+`figma_design_read_source_fingerprint` with that exact order, then copy both the returned order and fingerprint into
 the plan. A Clone source may be a supported non-Frame SceneNode, but it cannot be inside an Instance.
 
 ```json
@@ -106,7 +106,7 @@ the plan. A Clone source may be a supported non-Frame SceneNode, but it cannot b
 
 `CREATE_INSTANCE` requires a current-page Component or an Instance with an accessible main
 component. `CLONE_INSTANCE` requires a current-page Instance. Request exact fonts with
-`figma_list_fonts` before validation and use resources or staged assets only when the plan needs
+`figma_inspect_list_fonts` before validation and use resources or staged assets only when the plan needs
 them. A staged asset reference carries only its `assetId`; its internal digest is not part of the
 DesignPlan.
 

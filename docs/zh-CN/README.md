@@ -2,7 +2,7 @@
 
 [English](../en-US/README.md) · [项目首页](../../README.md)
 
-这里的文档面向 Local Figma Agent 的使用者、集成者和贡献者。Server 冷启动只暴露 `figma_status` 与 `figma_activate_workflow`；激活 `INSPECT`、`FRONTEND`、`DESIGN` 后分别可见 9、13、21 个工具，并通过标准 `notifications/tools/list_changed` 刷新。若只想完成首次安装，请先[选择安装方式](configuration.md)。
+这里的文档面向 Local Figma Agent 的使用者、集成者和贡献者。Server 静态注册 25 个工具，并通过 `figma_inspect_`、`figma_frontend_`、`figma_design_` 前缀区分领域。若只想完成首次安装，请先[选择安装方式](configuration.md)。
 
 ## 使用者
 

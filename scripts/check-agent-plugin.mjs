@@ -9,7 +9,7 @@ export const AGENT_PLUGIN_FILES = [
   'skills/figma-local-agent/references/asset-export.md',
   'skills/figma-local-agent/references/design-plan-v1.md',
   'skills/figma-local-agent/references/frontend-implementation.md',
-  'skills/figma-local-agent/references/semantic-snapshots.md',
+  'skills/figma-local-agent/references/workunits.md',
 ];
 export const AGENT_PLUGIN_ARCHIVE_ROOT = 'figma-local-agent';
 
@@ -148,6 +148,14 @@ export async function checkAgentPlugin() {
   assert(
     skill.includes('references/frontend-implementation.md'),
     'Agent Plugin skill must route front-end implementation tasks to its reference.',
+  );
+  assert(
+    skill.includes('references/workunits.md') && skill.includes('figma_frontend_prepare_workunit'),
+    'Agent Plugin skill must use workunits as the only front-end implementation context.',
+  );
+  assert(
+    !skill.includes('figma_activate_workflow'),
+    'Agent Plugin skill must not document the removed workflow activation tool.',
   );
 
   console.log(`Validated portable Agent Plugin v${version}.`);

@@ -5,76 +5,59 @@ description: Inspect the current local Figma page, implement front-end UI from i
 
 # Figma Local Agent Bridge
 
-Use the local MCP bridge as the source of Figma facts. It reads the current page and writes only
-through the bridge's Proposal boundaries.
+Use the local MCP bridge as the source of Figma facts. Tools are always registered and their names
+identify the domain: `figma_inspect_*`, `figma_frontend_*`, and `figma_design_*`.
 
 ## Start every Figma task
 
-1. Call `figma_status` first. If unavailable, preserve intent and ask the user to reconnect. Pair
-   locally with `npx -y figma-local-agent-mcp@<VERSION> pair` when required.
-2. Call `figma_activate_workflow` once with the schema-validated enum that matches the current
-   phase:
-   - `INSPECT`: view, navigate, explain, or compare the design.
-   - `FRONTEND`: implement UI or create project assets from the design.
-   - `DESIGN`: create or modify Figma content.
-3. Continue only after the tool list refreshes. The activation result repeats the exact enabled
-   tool names.
-
-Activation changes only this MCP connection's visible tools. It does not connect Figma, bind a
-workspace, modify files, or change a Proposal. Reconnecting returns to the two cold-start tools.
-For a mixed task, finish the current phase and activate the next workflow; there is no combined
-mode.
+1. Call `figma_status`. If unavailable, preserve intent and ask the user to reconnect. Pair locally
+   with `npx -y figma-local-agent-mcp@<VERSION> pair` when required.
+2. For front-end work, bind the exact absolute project root with
+   `figma_frontend_bind_workspace` and the latest `workspace.sessionId` before preparing a workunit
+   or exporting project assets.
+3. Use only the domain tools needed for the task. There is no workflow activation step.
 
 ## Read only the reference needed now
 
-- For front-end reproduction, fidelity decisions, geometry meanings, and completion criteria, read
-  [front-end implementation](references/frontend-implementation.md).
-- Read [semantic snapshots](references/semantic-snapshots.md) only for a large page/region or when
-  durable, queryable evidence is useful.
-- Read [asset export](references/asset-export.md) only when preparing to write Figma-derived files
-  into the project.
-- In the `DESIGN` workflow, read [DesignPlan v1](references/design-plan-v1.md) before using the
-  declarative validate/apply path. Targeted Proposal edits do not require that full reference.
+- For front-end implementation and completion rules, read
+  [front-end implementation](references/frontend-implementation.md), then read
+  [workunits](references/workunits.md). A workunit is the only front-end implementation context;
+  create every implementation scope with `figma_frontend_prepare_workunit` before visual coding.
+- Read [asset export](references/asset-export.md) only when a material element may become a project
+  file.
+- Read [DesignPlan v1](references/design-plan-v1.md) before the declarative validate/apply path.
+  Targeted Proposal edits do not require that full reference.
 
 ## Shared read boundaries
 
-- Use `figma_get_tree` for bounded navigation and `figma_get_node` for implementation facts.
-  Request only relevant field groups. `assetHints` identify candidates, not export facts.
-- Use `figma_get_css` only when Inspect CSS resolves a material styling choice.
-  `figma_get_raw_node` is a bounded fallback for one known missing fact, normally self-only with
-  explicit fields.
-- Render only when visual evidence changes a decision or validation requires it. Tree and render
-  artifacts expire after 30 minutes.
-- Never paste a complete tree artifact or semantic JSONL into the conversation. Query by exact ID,
-  name, type, or parent and narrow any truncated scope.
-- The bridge reads the current page only and never queries Team Library. Ask the user to place
-  required library content on the current page.
+- Use `figma_inspect_browse_nodes` for bounded navigation and
+  `figma_inspect_read_node_facts` for targeted facts. Request only relevant field groups.
+  `assetHints` identify candidates, not export facts.
+- Use `figma_inspect_read_css_hint` only when Inspect CSS resolves a material styling choice.
+  `figma_inspect_read_raw_fields` is a bounded fallback for one known missing fact.
+- Use `figma_inspect_render_preview` only when visual evidence changes a decision or for the final
+  appearance check. Do not build pixel-diff infrastructure.
+- Never paste a complete tree artifact or `facts.jsonl` into conversation. Query local JSONL by
+  exact node ID or name and narrow a truncated scope.
+- The bridge reads the current page only and never queries Team Library.
 
-## Bind persistent workspace writes
+## Persistent workspace writes
 
-Before the first semantic snapshot or project asset write:
-
-1. Obtain the exact absolute current working directory from the Agent execution environment.
-2. Call `figma_bind_export_root` with it and the latest `workspace.sessionId` from
-   `figma_status`.
-3. Use only workspace-relative destinations.
-
-The binding is immutable for the Adapter session and is shared by semantic and asset writes. Never
-infer the root from plugin state, Git metadata, caches, or user prose. If binding is unavailable, do
-not write. On `EXPORT_TARGET_CONFLICT`, inspect the existing file; use `OVERWRITE` only with its
-checked SHA-256 as `expectedExistingSha256`.
+The workspace binding is immutable for one Adapter session. Never infer it from plugin state, Git
+metadata, caches, or user prose. Use workspace-relative destinations only. On
+`EXPORT_TARGET_CONFLICT`, inspect the existing file and use `OVERWRITE` only with its checked
+SHA-256 as `expectedExistingSha256`.
 
 ## Proposal write boundaries
 
-- Never edit source artwork directly. Duplicate it with `figma_duplicate_as_proposal`, then use
-  only the returned `proposalRootId` and requested `targetMap`.
+- Never edit source artwork directly. Duplicate it with `figma_design_duplicate_as_proposal`, then
+  use only the returned `proposalRootId` and requested `targetMap`.
 - Chain each mutation's `proposalFingerprint` into the next `expectedFingerprint`; adopt
   `newProposalRootId` after root component conversion.
 - Change Instances only through exposed properties. Re-read or render affected content after
   writes.
-- Before discard, fetch the latest complete-tree fingerprint. On `PROPOSAL_CHANGED`, stop and ask
-  whether to inspect the newer state.
+- Before discard, fetch the latest complete-tree fingerprint with
+  `figma_design_read_source_fingerprint`.
 
-Correct input errors without refreshing unrelated state. For stale nodes, refresh only the current
-page context and relevant mappings or fingerprints. Do not retry a consumed DesignPlan validation
-after an internal apply failure, and never expose bridge credentials.
+Correct input errors without refreshing unrelated state. Do not retry a consumed DesignPlan
+validation after an internal apply failure, and never expose bridge credentials.

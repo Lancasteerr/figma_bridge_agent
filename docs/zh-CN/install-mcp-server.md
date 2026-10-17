@@ -2,7 +2,7 @@
 
 [English](../en-US/install-mcp-server.md) · [选择安装方式](configuration.md) · [文档首页](README.md)
 
-本指南面向 Claude Code、Claude Desktop及其他能够在 Windows 本机启动 stdio MCP Server 的客户端。直接配置与 Agent Plugin 使用相同的连接级工作流激活机制，但不会自动安装 `plugins/figma-local-agent/skills/` 中的工作流 Skill。
+本指南面向 Claude Code、Claude Desktop及其他能够在 Windows 本机启动 stdio MCP Server 的客户端。直接配置与 Agent Plugin 使用相同的静态领域工具，但不会自动安装 `plugins/figma-local-agent/skills/` 中的工作流 Skill。
 
 Claude Code 自身支持插件，但本项目当前没有发布与其插件 marketplace 结构匹配的入口，因此推荐使用本页的直接 stdio 配置。这是正式安装方式，不是降级路径。
 
@@ -10,7 +10,7 @@ Claude Code 自身支持插件，但本项目当前没有发布与其插件 mark
 
 - Windows
 - Node.js 20 或更高版本
-- 支持标准 MCP `notifications/tools/list_changed` 的客户端
+- 支持本地 stdio MCP 的客户端
 - Figma Desktop
 - 支持本地 stdio MCP Server 的客户端
 
@@ -128,9 +128,9 @@ enabled = true
 保存配置后重启 MCP 客户端或新建会话，然后：
 
 1. 确认客户端只加载一个 `figma-local-agent` Server。
-2. 确认冷启动只发现 `figma_status` 和 `figma_activate_workflow`。
+2. 确认能够发现全部 25 个静态工具。
 3. 调用 `figma_status`，检查当前 Figma 文件、页面、选区以及 `UNBOUND` 或 `BOUND` 工作区。协议 10 兼容性由连接建立阶段在内部校验，旧协议插件必须明确失败。
-4. 调用 `figma_activate_workflow({workflow:"INSPECT"})`，确认收到 `tools/list_changed` 后可见工具集合刷新为 9 个；另行激活 `FRONTEND`、`DESIGN` 时应分别刷新为 13、21 个。
+4. 确认工具名按 `figma_inspect_`、`figma_frontend_`、`figma_design_` 前缀分组，且不存在动态激活工具。
 
 直接配置不会自动加载 Agent Plugin Skill。需要了解安全写入顺序时，请阅读 [MCP 工具参考](tools.md)，尤其是 Proposal 与 DesignPlan 流程。
 
