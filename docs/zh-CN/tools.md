@@ -51,7 +51,8 @@ deprecated alias 或旧名兼容。
 
 ## Workunit
 
-大型页面先调用 `figma_frontend_index_scope`，它只产生结构索引。每个实施范围必须调用
+大型页面先调用 `figma_frontend_index_scope`，它只产生结构索引并返回
+`{indexManifestPath,structureComplete,truncation?}`，不回显索引来源指纹。每个实施范围必须调用
 `figma_frontend_prepare_workunit`，后者返回
 `{workUnitId,workUnitPath,sourceFingerprint,evidenceComplete,requiresMappingReview,truncation?}`。
 
@@ -67,6 +68,8 @@ deprecated alias 或旧名兼容。
 │  └─ preview.png        # 可选
 └─ implementation.json
 ```
+
+索引与来源 manifest 使用 schema v4，只记录文件名和必要控制事实，不保存逐文件 SHA-256。
 
 来源修订不可变。`implementation.json` 只在首次 prepare 时创建，此后工具永不覆盖。其固定
 字段为 `sourceFingerprint`、`fidelityPolicy`、`state`、`targetFiles`、`mappings`、

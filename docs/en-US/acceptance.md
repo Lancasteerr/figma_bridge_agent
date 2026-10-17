@@ -25,7 +25,7 @@ Do not continue acceptance if this gate fails.
 ## 2. Connection and read path
 
 1. Start Codex with the installed Agent Plugin. Then repeat the essential connection check in a separate Claude Code configuration without that plugin, following the [direct MCP guide](install-mcp-server.md). Each client must load exactly one `figma-local-agent` Server.
-2. Confirm the list contains exactly 25 static tools grouped by inspect, frontend, and design prefixes; every legacy tool name must be rejected. Call `figma_status`; confirm protocol 10 was accepted internally and the public result contains only document/page metadata, selection summary, and an `UNBOUND` workspace with its session ID. A 2.9.2 plugin/server pair must fail clearly instead of mixing legacy and current protocols.
+2. Confirm the list contains exactly 25 static tools grouped by inspect, frontend, and design prefixes; every legacy tool name must be rejected. Call `figma_status`; confirm protocol 11 was accepted internally and the public result contains only document/page metadata, selection summary, and an `UNBOUND` workspace with its session ID. A 2.9.2/protocol-10 plugin or server must fail clearly instead of mixing with protocol 11.
 3. Close the plugin and call it again; confirm `PLUGIN_NOT_CONNECTED` returns in about one second rather than hanging.
 4. Reopen the plugin and confirm automatic reconnection.
 5. Open two additional Codex tasks. Confirm all three tasks discover the same 25 static tools and can call `figma_status` through the same plugin.

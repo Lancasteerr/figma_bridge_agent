@@ -22,6 +22,8 @@ identify the domain: `figma_inspect_*`, `figma_frontend_*`, and `figma_design_*`
 - For front-end fidelity, interaction boundaries, and completion rules, read
   [front-end implementation](references/frontend-implementation.md). Read
   [workunits](references/workunits.md) before preparing or maintaining implementation evidence.
+  Prepare every implementation scope with `figma_frontend_prepare_workunit`; its workunit is the
+  implementation context.
 - Read [asset export](references/asset-export.md) only when a material element may become a project
   file.
 - Read [DesignPlan v1](references/design-plan-v1.md) before the declarative validate/apply path.

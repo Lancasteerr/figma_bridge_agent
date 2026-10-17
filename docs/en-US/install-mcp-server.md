@@ -129,7 +129,7 @@ Restart the MCP client or open a new session after saving the configuration. The
 
 1. Confirm the client loads only one `figma-local-agent` Server.
 2. Confirm that all 25 static tools are discoverable.
-3. Call `figma_status` and check the current Figma file, page, selection, and an `UNBOUND` or `BOUND` workspace. Protocol 10 compatibility is checked internally during connection setup; a legacy-protocol plugin must fail clearly.
+3. Call `figma_status` and check the current Figma file, page, selection, and an `UNBOUND` or `BOUND` workspace. Protocol 11 compatibility is checked internally during connection setup; a legacy-protocol plugin must fail clearly.
 4. Confirm that tool names are grouped by the `figma_inspect_`, `figma_frontend_`, and `figma_design_` prefixes and that no activation tool exists.
 
 Direct configuration does not automatically load the Agent Plugin Skill. Read the [MCP tool reference](tools.md), especially the Proposal and DesignPlan workflows, before performing writes.

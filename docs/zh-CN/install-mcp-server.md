@@ -129,7 +129,7 @@ enabled = true
 
 1. 确认客户端只加载一个 `figma-local-agent` Server。
 2. 确认能够发现全部 25 个静态工具。
-3. 调用 `figma_status`，检查当前 Figma 文件、页面、选区以及 `UNBOUND` 或 `BOUND` 工作区。协议 10 兼容性由连接建立阶段在内部校验，旧协议插件必须明确失败。
+3. 调用 `figma_status`，检查当前 Figma 文件、页面、选区以及 `UNBOUND` 或 `BOUND` 工作区。协议 11 兼容性由连接建立阶段在内部校验，旧协议插件必须明确失败。
 4. 确认工具名按 `figma_inspect_`、`figma_frontend_`、`figma_design_` 前缀分组，且不存在动态激活工具。
 
 直接配置不会自动加载 Agent Plugin Skill。需要了解安全写入顺序时，请阅读 [MCP 工具参考](tools.md)，尤其是 Proposal 与 DesignPlan 流程。

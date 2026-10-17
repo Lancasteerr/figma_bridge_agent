@@ -24,6 +24,8 @@ Figma 插件主进程
 
 `packages/protocol` 负责与传输无关的 Zod schema，并分别定义插件 RPC 与公共 MCP 结果契约。每个 MCP Adapter 负责一个 stdio 会话、初始未绑定的 Agent 工作区和独立导出 session ID。自动管理的 Bridge Daemon 独占回环监听，只转发数据并把任意数量的已认证 MCP Adapter 复用到一个插件连接；它永远不写前端工程。插件 UI 负责插件侧身份验证和重连行为。插件主进程是唯一允许持有 Figma 对象的进程。
 
+公共 MCP 结果不返回 SHA-256、字节计数、Base64/SVG 正文或仅供内部 RPC 使用的逐项一致性元数据。session ID、验证 ID、Proposal/完整树/workunit 来源指纹、用途明确的本地或项目路径、过期时间和固有尺寸是调用方恢复或并发控制所需的公开 token，继续保留。`expectedExistingSha256` 只作为显式覆盖的并发保护输入，不在结果中回显。
+
 Server 在每个 Adapter 上静态注册全部 25 个工具。`figma_inspect_*`、`figma_frontend_*` 和 `figma_design_*` 前缀直接表达领域，不存在连接级工作流状态、动态句柄切换或旧工具 alias。
 
 首个 Adapter 会在需要时启动 Daemon。关闭某个主机只会关闭自己的 Adapter。当最后一个 Adapter 和插件都断开 30 秒后，Daemon 自动退出。
@@ -33,7 +35,7 @@ Server 在每个 Adapter 上静态注册全部 25 个工具。`figma_inspect_*`�
 - WebSocket 服务器仅绑定到 `127.0.0.1`，只允许一个已认证插件，并在独立路径上允许多个已认证 MCP Adapter。
 - MCP Adapter 使用内部 Daemon 凭据。每个插件在用户确认六位 SAS 后获得独立的 X25519/HKDF 派生 token，随后使用新鲜 nonce 和按角色、方向隔离的 HMAC-SHA-256 proof；凭据和 proof 均不能跨角色复用。
 - RPC 信封以及每条 UI/主进程消息都会经过 schema 校验并受大小限制。
-- Adapter 日志写入 stderr。后台 Daemon 在用户配置目录写入有界 `bridge.log`，并只保留一个轮转文件。日志仅包含请求 ID、RPC 方法、耗时和结果，排除密钥、图像 base64 和原始节点 JSON。
+- Adapter 的运行日志和未知处理异常诊断写入本地 stderr；未知异常对 MCP 只返回通用 `INTERNAL_ERROR`。后台 Daemon 在用户配置目录写入有界 `bridge.log`，并只保留一个轮转文件；该文件仅包含请求 ID、RPC 方法、耗时和结果，排除密钥、图像 base64 和原始节点 JSON。
 - `figma_inspect_render_preview` 的视觉预览和 `figma_inspect_browse_nodes` 的大型 JSONL 写入 `%TEMP%/figma-agent-mcp/<session-id>/`；该目录复用 Adapter 的 session ID。
 - 当前 Adapter 的临时文件保留三十分钟并在关闭时立即删除。其他 Adapter 不会清理其中的单个文件或空目录；异常退出的会话目录在 `mtime` 超过二十四小时后由存活 Adapter 兜底删除。若运行中的旧会话目录因此被删除，该 Adapter 会在下次写入时自动重建。
 - 结构索引、workunit 和素材由 Adapter 写文件，共享同一个不可变会话根绑定、路径校验和原子写入。会话初始为 `UNBOUND`。素材批次会在绑定工作区内使用瞬时会话暂存目录，并受 64 MiB 批次上限约束；提交或失败后都会清理暂存。Agent 必须在首次持久写入前用最新 session ID 把自身任务执行环境的绝对 cwd 绑定为工作区根；Adapter 不信任自身的 `process.cwd()`。
@@ -42,7 +44,7 @@ Server 在每个 Adapter 上静态注册全部 25 个工具。`figma_inspect_*`�
 
 1. 紧凑节点读取枚举 Image Paint、导出设置、矢量和蒙版事实；同一序列化上下文按 image hash 缓存尺寸查询，内部 canonical snapshot 继续保留完整一致性指纹。
 2. `figma_frontend_export_assets` 最多接受 32 个 RAW 或 RENDERED item，并要求 `workUnitId`。Adapter 从 workunit 解析根与已复核来源指纹；插件确认所有 item 位于该根内，并在整批前后匹配来源。
-3. 插件通过协议 10 RPC 返回单项不超过 9 MiB 的原始字节、渲染字节或 SVG 字符串，Adapter 将整批解码后暂存限制为 64 MiB。公共 MCP 结果不会透出正文或来源指纹。
+3. 插件通过协议 11 RPC 返回单项不超过 9 MiB 的原始字节、渲染字节或 SVG 字符串，Adapter 将整批解码后暂存限制为 64 MiB。公共素材结果不会透出正文或逐项内部来源指纹。
 4. Adapter 对 RAW 再做 PNG/JPEG/GIF/WebP 魔数识别，对 RENDERED 核对格式、扩展名和载荷上限，并从最终字节读取位图像素尺寸；SVG 使用根宽高或 `viewBox`。无法得到有效固有尺寸时拒绝整批；解析后的输出路径必须唯一。
 5. 所有来源、格式、路径和覆盖条件通过后，Adapter 才把全部内容写入瞬时会话暂存目录，复检目标并发变化，再以可恢复批次发布完整文件。任一步失败都会恢复备份目标，不留下部分项目更新。
 6. 同路径同 hash 返回 `REUSED`；不同 hash 默认返回 `EXPORT_TARGET_CONFLICT`。显式覆盖要求现有 SHA-256，并在提交前再次核对以防并发修改。
@@ -53,7 +55,7 @@ Server 在每个 Adapter 上静态注册全部 25 个工具。`figma_inspect_*`�
 1. 大型页面可先由 `figma_frontend_index_scope` 生成结构索引；索引没有实施 facts。
 2. `figma_frontend_prepare_workunit` 对根计算完整树指纹，按稳定次序生成扁平 outline 和不嵌套子节点的 facts。`factNodeIds` 只限制详细事实。
 3. 来源改变返回 `WORKUNIT_SOURCE_CHANGED`；正文超过 12 MiB 返回 `PAYLOAD_TOO_LARGE`，两者都不写文件。
-4. `workUnitId` 由根 ID 与排序后的事实节点 ID 稳定生成。来源修订写入 `source/<fingerprint>/<variant>/`，最后以 manifest 标记完成并更新服务端拥有的 `source/current.json`。
+4. `workUnitId` 由根 ID 与排序后的事实节点 ID 稳定生成。来源修订写入 `source/<fingerprint>/<variant>/`，最后以 schema v4 manifest 标记完成并更新服务端拥有的 `source/current.json`；manifest 只记录文件名和控制事实，不保存逐文件摘要。
 5. 工具只在首次 prepare 时创建 `implementation.json`，此后不覆盖。刷新后若实施指纹落后，Agent 必须复核实际代码映射再更新；素材导出在此之前返回 `WORKUNIT_SOURCE_STALE`。
 6. Agent 仅映射实际产生代码的组件、选择器、资源和特殊几何。facts 留在 JSONL，通过节点 ID/名称定向查询。
 7. 完成前调用 `figma_frontend_check_workunit_source(workUnitId)`；只有来源为 `FRESH`、实施指纹与当前来源一致且差异已解决或报告，才能把状态设为 `COMPLETE`。

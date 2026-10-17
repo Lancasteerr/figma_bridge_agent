@@ -87,7 +87,7 @@ npx -y figma-local-agent-mcp@<VERSION> pair
 
 ### 4. 验证连接
 
-重启 MCP 客户端或新建 Agent 会话，确认可发现 25 个静态工具，然后让 Agent 调用 `figma_status`。正常结果会包含当前 Figma 文件、页面、选区，以及 `UNBOUND` 或 `BOUND` 工作区状态。插件与 Server 内部使用 Bridge 协议 10。
+重启 MCP 客户端或新建 Agent 会话，确认可发现 25 个静态工具，然后让 Agent 调用 `figma_status`。正常结果会包含当前 Figma 文件、页面、选区，以及 `UNBOUND` 或 `BOUND` 工作区状态。插件与 Server 内部使用 Bridge 协议 11。
 
 Development build、源码构建和直接 MCP 故障排查见[直接 MCP 安装指南](docs/zh-CN/install-mcp-server.md)。
 
@@ -140,7 +140,7 @@ Coding Agent
 
 首次配对由用户核对六位短码。之后每个插件设备使用独立凭据和新鲜 proof 认证。Bridge 只监听 `127.0.0.1`，不提供远程或云端传输。
 
-从设计稿实现代码时，每个有界范围都先准备一个稳定 Workunit；大型区域或页面可先建立结构索引再选择范围。完整事实保留在不可变的磁盘 JSONL 中，公开 MCP 结果只返回路径、指纹和摘要。`implementation.json` 仅记录来源、实施状态、代码映射、假设与未解决差异，工具创建后不再覆盖。
+从设计稿实现代码时，每个有界范围都先准备一个稳定 Workunit；大型区域或页面可先建立结构索引再选择范围。完整事实保留在不可变的磁盘 JSONL 中，公开 MCP 结果只返回用途明确的路径、完整性状态和必需的控制 token；逐文件摘要、字节计数与正文不跨越该边界。`implementation.json` 仅记录来源、实施状态、代码映射、假设与未解决差异，工具创建后不再覆盖。
 
 修改现有设计时，Bridge 会把目标与必要布局上下文复制到 Page 级 Proposal；连续写入使用完整树指纹保护并发编辑。从零生成复杂界面时，Agent 可以先验证 DesignPlan，再使用五分钟内单次有效的验证 ID 原子创建 Proposal。
 
@@ -151,7 +151,7 @@ Coding Agent
 - 公开写工具只能新建 Proposal，或修改带 Bridge 标记的 Proposal 根内部节点。
 - 输入素材只接受 Base64；Server 不抓取 URL，也不读取调用方指定的本地文件。
 - Team Library 不会被查询；需要复用的外部 Instance 必须先放到当前页面。
-- Workunit 来源正文只写入会话目录；公开结果只包含相对路径、来源指纹和完整性信息，不把完整设计事实注入对话。
+- Workunit 来源正文只写入会话目录；公开结果仅保留相对路径、完整性信息和 workunit 新鲜度所需的来源指纹，不把完整设计事实或内部摘要注入对话。
 - 结构索引、Workunit 与素材导出共享一次性工作区绑定。每个 MCP Adapter 初始为 `UNBOUND`；实施阶段由 Agent 提交自身任务执行环境的准确 cwd 与最新 session ID，绑定成功后才允许持久写入。
 - Bridge 不决定组件职责、代码映射或框架写法；这些实现决策由 Agent 根据用户要求和目标仓库作出。
 - 同一时间只支持一个活动 Figma 插件窗口；纯远程 Agent 无法访问本机 Bridge。

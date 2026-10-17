@@ -1,7 +1,7 @@
 # Front-end implementation
 
-This reference owns fidelity, runtime-behavior boundaries, evidence decisions, and completion for
-front-end code. Read [workunits](workunits.md) before writing visual implementation code.
+This reference owns front-end fidelity, runtime behavior, evidence selection, and completion. Read
+[workunits](workunits.md) before writing visual code.
 
 ## Choose the fidelity policy
 
@@ -15,14 +15,13 @@ plan. Otherwise default to `EXACT` and record the assumption in `implementation.
 
 ## Confirm the static implementation boundary
 
-Figma is static visual evidence. It can establish materialized layout, styling, text, assets,
-clipping, and visible states, but it cannot establish product behavior. Separate the requested
-implementation target from annotations, component state boards, and adjacent reference frames.
+Figma proves only materialized layout, styling, text, assets, clipping, and visible states—not
+product behavior. Exclude annotations, component state boards, and adjacent reference frames from
+the requested target unless included by the user.
 
-Before finalizing the implementation plan, inspect the request and repository for existing routes,
-components, API clients, state conventions, responsive rules, and scrolling conventions. Ask the
-user only about material behavior that remains unresolved. Do not repeat a question when the
-request or repository already establishes the contract.
+Before planning, inspect the request and repository for routes, components, API clients, state,
+responsive rules, and scrolling conventions. Ask only about material behavior still unresolved;
+never repeat an established contract.
 
 Material unknowns include:
 
@@ -35,9 +34,9 @@ Material unknowns include:
 - scroll-triggered or scroll-linked animation and custom scrollbar treatment; and
 - required loading, empty, error, disabled, or other unseen states.
 
-Use the host's structured question UI when available and group related unknowns into no more than
-three questions per round. Figma `clipsContent`, overflow fields, fixed-child fields, and prototype
-reactions may help frame a question, but they are not browser behavior contracts.
+Use structured questions when available, with at most three related questions per round. Figma
+`clipsContent`, overflow, fixed-child fields, and prototype reactions are question cues, not browser
+behavior contracts.
 
 If the user does not answer and explicitly asks to continue, preserve semantic controls and basic
 keyboard behavior, use normal document flow, and do not add APIs, navigation destinations,
@@ -82,10 +81,9 @@ Call `figma_frontend_check_workunit_source` with only `workUnitId`. A `FRESH` re
 that the source used by `implementation.json` is unchanged. Confirm its fingerprint matches
 `source/current.json` before visual acceptance.
 
-Fix the target frame or browser viewport, device-pixel ratio, zoom, fonts, data state, and scroll
-position. Unless scrolling was separately established and tested, validate only the initial
-`scrollTop = 0` state. Capture the complete implementation state and obtain a fresh Figma preview
-of the same scope.
+Fix the frame or viewport, device-pixel ratio, zoom, fonts, data, and scroll position. Unless
+scrolling was separately established and tested, validate only `scrollTop = 0`. Capture the full
+implementation state and a fresh Figma preview of the same scope.
 
 Compare both images and verify numeric geometry and computed styles for position, size, color,
 opacity, effects, icon silhouette, typography, image crop and transform, clipping, and overflow.

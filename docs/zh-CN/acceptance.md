@@ -25,7 +25,7 @@
 ## 2. 连接和读取路径
 
 1. 先使用已安装的 Agent Plugin 启动 Codex；再在未安装该插件的独立 Claude Code 配置中，按[直接 MCP 指南](install-mcp-server.md)重复关键连接检查。两个客户端都只能加载一个 `figma-local-agent` Server。
-2. 确认工具列表恰好包含 25 个静态工具，并按 inspect、frontend、design 领域前缀命名；所有旧工具名都必须被拒绝。调用 `figma_status`；确认协议 10 已在内部通过校验，且公共结果只包含文件/页面元数据、选择摘要以及带 session ID 的 `UNBOUND` 工作区。2.9.2 插件或 Server 不得与协议 10 混用，而应明确失败。
+2. 确认工具列表恰好包含 25 个静态工具，并按 inspect、frontend、design 领域前缀命名；所有旧工具名都必须被拒绝。调用 `figma_status`；确认协议 11 已在内部通过校验，且公共结果只包含文件/页面元数据、选择摘要以及带 session ID 的 `UNBOUND` 工作区。2.9.2/协议 10 插件或 Server 不得与协议 11 混用，而应明确失败。
 3. 关闭插件并再次调用；确认约一秒内返回 `PLUGIN_NOT_CONNECTED`，而不是一直挂起。
 4. 重新打开插件，确认能够自动重连。
 5. 再打开两个 Codex 任务，确认三个任务都发现相同的 25 个静态工具，并能通过同一插件调用 `figma_status`。

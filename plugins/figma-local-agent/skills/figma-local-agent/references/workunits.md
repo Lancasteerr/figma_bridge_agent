@@ -24,8 +24,9 @@ Workunits live under:
 `.figma_bridge_agent/sessions/<sessionId>/work-units/<workUnitId>/`
 
 - `source/current.json` is the server-owned pointer to the current source revision.
-- `source/<sourceFingerprint>/<variant>/` is immutable and contains `manifest.json`,
-  `outline.jsonl`, `facts.jsonl`, and optional `preview.png`.
+- `source/<sourceFingerprint>/<variant>/` is immutable and contains a schema-v4 `manifest.json`,
+  `outline.jsonl`, `facts.jsonl`, and optional `preview.png`. The manifest records file names and
+  control facts, not per-file digests.
 - `implementation.json` is created once by the tool and then owned by the Agent. The tool never
   overwrites it.
 

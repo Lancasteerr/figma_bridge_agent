@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { BRIDGE_PROTOCOL_VERSION } from '@figma-agent/protocol';
+
 import type { BridgeTransport } from '../bridge/transport.js';
 import { ExportStore } from '../export/export-store.js';
 import { registerStatusTool } from './register-status.js';
@@ -39,7 +41,7 @@ async function setup() {
     request: vi.fn(async () => ({
       connected: true,
       authenticated: true,
-      protocolVersion: 10,
+      protocolVersion: BRIDGE_PROTOCOL_VERSION,
       pluginVersion: '3.0.1',
       document: { id: 'document:1', name: 'Community' },
       page: { id: 'page:1', name: 'Home' },

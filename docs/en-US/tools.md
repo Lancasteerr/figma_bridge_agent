@@ -53,8 +53,9 @@ JSONL. CSS is always a hint; raw fields are a fallback for one known gap.
 
 ## Workunits
 
-Use `figma_frontend_index_scope` to decompose a large page; it persists structure only. Every
-implementation range must call `figma_frontend_prepare_workunit`, which returns
+Use `figma_frontend_index_scope` to decompose a large page. It persists structure only and returns
+`{indexManifestPath,structureComplete,truncation?}` without echoing the index source fingerprint.
+Every implementation range must call `figma_frontend_prepare_workunit`, which returns
 `{workUnitId,workUnitPath,sourceFingerprint,evidenceComplete,requiresMappingReview,truncation?}`.
 
 ```text
@@ -67,6 +68,9 @@ implementation range must call `figma_frontend_prepare_workunit`, which returns
 │  └─ preview.png        # optional
 └─ implementation.json
 ```
+
+Index and source manifests use schema v4. They record file names and required control facts, not
+per-file SHA-256 values.
 
 Source revisions are immutable. The tool creates `implementation.json` only once and never
 overwrites it. Its fixed fields are `sourceFingerprint`, `fidelityPolicy`, `state`, `targetFiles`,

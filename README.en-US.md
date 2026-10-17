@@ -87,7 +87,7 @@ Click **Codes match** only when the six-digit codes in the terminal and plugin a
 
 ### 4. Verify the connection
 
-Restart the MCP client or open a new agent session. Confirm that all 25 static tools are discoverable, then ask the agent to call `figma_status`. A healthy result contains the current Figma file, page, selection, and an `UNBOUND` or `BOUND` workspace. Protocol 10 compatibility is checked internally during the authenticated connection.
+Restart the MCP client or open a new agent session. Confirm that all 25 static tools are discoverable, then ask the agent to call `figma_status`. A healthy result contains the current Figma file, page, selection, and an `UNBOUND` or `BOUND` workspace. Protocol 11 compatibility is checked internally during the authenticated connection.
 
 For Development builds, source builds, and direct MCP troubleshooting, see the [direct MCP installation guide](docs/en-US/install-mcp-server.md).
 
@@ -140,7 +140,7 @@ Coding Agent
 
 During first-time pairing, the user compares a six-digit code. Later connections authenticate each plugin device with an independent credential and fresh proofs. The Bridge listens only on `127.0.0.1`; it has no remote or cloud transport.
 
-When implementing code from a design, every bounded scope starts with a stable workunit. A large region or page can be structurally indexed before scopes are selected. Complete facts remain in immutable disk JSONL while public MCP results contain only paths, fingerprints, and summaries. `implementation.json` tracks source, state, code mappings, assumptions, and unresolved differences and is never overwritten after creation.
+When implementing code from a design, every bounded scope starts with a stable workunit. A large region or page can be structurally indexed before scopes are selected. Complete facts remain in immutable disk JSONL while public MCP results contain only purpose-bound paths, completeness state, and required control tokens; per-file digests, byte counts, and bodies do not cross that boundary. `implementation.json` tracks source, state, code mappings, assumptions, and unresolved differences and is never overwritten after creation.
 
 When editing an existing design, the Bridge clones the targets and required layout context into a Page-level Proposal. Consecutive writes use complete-tree fingerprints to protect concurrent edits. To generate a complex design from scratch, an agent can validate a DesignPlan and then use the single-use, five-minute validation ID to create the Proposal atomically.
 
@@ -151,7 +151,7 @@ See the [architecture and safety model](docs/en-US/architecture.md) for implemen
 - Public write tools can only create a Proposal or edit nodes inside a Bridge-marked Proposal root.
 - Input assets accept Base64 only. The Server does not fetch URLs or read caller-provided local files.
 - Team Library is never queried. Place an external Instance on the current page before reusing it.
-- Workunit source bodies are written only to the session directory. Public results contain paths, summaries, fingerprints, and completeness information rather than injecting complete design facts into conversation.
+- Workunit source bodies are written only to the session directory. Public results retain relative paths, completeness information, and the source fingerprint required for workunit freshness, without injecting complete design facts or internal digests into conversation.
 - Structural indexes, workunits, and asset exports share one immutable workspace binding. Every MCP Adapter starts `UNBOUND`; during implementation, the agent submits the exact cwd from its own task execution environment with the latest session ID before persistent writes begin. Temporary tree and render artifacts remain available while unbound.
 - The Bridge does not decide component responsibilities, code mappings, or framework patterns. The agent makes those implementation decisions from the user's request and target repository.
 - Only one Figma plugin window can be active at a time. Remote-only agents cannot reach the local Bridge.
