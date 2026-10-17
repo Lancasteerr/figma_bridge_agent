@@ -21,8 +21,9 @@ export const INSPECT_TOOL_NAMES = [
 export const FRONTEND_TOOL_NAMES = [
   ...INSPECT_TOOL_NAMES,
   'figma_frontend_bind_workspace',
-  'figma_export_semantic_scope',
-  'figma_check_semantic_scope',
+  'figma_frontend_index_scope',
+  'figma_frontend_prepare_workunit',
+  'figma_frontend_check_workunit_source',
   'figma_frontend_export_assets',
 ] as const;
 

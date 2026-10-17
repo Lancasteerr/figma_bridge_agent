@@ -1,40 +1,55 @@
 import {
-  type ExportSemanticScopeRpcResult,
-  type SemanticFactRecord,
-  type SemanticOutlineRecord,
-  type SemanticTruncation,
+  type ScopeIndexRecord,
+  type ScopeTruncation,
+  type WorkunitFactRecord,
 } from '@figma-agent/protocol';
 
-import { createSerializeContext, serializeNode } from './node-snapshot.js';
 import { projectCompactNode } from './compact-node.js';
+import { serializeLightweightTreeNode } from './lightweight-tree.js';
+import { createSerializeContext, serializeNode } from './node-snapshot.js';
 import { isSceneNode } from './resolve.js';
 
-interface SerializeSemanticScopeInput {
+interface ScopeLimits {
   root: SceneNode;
-  profile: 'OUTLINE' | 'IMPLEMENTATION';
-  focusNodes: readonly SceneNode[];
   depth: number;
   maxNodes: number;
   maxTextLength: number;
 }
 
-type SemanticPayload = Pick<
-  ExportSemanticScopeRpcResult,
-  'nodeCount' | 'complete' | 'truncation' | 'outlineJsonl' | 'factsJsonl'
->;
+interface ScopePayload {
+  nodeCount: number;
+  complete: boolean;
+  truncation: ScopeTruncation | null;
+  outlineJsonl: string;
+}
 
-/**
- * 将范围序列化为稳定的扁平 JSONL。outline 始终保留完整范围结构，
- * focusNodes 只限制详细 facts，避免为少数关键节点写入全树细节。
- */
-export async function serializeSemanticScope(
-  input: SerializeSemanticScopeInput,
-): Promise<SemanticPayload> {
-  const outline: SemanticOutlineRecord[] = [];
-  const facts: SemanticFactRecord[] = [];
+/** 大型范围只建立结构索引，不读取完整视觉事实。 */
+export async function serializeScopeIndex(input: ScopeLimits): Promise<ScopePayload> {
+  const result = await serializeScope(input);
+  return {
+    nodeCount: result.nodeCount,
+    complete: result.complete,
+    truncation: result.truncation,
+    outlineJsonl: result.outlineJsonl,
+  };
+}
+
+/** workunit 始终生成实施事实；空 factNodes 表示读取有界范围内的全部节点。 */
+export async function serializeWorkunitSource(
+  input: ScopeLimits & { factNodes: readonly SceneNode[] },
+): Promise<ScopePayload & { factsJsonl: string }> {
+  return await serializeScope(input);
+}
+
+async function serializeScope(
+  input: ScopeLimits & { factNodes?: readonly SceneNode[] },
+): Promise<ScopePayload & { factsJsonl: string }> {
+  const outline: ScopeIndexRecord[] = [];
+  const facts: WorkunitFactRecord[] = [];
   const context = createSerializeContext();
-  const focusIds = new Set(input.focusNodes.map((node) => node.id));
-  const reasons = new Set<SemanticTruncation['reasons'][number]>();
+  const includeFacts = input.factNodes !== undefined;
+  const factIds = new Set(input.factNodes?.map((node) => node.id) ?? []);
+  const reasons = new Set<ScopeTruncation['reasons'][number]>();
   const frontierNodeIds: string[] = [];
   let omittedChildCount = 0;
 
@@ -51,16 +66,8 @@ export async function serializeSemanticScope(
     order: number,
     parentId: string | null,
   ): Promise<void> => {
-    const snapshot = await serializeNode(node, { maxTextLength: input.maxTextLength }, context);
-    const compact = projectCompactNode(snapshot, [
-      'BOUNDS',
-      'LAYOUT',
-      'TEXT',
-      'APPEARANCE',
-      'ASSET_SOURCES',
-      'COMPONENT',
-    ]);
     const children = 'children' in node ? node.children.filter(isSceneNode) : [];
+    const navigation = serializeLightweightTreeNode(node, order, input.maxTextLength);
     outline.push({
       nodeId: node.id,
       parentId,
@@ -68,15 +75,22 @@ export async function serializeSemanticScope(
       order,
       name: node.name,
       type: node.type,
-      ...(compact.visible === false ? { visible: false as const } : {}),
-      ...(compact.bounds ? { navigationBoundsInParent: compact.bounds.inParent } : {}),
-      ...(compact.layout?.mode ? { layoutMode: compact.layout.mode } : {}),
+      ...(navigation.visible ? {} : { visible: false as const }),
+      navigationBoundsInParent: navigation.geometry.local,
+      ...(navigation.layoutMode ? { layoutMode: navigation.layoutMode } : {}),
       childCount: children.length,
     });
 
-    const includeFact =
-      input.profile === 'IMPLEMENTATION' && (focusIds.size === 0 || focusIds.has(node.id));
-    if (includeFact) {
+    if (includeFacts && (factIds.size === 0 || factIds.has(node.id))) {
+      const snapshot = await serializeNode(node, { maxTextLength: input.maxTextLength }, context);
+      const compact = projectCompactNode(snapshot, [
+        'BOUNDS',
+        'LAYOUT',
+        'TEXT',
+        'APPEARANCE',
+        'ASSET_SOURCES',
+        'COMPONENT',
+      ]);
       facts.push({
         nodeId: node.id,
         parentId,
@@ -100,18 +114,16 @@ export async function serializeSemanticScope(
       omit(children, 'DEPTH_LIMIT');
       return;
     }
-    for (const child of children) {
+    for (const [childOrder, child] of children.entries()) {
       if (outline.length >= input.maxNodes) {
-        const start = children.indexOf(child);
-        omit(children.slice(start), 'NODE_LIMIT');
+        omit(children.slice(childOrder), 'NODE_LIMIT');
         break;
       }
-      await visit(child, depth + 1, children.indexOf(child), node.id);
+      await visit(child, depth + 1, childOrder, node.id);
     }
   };
 
   await visit(input.root, 0, 0, null);
-  const structuralReasons = [...reasons].filter((reason) => reason !== 'TEXT_LIMIT');
   const truncation =
     reasons.size > 0
       ? {
@@ -122,7 +134,7 @@ export async function serializeSemanticScope(
       : null;
   return {
     nodeCount: outline.length,
-    complete: structuralReasons.length === 0,
+    complete: reasons.size === 0,
     truncation,
     outlineJsonl: toJsonl(outline),
     factsJsonl: toJsonl(facts),

@@ -12,5 +12,5 @@ export * from './pairing.js';
 export * from './proposal.js';
 export * from './resources.js';
 export * from './rpc.js';
-export * from './semantic.js';
+export * from './frontend.js';
 export * from './tools.js';

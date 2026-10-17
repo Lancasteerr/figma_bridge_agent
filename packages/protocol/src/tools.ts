@@ -189,17 +189,9 @@ export const ExportAssetItemSchema = z.union([
   ExportRenderedAssetItemSchema,
 ]);
 
-/** 批次来源守卫复用语义快照 sourceFingerprint，不再暴露逐项指纹。 */
-export const ExportAssetSourceGuardSchema = z
-  .object({
-    rootNodeId: z.string().min(1),
-    expectedSourceFingerprint: z.string().min(8),
-  })
-  .strict();
-
 export const ExportAssetsInputSchema = z
   .object({
-    sourceGuard: ExportAssetSourceGuardSchema.optional(),
+    workUnitId: z.string().regex(/^workunit-[a-f0-9]{16}$/),
     items: z.array(ExportAssetItemSchema).min(1).max(32),
   })
   .strict()

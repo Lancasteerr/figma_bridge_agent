@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { serializeSemanticScope } from '../src/main/serialization/semantic-snapshot.js';
+import {
+  serializeScopeIndex,
+  serializeWorkunitSource,
+} from '../src/main/serialization/scope-source.js';
 
 const page = { id: 'page:1', name: 'Page', type: 'PAGE', parent: null } as unknown as PageNode;
 
@@ -34,24 +37,18 @@ function node(
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe('范围语义序列化', () => {
-  it('OUTLINE 只输出稳定的扁平层级，不重复详细事实', async () => {
-    vi.stubGlobal('figma', { getImageByHash: vi.fn() });
+describe('前端来源序列化', () => {
+  it('结构索引只输出稳定的扁平层级', async () => {
     const first = node('child:1', 'First', 'RECTANGLE', page);
     const second = node('child:2', 'Second', 'RECTANGLE', page);
     const root = node('root', 'Root', 'FRAME', page, [first, second]);
-
-    const result = await serializeSemanticScope({
+    const result = await serializeScopeIndex({
       root,
-      profile: 'OUTLINE',
-      focusNodes: [],
       depth: 2,
       maxNodes: 20,
-      maxTextLength: 100,
+      maxTextLength: 80,
     });
-
     expect(result.complete).toBe(true);
-    expect(result.factsJsonl).toBe('');
     expect(
       result.outlineJsonl
         .trim()
@@ -64,7 +61,7 @@ describe('范围语义序列化', () => {
     ]);
   });
 
-  it('focusNodeIds 保留完整 outline，并只为焦点生成事实', async () => {
+  it('workunit 保留完整 outline，并只为选定节点生成事实', async () => {
     vi.stubGlobal('figma', { getImageByHash: vi.fn() });
     const leaf = node('leaf', 'Indicator', 'RECTANGLE', page, [], {
       absoluteRenderBounds: { x: -2, y: -2, width: 104, height: 44 },
@@ -75,43 +72,39 @@ describe('范围语义序列化', () => {
     const branch = node('branch', 'Selected item', 'FRAME', page, [leaf]);
     const unrelated = node('other', 'Other item', 'FRAME', page);
     const root = node('root', 'Sidebar', 'FRAME', page, [branch, unrelated]);
-
-    const result = await serializeSemanticScope({
+    const result = await serializeWorkunitSource({
       root,
-      profile: 'IMPLEMENTATION',
-      focusNodes: [leaf],
+      factNodes: [leaf],
       depth: 8,
       maxNodes: 20,
       maxTextLength: 100,
     });
-
-    const outlineIds = result.outlineJsonl
-      .trim()
-      .split('\n')
-      .map((line) => JSON.parse(line).nodeId);
-    const factIds = result.factsJsonl
-      .trim()
-      .split('\n')
-      .map((line) => JSON.parse(line).nodeId);
-    expect(outlineIds).toEqual(['root', 'branch', 'leaf', 'other']);
-    expect(factIds).toEqual(['leaf']);
-    const fact = JSON.parse(result.factsJsonl.trim()) as Record<string, unknown>;
-    expect(fact).toMatchObject({
+    expect(
+      result.outlineJsonl
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line).nodeId),
+    ).toEqual(['root', 'branch', 'leaf', 'other']);
+    expect(
+      result.factsJsonl
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line).nodeId),
+    ).toEqual(['leaf']);
+    expect(JSON.parse(result.factsJsonl.trim())).toMatchObject({
       bounds: { renderOnPage: { x: -2, y: -2, width: 104, height: 44 } },
       appearance: { strokeAlign: 'OUTSIDE' },
     });
   });
 
-  it('区分结构截断和文本截断的完整性', async () => {
+  it('结构和文本截断都会使实施证据不完整', async () => {
     vi.stubGlobal('figma', { getImageByHash: vi.fn() });
     const text = node('text', 'Text', 'TEXT', page, [], { characters: 'abcdef' });
     const child = node('child', 'Child', 'FRAME', page, [text]);
     const root = node('root', 'Root', 'FRAME', page, [child]);
-
-    const depthLimited = await serializeSemanticScope({
+    const depthLimited = await serializeWorkunitSource({
       root,
-      profile: 'IMPLEMENTATION',
-      focusNodes: [],
+      factNodes: [],
       depth: 0,
       maxNodes: 20,
       maxTextLength: 3,
@@ -122,16 +115,14 @@ describe('范围语义序列化', () => {
       frontierNodeIds: ['child'],
       omittedChildCount: 1,
     });
-
-    const textLimited = await serializeSemanticScope({
+    const textLimited = await serializeWorkunitSource({
       root,
-      profile: 'IMPLEMENTATION',
-      focusNodes: [],
+      factNodes: [],
       depth: 3,
       maxNodes: 20,
       maxTextLength: 3,
     });
-    expect(textLimited.complete).toBe(true);
+    expect(textLimited.complete).toBe(false);
     expect(textLimited.truncation?.reasons).toEqual(['TEXT_LIMIT']);
   });
 });

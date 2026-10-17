@@ -73,6 +73,11 @@ describe('MCP tool contract', () => {
       destructiveHint: true,
       idempotentHint: true,
     });
+    const exportAssetsSchema = JSON.stringify(
+      frontendTools.find((tool) => tool.name === 'figma_frontend_export_assets')?.inputSchema,
+    );
+    expect(exportAssetsSchema).toContain('workUnitId');
+    expect(exportAssetsSchema).not.toContain('sourceGuard');
     const nodeSchema = frontendTools.find(
       (tool) => tool.name === 'figma_inspect_read_node_facts',
     )?.outputSchema;

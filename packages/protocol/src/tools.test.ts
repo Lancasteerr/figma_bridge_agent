@@ -208,11 +208,11 @@ describe('raw node projection input', () => {
 });
 
 describe('asset export input', () => {
-  const fingerprint = '12345678';
+  const workUnitId = 'workunit-1234567890abcdef';
 
-  it('接受带单一来源守卫的 RAW+SVG 批次，并从插件 RPC 移除本地交付字段', () => {
+  it('接受带 workunit 守卫的 RAW+SVG 批次，并从插件 RPC 移除本地交付字段', () => {
     const input = {
-      sourceGuard: { rootNodeId: 'root', expectedSourceFingerprint: fingerprint },
+      workUnitId,
       items: [
         {
           nodeId: 'node:1',
@@ -230,8 +230,15 @@ describe('asset export input', () => {
       ],
     };
     expect(ExportAssetsInputSchema.parse(input)).toMatchObject({
+      workUnitId,
       items: [{ writePolicy: 'REUSE_OR_FAIL' }, { writePolicy: 'REUSE_OR_FAIL' }],
     });
+    expect(
+      ExportAssetsInputSchema.safeParse({
+        sourceGuard: { rootNodeId: 'root', expectedSourceFingerprint: '12345678' },
+        items: input.items,
+      }).success,
+    ).toBe(false);
     expect(
       ExportAssetRpcInputSchema.safeParse({
         nodeId: 'node:1',
@@ -251,11 +258,13 @@ describe('asset export input', () => {
     };
     for (const outputPathStem of ['C:\\temp\\avatar', '../avatar', '/tmp/avatar', 'a.png']) {
       expect(
-        ExportAssetsInputSchema.safeParse({ items: [{ ...base, outputPathStem }] }).success,
+        ExportAssetsInputSchema.safeParse({ workUnitId, items: [{ ...base, outputPathStem }] })
+          .success,
       ).toBe(false);
     }
     expect(
       ExportAssetsInputSchema.safeParse({
+        workUnitId,
         items: Array.from({ length: 33 }, (_, index) => ({
           ...base,
           outputPathStem: `assets/${index}`,
@@ -267,6 +276,7 @@ describe('asset export input', () => {
   it('拒绝 SVG scale 和渲染格式扩展名不匹配', () => {
     expect(
       ExportAssetsInputSchema.safeParse({
+        workUnitId,
         items: [
           {
             nodeId: 'node:1',
@@ -280,6 +290,7 @@ describe('asset export input', () => {
     ).toBe(false);
     expect(
       ExportAssetsInputSchema.safeParse({
+        workUnitId,
         items: [
           {
             nodeId: 'node:1',
@@ -295,6 +306,7 @@ describe('asset export input', () => {
   it('显式覆盖仍要求调用方检查过现有文件摘要', () => {
     expect(
       ExportAssetsInputSchema.safeParse({
+        workUnitId,
         items: [
           {
             nodeId: 'node:1',

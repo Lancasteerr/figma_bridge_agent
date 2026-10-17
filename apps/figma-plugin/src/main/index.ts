@@ -4,7 +4,7 @@ import { startEvents } from './events.js';
 import { stageAsset } from './handlers/assets.js';
 import { listFonts } from './handlers/fonts.js';
 import { getDesignResources } from './handlers/resources.js';
-import { checkSemanticScope, exportSemanticScope } from './handlers/semantic-snapshot.js';
+import { checkWorkunitSource, indexScope, prepareWorkunitSource } from './handlers/frontend.js';
 import { getFingerprint, getNode, getTree } from './handlers/read.js';
 import { getStatus } from './handlers/status.js';
 import { checkAssetSourceGuard, exportAsset, renderNode } from './handlers/render.js';
@@ -45,8 +45,9 @@ router.register('applyDesignPlan', applyDesignPlan);
 router.register('stageAsset', stageAsset);
 router.register('listFonts', listFonts);
 router.register('getDesignResources', getDesignResources);
-router.register('exportSemanticScope', exportSemanticScope);
-router.register('checkSemanticScope', checkSemanticScope);
+router.register('indexScope', indexScope);
+router.register('prepareWorkunitSource', prepareWorkunitSource);
+router.register('checkWorkunitSource', checkWorkunitSource);
 startEvents((event) => figma.ui.postMessage({ type: 'rpc-response', payload: event }));
 
 // UI 消息先过 shared schema，再根据 type 分发，避免不可信 payload 直接触碰 Figma API。

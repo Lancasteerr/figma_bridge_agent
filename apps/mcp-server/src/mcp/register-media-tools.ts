@@ -25,6 +25,7 @@ import { imageSize } from 'image-size';
 
 import type { BridgeTransport } from '../bridge/transport.js';
 import type { ExportStore } from '../export/export-store.js';
+import type { FrontendContextStore } from '../frontend/frontend-context-store.js';
 import { validateInboundAsset } from '../inbound/asset-validator.js';
 import type { TemporaryArtifactStore } from '../temp/artifact-store.js';
 import { structuredResult, toolError } from './result.js';
@@ -39,6 +40,7 @@ export function registerMediaTools(
   broker: BridgeTransport,
   previews: TemporaryArtifactStore,
   exports: ExportStore,
+  contexts: Pick<FrontendContextStore, 'resolveAssetSource'>,
 ): RegisteredToolMap {
   const tools: RegisteredToolMap = {};
   tools.figma_frontend_bind_workspace = server.registerTool(
@@ -100,7 +102,7 @@ export function registerMediaTools(
     'figma_frontend_export_assets',
     {
       description:
-        'Atomically export up to 32 exact Figma image paints or node renders under the session-bound workspace. An optional sourceGuard reuses one semantic sourceFingerprint for the entire batch.',
+        'Atomically export up to 32 exact Figma image paints or node renders under the session-bound workspace. The required workUnitId resolves the guarded root and source fingerprint on the server.',
       inputSchema: ExportAssetsInputSchema,
       outputSchema: ExportAssetsResultSchema,
       annotations: {
@@ -117,9 +119,8 @@ export function registerMediaTools(
         // 持久素材在调用插件前检查绑定，未绑定时不会执行昂贵导出。
         exports.workspace.beginWrite();
         const guardedNodeIds = [...new Set(parsed.items.map((item) => item.nodeId))];
-        if (parsed.sourceGuard) {
-          await assertSourceGuard(broker, parsed.sourceGuard, guardedNodeIds);
-        }
+        const sourceGuard = await contexts.resolveAssetSource(parsed.workUnitId);
+        await assertSourceGuard(broker, sourceGuard, guardedNodeIds);
 
         const staged: Array<{
           relativePath: string;
@@ -163,9 +164,7 @@ export function registerMediaTools(
           });
         }
 
-        if (parsed.sourceGuard) {
-          await assertSourceGuard(broker, parsed.sourceGuard, guardedNodeIds);
-        }
+        await assertSourceGuard(broker, sourceGuard, guardedNodeIds);
         const stored = await exports.writeBatch(staged);
         return structuredResult(
           ExportAssetsResultSchema.parse({
@@ -353,7 +352,7 @@ async function assertSourceGuard(
   if (result.sourceFingerprint !== guard.expectedSourceFingerprint) {
     throw new BridgeFault({
       code: 'ASSET_SOURCE_CHANGED',
-      message: 'The guarded Figma source no longer matches the semantic snapshot.',
+      message: 'The guarded Figma source no longer matches the prepared workunit.',
       retryable: true,
       nodeId: guard.rootNodeId,
     });

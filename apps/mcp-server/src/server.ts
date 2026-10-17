@@ -5,14 +5,14 @@ import { DaemonBridgeClient } from './bridge/daemon-client.js';
 import type { BridgeTransport } from './bridge/transport.js';
 import type { ServerConfig } from './config/store.js';
 import { ExportStore } from './export/export-store.js';
+import { FrontendContextStore } from './frontend/frontend-context-store.js';
 import { registerReadTools } from './mcp/register-read-tools.js';
 import { registerMediaTools } from './mcp/register-media-tools.js';
 import { registerDesignTools } from './mcp/register-design-tools.js';
 import { registerMutationTools } from './mcp/register-mutation-tools.js';
 import { registerStatusTool } from './mcp/register-status.js';
-import { registerSemanticTools } from './mcp/register-semantic-tools.js';
+import { registerFrontendTools } from './mcp/register-frontend-tools.js';
 import { registerWorkflowActivationTool } from './mcp/register-workflow-tool.js';
-import { SemanticSnapshotStore } from './semantic/semantic-snapshot-store.js';
 import { TemporaryArtifactStore } from './temp/artifact-store.js';
 import { SessionWorkspace } from './storage/session-workspace.js';
 
@@ -27,7 +27,7 @@ export function createMcpServer(
   broker: BridgeTransport,
   assets: TemporaryArtifactStore,
   exports: ExportStore,
-  snapshots = new SemanticSnapshotStore(exports.workspace, {
+  contexts = new FrontendContextStore(exports.workspace, {
     pluginVersion: () => broker.pluginVersion,
   }),
 ): McpServer {
@@ -35,8 +35,8 @@ export function createMcpServer(
   registerStatusTool(server, broker, exports);
   const workflowTools = {
     ...registerReadTools(server, broker, assets),
-    ...registerMediaTools(server, broker, assets, exports),
-    ...registerSemanticTools(server, broker, snapshots),
+    ...registerMediaTools(server, broker, assets, exports, contexts),
+    ...registerFrontendTools(server, broker, contexts),
     ...registerMutationTools(server, broker),
     ...registerDesignTools(server, broker),
   };
@@ -50,14 +50,14 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
   const workspace = new SessionWorkspace();
   const assets = new TemporaryArtifactStore({ sessionId: workspace.sessionId });
   const exports = new ExportStore({ workspace });
-  const snapshots = new SemanticSnapshotStore(workspace, {
+  const contexts = new FrontendContextStore(workspace, {
     pluginVersion: () => broker.pluginVersion,
   });
   await Promise.all([assets.initialize(), workspace.initialize()]);
   broker.start();
 
   const handle: StdioServerHandle = serveStdio(
-    () => createMcpServer(broker, assets, exports, snapshots),
+    () => createMcpServer(broker, assets, exports, contexts),
     {
       onerror: (error) => console.error(JSON.stringify({ level: 'error', message: error.message })),
     },

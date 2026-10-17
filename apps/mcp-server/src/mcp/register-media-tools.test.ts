@@ -19,6 +19,7 @@ type ToolHandler = (input: Record<string, unknown>) => Promise<{
 const cleanupPaths: string[] = [];
 const artifactStores: TemporaryArtifactStore[] = [];
 const SESSION_ID = '11111111-1111-4111-8111-111111111111';
+const WORK_UNIT_ID = 'workunit-1234567890abcdef';
 const PNG_1X1 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 const JPG_1X1 =
@@ -38,7 +39,7 @@ async function setup(
         method: string,
         params: unknown,
       ) => Record<string, unknown> | Promise<Record<string, unknown>>),
-  options: { bind?: boolean } = {},
+  options: { bind?: boolean; delegateSourceGuard?: boolean } = {},
 ) {
   const workspace = await mkdtemp(join(tmpdir(), 'figma-media-tool-workspace-test-'));
   const home = await mkdtemp(join(tmpdir(), 'figma-media-tool-home-test-'));
@@ -60,13 +61,21 @@ async function setup(
   const broker = {
     connected: true,
     pluginVersion: '3.0.0',
-    request: vi.fn(async (method: string, params: unknown) =>
-      typeof rpcResult === 'function' ? await rpcResult(method, params) : rpcResult,
-    ),
+    request: vi.fn(async (method: string, params: unknown) => {
+      if (method === 'checkAssetSourceGuard' && !options.delegateSourceGuard) {
+        return { rootNodeId: 'root', sourceFingerprint: 'source-123' };
+      }
+      return typeof rpcResult === 'function' ? await rpcResult(method, params) : rpcResult;
+    }),
     onEvent: vi.fn(() => () => undefined),
     close: vi.fn(async () => undefined),
   } as unknown as BridgeTransport;
-  registerMediaTools(server, broker, artifacts, exports);
+  registerMediaTools(server, broker, artifacts, exports, {
+    resolveAssetSource: vi.fn(async () => ({
+      rootNodeId: 'root',
+      expectedSourceFingerprint: 'source-123',
+    })),
+  });
   if (options.bind !== false) {
     const response = await handlers.get('figma_frontend_bind_workspace')!({
       rootPath: workspace,
@@ -80,7 +89,8 @@ async function setup(
     exports,
     broker,
     handlers,
-    handler: handlers.get('figma_frontend_export_assets')!,
+    handler: (input: Record<string, unknown>) =>
+      handlers.get('figma_frontend_export_assets')!({ workUnitId: WORK_UNIT_ID, ...input }),
   };
 }
 
@@ -220,6 +230,7 @@ describe('figma_frontend_export_assets MCP 工具', () => {
     );
 
     const response = await handlers.get('figma_frontend_export_assets')!({
+      workUnitId: WORK_UNIT_ID,
       items: [
         {
           nodeId: 'node:1',
@@ -370,28 +381,30 @@ describe('figma_frontend_export_assets MCP 工具', () => {
 
   it('source guard 在整批前后复检，变化时不提交任何文件', async () => {
     let guardChecks = 0;
-    const { handler, workspace, broker } = await setup(async (method) => {
-      if (method === 'checkAssetSourceGuard') {
-        guardChecks += 1;
+    const { handler, workspace, broker } = await setup(
+      async (method) => {
+        if (method === 'checkAssetSourceGuard') {
+          guardChecks += 1;
+          return {
+            rootNodeId: 'root',
+            sourceFingerprint: guardChecks === 1 ? 'source-123' : 'source-changed',
+          };
+        }
         return {
-          rootNodeId: 'root',
-          sourceFingerprint: guardChecks === 1 ? 'source-123' : 'source-changed',
+          nodeId: 'node:1',
+          mode: 'RENDERED',
+          format: 'SVG',
+          mimeType: 'image/svg+xml',
+          data: '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80" />',
+          encoding: 'utf8',
+          width: 100,
+          height: 80,
         };
-      }
-      return {
-        nodeId: 'node:1',
-        mode: 'RENDERED',
-        format: 'SVG',
-        mimeType: 'image/svg+xml',
-        data: '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80" />',
-        encoding: 'utf8',
-        width: 100,
-        height: 80,
-      };
-    });
+      },
+      { delegateSourceGuard: true },
+    );
 
     const response = await handler({
-      sourceGuard: { rootNodeId: 'root', expectedSourceFingerprint: 'source-123' },
       items: [
         {
           nodeId: 'node:1',

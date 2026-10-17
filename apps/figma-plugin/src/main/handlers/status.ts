@@ -27,7 +27,7 @@ export function getStatus(): PluginStatusResult {
       'asset-staging-v1',
       'font-catalog-v1',
       'design-resources-v1',
-      'semantic-snapshot-v1',
+      'frontend-workunit-v1',
     ],
   };
 }
