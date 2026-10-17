@@ -87,7 +87,8 @@ export class SessionWorkspace {
     if (this.#status.state === 'UNBOUND') {
       throw new BridgeFault({
         code: 'EXPORT_ROOT_UNBOUND',
-        message: 'Bind the current workspace with figma_bind_export_root before writing files.',
+        message:
+          'Bind the current workspace with figma_frontend_bind_workspace before writing files.',
         retryable: true,
       });
     }

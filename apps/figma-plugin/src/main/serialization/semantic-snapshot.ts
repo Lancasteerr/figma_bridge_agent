@@ -53,11 +53,11 @@ export async function serializeSemanticScope(
   ): Promise<void> => {
     const snapshot = await serializeNode(node, { maxTextLength: input.maxTextLength }, context);
     const compact = projectCompactNode(snapshot, [
-      'GEOMETRY',
+      'BOUNDS',
       'LAYOUT',
       'TEXT',
-      'VISUAL',
-      'ASSETS',
+      'APPEARANCE',
+      'ASSET_SOURCES',
       'COMPONENT',
     ]);
     const children = 'children' in node ? node.children.filter(isSceneNode) : [];
@@ -69,7 +69,7 @@ export async function serializeSemanticScope(
       name: node.name,
       type: node.type,
       ...(compact.visible === false ? { visible: false as const } : {}),
-      ...(compact.geometry ? { geometry: compact.geometry } : {}),
+      ...(compact.bounds ? { navigationBoundsInParent: compact.bounds.inParent } : {}),
       ...(compact.layout?.mode ? { layoutMode: compact.layout.mode } : {}),
       childCount: children.length,
     });
@@ -86,11 +86,11 @@ export async function serializeSemanticScope(
         type: node.type,
         ...(compact.visible === false ? { visible: false as const } : {}),
         ...(compact.locked === true ? { locked: true as const } : {}),
-        ...(compact.geometry ? { geometry: compact.geometry } : {}),
+        ...(compact.bounds ? { bounds: compact.bounds } : {}),
         ...(compact.layout ? { layout: compact.layout } : {}),
         ...(compact.text ? { text: compact.text } : {}),
-        ...(compact.visual ? { visual: compact.visual } : {}),
-        ...(compact.assets ? { assets: compact.assets } : {}),
+        ...(compact.appearance ? { appearance: compact.appearance } : {}),
+        ...(compact.assetSources ? { assetSources: compact.assetSources } : {}),
         ...(compact.component ? { component: compact.component } : {}),
       });
       if (snapshot.text?.truncated) reasons.add('TEXT_LIMIT');

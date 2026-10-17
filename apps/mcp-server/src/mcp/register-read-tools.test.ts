@@ -50,7 +50,7 @@ async function setup(tree: Record<string, unknown>) {
     artifactRoot: artifacts.root,
     broker,
     handlers,
-    handler: handlers.get('figma_get_tree')!,
+    handler: handlers.get('figma_inspect_browse_nodes')!,
   };
 }
 
@@ -95,7 +95,7 @@ function tree(children: Record<string, unknown>[]) {
   };
 }
 
-describe('figma_get_raw_node MCP 投影', () => {
+describe('figma_inspect_read_raw_fields MCP 投影', () => {
   it('把自节点默认值和字段投影发送给插件，只公开 node', async () => {
     const rpc = {
       nodeId: 'node:1',
@@ -104,7 +104,7 @@ describe('figma_get_raw_node MCP 投影', () => {
     };
     const { broker, handlers } = await setup(rpc);
 
-    const response = await handlers.get('figma_get_raw_node')!({
+    const response = await handlers.get('figma_inspect_read_raw_fields')!({
       nodeId: 'node:1',
       fields: ['reactions'],
     });
@@ -124,31 +124,31 @@ describe('figma_get_raw_node MCP 投影', () => {
   });
 });
 
-describe('figma_get_node MCP 投影', () => {
+describe('figma_inspect_read_node_facts MCP 投影', () => {
   it('默认不请求 children，并原样公开插件生成的紧凑事实', async () => {
     const compact = {
       name: 'Card',
       type: 'FRAME',
-      geometry: {
-        local: { x: 0, y: 0, width: 100, height: 80 },
-        absolute: { x: 0, y: 0, width: 100, height: 80 },
+      bounds: {
+        inParent: { x: 0, y: 0, width: 100, height: 80 },
+        onPage: { x: 0, y: 0, width: 100, height: 80 },
       },
     };
     const { broker, handlers } = await setup(compact);
 
-    const response = await handlers.get('figma_get_node')!({ nodeId: 'node:1' });
+    const response = await handlers.get('figma_inspect_read_node_facts')!({ nodeId: 'node:1' });
 
     expect(broker.request).toHaveBeenCalledWith('getNode', {
       nodeId: 'node:1',
-      fields: ['GEOMETRY', 'LAYOUT', 'TEXT', 'VISUAL', 'ASSETS', 'COMPONENT'],
+      fields: ['BOUNDS', 'LAYOUT', 'TEXT', 'APPEARANCE', 'ASSET_SOURCES', 'COMPONENT'],
     });
     expect(response.structuredContent).toEqual(compact);
-    expect(response.structuredContent).not.toHaveProperty('children');
+    expect(response.structuredContent).not.toHaveProperty('directChildren');
     expect(response.structuredContent).not.toHaveProperty('snapshotFingerprint');
   });
 });
 
-describe('figma_get_tree MCP 交付', () => {
+describe('figma_inspect_browse_nodes MCP 交付', () => {
   it('小树在预算内完整内联，且交付策略不发送给插件', async () => {
     const { broker, handler } = await setup(tree([node('child')]));
 
@@ -158,7 +158,7 @@ describe('figma_get_tree MCP 交付', () => {
     expect(response.structuredContent).not.toHaveProperty('artifact');
     expect(response.structuredContent?.root).toMatchObject({
       id: 'root',
-      bounds: { x: 0, y: 0, width: 100, height: 80 },
+      navigationBoundsInParent: { x: 0, y: 0, width: 100, height: 80 },
       children: [{ id: 'child' }],
     });
     expect(response.structuredContent?.root).not.toHaveProperty('geometry');

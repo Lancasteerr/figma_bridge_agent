@@ -43,6 +43,15 @@ export const CompactGeometrySchema = GeometrySchema.omit({ rotation: true }).ext
 });
 export type CompactGeometry = z.infer<typeof CompactGeometrySchema>;
 
+/** MCP 对外暴露的实现边界；字段名明确区分父坐标系、页面坐标系和渲染墨迹边界。 */
+export const BoundsSchema = z.object({
+  inParent: GeometrySchema.shape.local,
+  onPage: GeometrySchema.shape.absolute,
+  renderOnPage: GeometrySchema.shape.absoluteRenderBounds,
+  rotation: z.number().optional(),
+});
+export type Bounds = z.infer<typeof BoundsSchema>;
+
 /** Figma Auto Layout 的尺寸策略和节点布局模式。 */
 export const AxisSizingSchema = z.enum(['FIXED', 'HUG', 'FILL']);
 export const LayoutModeSchema = z.enum(['NONE', 'HORIZONTAL', 'VERTICAL', 'GRID']);
@@ -307,7 +316,7 @@ export const PublicNodeChildSchema = z
     id: z.string(),
     name: z.string(),
     type: z.string(),
-    geometry: CompactGeometrySchema.optional(),
+    bounds: BoundsSchema.optional(),
   })
   .strict();
 
@@ -317,15 +326,15 @@ export const NodeResultSchema = z
     name: z.string(),
     type: z.string(),
     parentId: z.string().optional(),
-    geometry: CompactGeometrySchema.optional(),
+    bounds: BoundsSchema.optional(),
     visible: z.literal(false).optional(),
     locked: z.literal(true).optional(),
     layout: LayoutSnapshotSchema.optional(),
     text: CompactTextSnapshotSchema.optional(),
-    visual: VisualSnapshotSchema.optional(),
-    assets: CompactNodeAssetSnapshotSchema.optional(),
+    appearance: VisualSnapshotSchema.optional(),
+    assetSources: CompactNodeAssetSnapshotSchema.optional(),
     component: ComponentSnapshotSchema.optional(),
-    children: z.array(PublicNodeChildSchema).optional(),
+    directChildren: z.array(PublicNodeChildSchema).optional(),
   })
   .strict();
 export type NodeResult = z.infer<typeof NodeResultSchema>;
@@ -427,7 +436,7 @@ export type PublicTreeNode = {
   id: string;
   name: string;
   type: string;
-  bounds: { x: number; y: number; width: number; height: number };
+  navigationBoundsInParent: { x: number; y: number; width: number; height: number };
   childCount: number;
   visible?: false | undefined;
   layoutMode?: z.infer<typeof LayoutModeSchema> | undefined;
@@ -442,7 +451,7 @@ export const PublicTreeNodeSchema: z.ZodType<PublicTreeNode> = z
     id: z.string(),
     name: z.string().max(200),
     type: z.string(),
-    bounds: z
+    navigationBoundsInParent: z
       .object({
         x: z.number(),
         y: z.number(),

@@ -97,8 +97,8 @@ describe('范围语义序列化', () => {
     expect(factIds).toEqual(['leaf']);
     const fact = JSON.parse(result.factsJsonl.trim()) as Record<string, unknown>;
     expect(fact).toMatchObject({
-      geometry: { absoluteRenderBounds: { x: -2, y: -2, width: 104, height: 44 } },
-      visual: { strokeAlign: 'OUTSIDE' },
+      bounds: { renderOnPage: { x: -2, y: -2, width: 104, height: 44 } },
+      appearance: { strokeAlign: 'OUTSIDE' },
     });
   });
 

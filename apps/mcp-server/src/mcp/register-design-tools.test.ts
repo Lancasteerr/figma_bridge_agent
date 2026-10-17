@@ -10,7 +10,7 @@ type ToolHandler = (input: Record<string, unknown>) => Promise<{
   content: Array<{ type: string; text?: string }>;
 }>;
 
-describe('figma_validate_design_plan MCP 工具', () => {
+describe('figma_design_validate_plan MCP 工具', () => {
   it('公开 schema 接收通用 JSON 后仍以完整 DesignPlan schema 严格校验', async () => {
     const handlers = new Map<string, ToolHandler>();
     const server = {
@@ -26,7 +26,7 @@ describe('figma_validate_design_plan MCP 工具', () => {
       })),
     } as unknown as BridgeTransport;
     registerDesignTools(server, broker);
-    const validate = handlers.get('figma_validate_design_plan')!;
+    const validate = handlers.get('figma_design_validate_plan')!;
 
     const invalid = await validate({ plan: {} });
     expect(invalid.isError).toBe(true);

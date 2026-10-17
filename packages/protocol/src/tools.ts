@@ -18,21 +18,21 @@ export const ActivateWorkflowResultSchema = z
   .strict();
 /** 节点读取按稳定字段组投影；children 必须由调用方显式请求。 */
 export const NodeFieldSchema = z.enum([
-  'GEOMETRY',
+  'BOUNDS',
   'LAYOUT',
   'TEXT',
-  'VISUAL',
-  'ASSETS',
+  'APPEARANCE',
+  'ASSET_SOURCES',
   'COMPONENT',
-  'CHILDREN',
+  'DIRECT_CHILDREN',
 ]);
 export type NodeField = z.infer<typeof NodeFieldSchema>;
 export const DEFAULT_NODE_FIELDS: readonly NodeField[] = [
-  'GEOMETRY',
+  'BOUNDS',
   'LAYOUT',
   'TEXT',
-  'VISUAL',
-  'ASSETS',
+  'APPEARANCE',
+  'ASSET_SOURCES',
   'COMPONENT',
 ];
 export const GetNodeInputSchema = z
@@ -367,8 +367,14 @@ export const RenderRpcResultSchema = z
 export const RenderResultSchema = z
   .object({
     localPath: z.string().min(1),
-    width: z.number().positive().describe('Actual pixel width decoded from the final PNG bytes.'),
-    height: z.number().positive().describe('Actual pixel height decoded from the final PNG bytes.'),
+    pixelWidth: z
+      .number()
+      .positive()
+      .describe('Actual pixel width decoded from the final PNG bytes.'),
+    pixelHeight: z
+      .number()
+      .positive()
+      .describe('Actual pixel height decoded from the final PNG bytes.'),
     expiresAt: z.string().datetime(),
   })
   .strict();
@@ -396,11 +402,11 @@ export const ExportAssetsResultSchema = z
           path: z.string().min(1),
           status: z.enum(['CREATED', 'REUSED', 'UPDATED']),
           mimeType: z.string().min(1),
-          width: z
+          intrinsicWidth: z
             .number()
             .positive()
             .describe('Intrinsic width decoded from the final exported file.'),
-          height: z
+          intrinsicHeight: z
             .number()
             .positive()
             .describe('Intrinsic height decoded from the final exported file.'),

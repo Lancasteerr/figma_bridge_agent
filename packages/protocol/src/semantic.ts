@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import {
-  CompactGeometrySchema,
+  BoundsSchema,
   CompactNodeAssetSnapshotSchema,
   CompactTextSnapshotSchema,
   ComponentSnapshotSchema,
@@ -40,7 +40,7 @@ export const SemanticOutlineRecordSchema = z
     name: z.string(),
     type: z.string(),
     visible: z.literal(false).optional(),
-    geometry: CompactGeometrySchema.optional(),
+    navigationBoundsInParent: BoundsSchema.shape.inParent.optional(),
     layoutMode: z.string().optional(),
     childCount: z.number().int().nonnegative(),
   })
@@ -58,11 +58,11 @@ export const SemanticFactRecordSchema = z
     type: z.string(),
     visible: z.literal(false).optional(),
     locked: z.literal(true).optional(),
-    geometry: CompactGeometrySchema.optional(),
+    bounds: BoundsSchema.optional(),
     layout: LayoutSnapshotSchema.optional(),
     text: CompactTextSnapshotSchema.optional(),
-    visual: VisualSnapshotSchema.optional(),
-    assets: CompactNodeAssetSnapshotSchema.optional(),
+    appearance: VisualSnapshotSchema.optional(),
+    assetSources: CompactNodeAssetSnapshotSchema.optional(),
     component: ComponentSnapshotSchema.optional(),
   })
   .strict();

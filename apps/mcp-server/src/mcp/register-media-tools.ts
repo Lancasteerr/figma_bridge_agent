@@ -41,8 +41,8 @@ export function registerMediaTools(
   exports: ExportStore,
 ): RegisteredToolMap {
   const tools: RegisteredToolMap = {};
-  tools.figma_bind_export_root = server.registerTool(
-    'figma_bind_export_root',
+  tools.figma_frontend_bind_workspace = server.registerTool(
+    'figma_frontend_bind_workspace',
     {
       description:
         'Bind the current MCP session to the exact absolute workspace root reported by the Agent execution environment. Call figma_status first and bind before the first export.',
@@ -67,8 +67,8 @@ export function registerMediaTools(
     },
   );
 
-  tools.figma_stage_asset = server.registerTool(
-    'figma_stage_asset',
+  tools.figma_design_stage_asset = server.registerTool(
+    'figma_design_stage_asset',
     {
       description:
         'Validate Agent-provided Base64 PNG, JPEG, GIF, or SVG data and stage it in the connected Figma plugin memory. URLs and local paths are not accepted.',
@@ -96,8 +96,8 @@ export function registerMediaTools(
     },
   );
 
-  tools.figma_export_assets = server.registerTool(
-    'figma_export_assets',
+  tools.figma_frontend_export_assets = server.registerTool(
+    'figma_frontend_export_assets',
     {
       description:
         'Atomically export up to 32 exact Figma image paints or node renders under the session-bound workspace. An optional sourceGuard reuses one semantic sourceFingerprint for the entire batch.',
@@ -173,8 +173,8 @@ export function registerMediaTools(
               path: file.projectRelativePath,
               status: file.status,
               mimeType: staged[index]!.mimeType,
-              width: staged[index]!.width,
-              height: staged[index]!.height,
+              intrinsicWidth: staged[index]!.width,
+              intrinsicHeight: staged[index]!.height,
               dimensionUnit: staged[index]!.dimensionUnit,
             })),
           }),
@@ -185,8 +185,8 @@ export function registerMediaTools(
     },
   );
 
-  tools.figma_render_node = server.registerTool(
-    'figma_render_node',
+  tools.figma_inspect_render_preview = server.registerTool(
+    'figma_inspect_render_preview',
     {
       description:
         'Render one node from the current Figma page as a bounded PNG for visual inspection. Combine this with tree and geometry data.',
@@ -224,8 +224,8 @@ export function registerMediaTools(
         return structuredResult(
           RenderResultSchema.parse({
             localPath: stored.localPath,
-            width: dimensions.width,
-            height: dimensions.height,
+            pixelWidth: dimensions.width,
+            pixelHeight: dimensions.height,
             expiresAt: stored.expiresAt,
           }),
         );

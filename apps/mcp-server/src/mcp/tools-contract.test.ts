@@ -67,20 +67,22 @@ describe('MCP tool contract', () => {
     const frontendTools = await client.listTools();
     expect(JSON.stringify(frontendTools).length).toBeLessThanOrEqual(45_000);
     expect(
-      frontendTools.find((tool) => tool.name === 'figma_export_assets')?.annotations,
+      frontendTools.find((tool) => tool.name === 'figma_frontend_export_assets')?.annotations,
     ).toMatchObject({
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: true,
     });
-    const nodeSchema = frontendTools.find((tool) => tool.name === 'figma_get_node')?.outputSchema;
-    expect(propertyDescriptions(nodeSchema, 'local')).toContain(
+    const nodeSchema = frontendTools.find(
+      (tool) => tool.name === 'figma_inspect_read_node_facts',
+    )?.outputSchema;
+    expect(propertyDescriptions(nodeSchema, 'inParent')).toContain(
       'Bounds in the immediate parent coordinate system; use for parent-child layout.',
     );
-    expect(propertyDescriptions(nodeSchema, 'absolute')).toContain(
+    expect(propertyDescriptions(nodeSchema, 'onPage')).toContain(
       'Bounds in Figma Page coordinates; use for positioning nodes on the page.',
     );
-    expect(propertyDescriptions(nodeSchema, 'absoluteRenderBounds')).toContain(
+    expect(propertyDescriptions(nodeSchema, 'renderOnPage')).toContain(
       'Visible ink bounds in Figma Page coordinates, including outer strokes and effects such as shadows.',
     );
 
@@ -88,11 +90,11 @@ describe('MCP tool contract', () => {
     const designTools = await client.listTools();
     expect(JSON.stringify(designTools).length).toBeLessThanOrEqual(55_000);
     expect(
-      designTools.find((tool) => tool.name === 'figma_discard_proposal')?.annotations,
+      designTools.find((tool) => tool.name === 'figma_design_discard_proposal')?.annotations,
     ).toMatchObject({
       destructiveHint: true,
     });
-    const validatePlan = designTools.find((tool) => tool.name === 'figma_validate_design_plan');
+    const validatePlan = designTools.find((tool) => tool.name === 'figma_design_validate_plan');
     const validateSchema = JSON.stringify(validatePlan?.inputSchema);
     expect(validateSchema.length).toBeLessThan(5_000);
     expect(validateSchema).toContain('Complete DesignPlan JSON');
@@ -101,7 +103,7 @@ describe('MCP tool contract', () => {
     const beforeSwitch = client.listChangedCount();
     await expectActivation(client, 'INSPECT', expectedNames(INSPECT_TOOL_NAMES));
     expect(client.listChangedCount()).toBeGreaterThan(beforeSwitch);
-    const disabled = await client.callTool('figma_export_assets', { items: [] });
+    const disabled = await client.callTool('figma_frontend_export_assets', { items: [] });
     expect(disabled).toHaveProperty('error');
 
     // 激活过程只操作本地句柄，不访问 Figma，也不改变工作区绑定。

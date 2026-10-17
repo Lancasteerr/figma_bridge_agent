@@ -67,18 +67,18 @@ describe('aggregate fingerprint input', () => {
 });
 
 describe('compact node input', () => {
-  it('默认选择除 CHILDREN 外的事实字段组', () => {
+  it('默认选择除 DIRECT_CHILDREN 外的事实字段组', () => {
     expect(GetNodeInputSchema.parse({ nodeId: '1:2' })).toEqual({
       nodeId: '1:2',
-      fields: ['GEOMETRY', 'LAYOUT', 'TEXT', 'VISUAL', 'ASSETS', 'COMPONENT'],
+      fields: ['BOUNDS', 'LAYOUT', 'TEXT', 'APPEARANCE', 'ASSET_SOURCES', 'COMPONENT'],
     });
   });
 
-  it('接受显式空投影和 CHILDREN，并拒绝重复字段', () => {
+  it('接受显式空投影和 DIRECT_CHILDREN，并拒绝重复字段', () => {
     expect(GetNodeInputSchema.parse({ nodeId: '1:2', fields: [] }).fields).toEqual([]);
-    expect(GetNodeInputSchema.parse({ nodeId: '1:2', fields: ['CHILDREN'] }).fields).toEqual([
-      'CHILDREN',
-    ]);
+    expect(GetNodeInputSchema.parse({ nodeId: '1:2', fields: ['DIRECT_CHILDREN'] }).fields).toEqual(
+      ['DIRECT_CHILDREN'],
+    );
     expect(GetNodeInputSchema.safeParse({ nodeId: '1:2', fields: ['TEXT', 'TEXT'] }).success).toBe(
       false,
     );
@@ -135,8 +135,8 @@ describe('render result boundary', () => {
     expect(
       RenderResultSchema.safeParse({
         localPath: 'C:\\temp\\preview.png',
-        width: 100,
-        height: 80,
+        pixelWidth: 100,
+        pixelHeight: 80,
         expiresAt: '2026-10-13T00:30:00.000Z',
       }).success,
     ).toBe(true);

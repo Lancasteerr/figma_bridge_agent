@@ -59,7 +59,7 @@ describe('轻量树协议', () => {
       id: '1:2',
       name: 'Hero',
       type: 'FRAME',
-      bounds: { x: 0, y: 0, width: 100, height: 80 },
+      navigationBoundsInParent: { x: 0, y: 0, width: 100, height: 80 },
       childCount: 0,
       layoutMode: 'VERTICAL' as const,
       children: [],
@@ -88,9 +88,10 @@ describe('节点保真协议', () => {
       NodeResultSchema.safeParse({
         name: 'Card',
         type: 'FRAME',
-        geometry: {
-          ...root.geometry,
-          absoluteRenderBounds: { x: -4, y: -4, width: 108, height: 88 },
+        bounds: {
+          inParent: root.geometry.local,
+          onPage: root.geometry.absolute,
+          renderOnPage: { x: -4, y: -4, width: 108, height: 88 },
         },
         layout: {
           sizing: { horizontal: 'FILL', vertical: 'HUG', minWidth: 80 },
@@ -100,12 +101,12 @@ describe('节点保真协议', () => {
           characters: 'Hello',
           runs: [{ start: 0, end: 5, fontSize: 16 }],
         },
-        visual: {
+        appearance: {
           strokeAlign: 'OUTSIDE',
           dashPattern: [4, 2],
           cornerRadii: { topLeft: 4, topRight: 8, bottomRight: 12, bottomLeft: 16 },
         },
-        children: [],
+        directChildren: [],
       }).success,
     ).toBe(true);
   });
@@ -121,7 +122,7 @@ describe('节点保真协议', () => {
         name: 'Text',
         type: 'TEXT',
         text: { characters: 'x'.repeat(65), runs },
-        children: [],
+        directChildren: [],
       }).success,
     ).toBe(false);
   });

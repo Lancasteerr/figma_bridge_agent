@@ -68,7 +68,7 @@ async function setup(
   } as unknown as BridgeTransport;
   registerMediaTools(server, broker, artifacts, exports);
   if (options.bind !== false) {
-    const response = await handlers.get('figma_bind_export_root')!({
+    const response = await handlers.get('figma_frontend_bind_workspace')!({
       rootPath: workspace,
       expectedSessionId: SESSION_ID,
     });
@@ -80,7 +80,7 @@ async function setup(
     exports,
     broker,
     handlers,
-    handler: handlers.get('figma_export_assets')!,
+    handler: handlers.get('figma_frontend_export_assets')!,
   };
 }
 
@@ -99,7 +99,7 @@ const rawSamples = {
   },
 };
 
-describe('figma_export_assets MCP 工具', () => {
+describe('figma_frontend_export_assets MCP 工具', () => {
   it.each(Object.entries(rawSamples))('识别 RAW %s 魔数和最终字节尺寸', async (ext, sample) => {
     const { bytes, width, height } = sample;
     const { handler, workspace } = await setup({
@@ -132,8 +132,8 @@ describe('figma_export_assets MCP 工具', () => {
           status: 'CREATED',
           path: `src/assets/image.${ext}`,
           mimeType: ext === 'jpg' ? 'image/jpeg' : `image/${ext}`,
-          width,
-          height,
+          intrinsicWidth: width,
+          intrinsicHeight: height,
           dimensionUnit: 'PIXEL',
         },
       ],
@@ -186,7 +186,7 @@ describe('figma_export_assets MCP 工具', () => {
 
   it('绑定工具不依赖 Figma RPC，且过期会话返回结构化错误', async () => {
     const { workspace, exports, broker, handlers } = await setup({}, { bind: false });
-    const handler = handlers.get('figma_bind_export_root')!;
+    const handler = handlers.get('figma_frontend_bind_workspace')!;
 
     const mismatch = await handler({
       rootPath: workspace,
@@ -219,7 +219,7 @@ describe('figma_export_assets MCP 工具', () => {
       { bind: false },
     );
 
-    const response = await handlers.get('figma_export_assets')!({
+    const response = await handlers.get('figma_frontend_export_assets')!({
       items: [
         {
           nodeId: 'node:1',
@@ -284,14 +284,14 @@ describe('figma_export_assets MCP 工具', () => {
       assets: [
         expect.objectContaining({
           mimeType: 'image/jpeg',
-          width: 1,
-          height: 1,
+          intrinsicWidth: 1,
+          intrinsicHeight: 1,
           dimensionUnit: 'PIXEL',
         }),
         expect.objectContaining({
           mimeType: 'image/svg+xml',
-          width: 23,
-          height: 22,
+          intrinsicWidth: 23,
+          intrinsicHeight: 22,
           dimensionUnit: 'FIGMA_UNIT',
         }),
       ],
@@ -324,7 +324,7 @@ describe('figma_export_assets MCP 工具', () => {
       ],
     });
     expect(response.structuredContent).toMatchObject({
-      assets: [{ width: 23, height: 22, dimensionUnit: 'FIGMA_UNIT' }],
+      assets: [{ intrinsicWidth: 23, intrinsicHeight: 22, dimensionUnit: 'FIGMA_UNIT' }],
     });
   });
 
@@ -472,7 +472,7 @@ describe('figma_export_assets MCP 工具', () => {
   });
 });
 
-describe('figma_stage_asset MCP 工具', () => {
+describe('figma_design_stage_asset MCP 工具', () => {
   it('公开结果只返回 assetId、尺寸和过期时间，摘要仅留在内部 RPC', async () => {
     const expiresAt = '2026-10-14T00:10:00.000Z';
     const { handlers, broker } = await setup(
@@ -485,7 +485,7 @@ describe('figma_stage_asset MCP 工具', () => {
       { bind: false },
     );
 
-    const response = await handlers.get('figma_stage_asset')!({
+    const response = await handlers.get('figma_design_stage_asset')!({
       name: 'pixel.png',
       mimeType: 'image/png',
       dataBase64: PNG_1X1,
@@ -505,7 +505,7 @@ describe('figma_stage_asset MCP 工具', () => {
   });
 });
 
-describe('figma_render_node MCP 工具', () => {
+describe('figma_inspect_render_preview MCP 工具', () => {
   it('只返回临时 PNG 元数据，不回填 base64 或 image 内容块', async () => {
     const bytes = rawSamples.png.bytes;
     const { artifactRoot, handlers } = await setup(
@@ -520,13 +520,13 @@ describe('figma_render_node MCP 工具', () => {
       { bind: false },
     );
 
-    const response = await handlers.get('figma_render_node')!({ nodeId: 'node:1' });
+    const response = await handlers.get('figma_inspect_render_preview')!({ nodeId: 'node:1' });
 
     expect(response.content).toEqual([]);
     expect(response.structuredContent).toMatchObject({
       localPath: expect.any(String),
-      width: 1,
-      height: 1,
+      pixelWidth: 1,
+      pixelHeight: 1,
       expiresAt: expect.any(String),
     });
     expect(response.structuredContent).not.toHaveProperty('data');

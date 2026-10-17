@@ -9,37 +9,37 @@ import { structuredResult, toolError } from './result.js';
 import type { RegisteredToolMap } from './tool-registry.js';
 
 export const INSPECT_TOOL_NAMES = [
-  'figma_get_tree',
-  'figma_get_node',
-  'figma_render_node',
-  'figma_get_css',
-  'figma_get_raw_node',
-  'figma_get_design_resources',
-  'figma_list_fonts',
+  'figma_inspect_browse_nodes',
+  'figma_inspect_read_node_facts',
+  'figma_inspect_render_preview',
+  'figma_inspect_read_css_hint',
+  'figma_inspect_read_raw_fields',
+  'figma_inspect_read_design_resources',
+  'figma_inspect_list_fonts',
 ] as const;
 
 export const FRONTEND_TOOL_NAMES = [
   ...INSPECT_TOOL_NAMES,
-  'figma_bind_export_root',
+  'figma_frontend_bind_workspace',
   'figma_export_semantic_scope',
   'figma_check_semantic_scope',
-  'figma_export_assets',
+  'figma_frontend_export_assets',
 ] as const;
 
 export const DESIGN_TOOL_NAMES = [
   ...INSPECT_TOOL_NAMES,
-  'figma_get_fingerprint',
-  'figma_stage_asset',
-  'figma_duplicate_as_proposal',
-  'figma_create_frame',
-  'figma_reparent_nodes',
-  'figma_set_layout',
-  'figma_update_text',
-  'figma_set_instance_properties',
-  'figma_create_component_from_node',
-  'figma_discard_proposal',
-  'figma_validate_design_plan',
-  'figma_apply_design_plan',
+  'figma_design_read_source_fingerprint',
+  'figma_design_stage_asset',
+  'figma_design_duplicate_as_proposal',
+  'figma_design_create_frame',
+  'figma_design_reparent_nodes',
+  'figma_design_set_layout',
+  'figma_design_update_text',
+  'figma_design_set_instance_properties',
+  'figma_design_create_component_from_node',
+  'figma_design_discard_proposal',
+  'figma_design_validate_plan',
+  'figma_design_apply_plan',
 ] as const;
 
 const WORKFLOW_TOOLS: Record<Workflow, readonly string[]> = {

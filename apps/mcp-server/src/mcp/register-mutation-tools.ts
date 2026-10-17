@@ -25,8 +25,8 @@ export function registerMutationTools(
   broker: BridgeTransport,
 ): RegisteredToolMap {
   const tools: RegisteredToolMap = {};
-  tools.figma_duplicate_as_proposal = server.registerTool(
-    'figma_duplicate_as_proposal',
+  tools.figma_design_duplicate_as_proposal = server.registerTool(
+    'figma_design_duplicate_as_proposal',
     {
       description:
         'Clone the supplied edit targets, or the current selection, with automatically resolved layout context into an isolated, fully editable Proposal beside the original. The original is never modified.',
@@ -52,8 +52,8 @@ export function registerMutationTools(
     },
   );
 
-  tools.figma_create_frame = server.registerTool(
-    'figma_create_frame',
+  tools.figma_design_create_frame = server.registerTool(
+    'figma_design_create_frame',
     {
       description:
         'Create one ordinary Frame inside a bridge-marked Proposal. Original design nodes are rejected.',
@@ -79,8 +79,8 @@ export function registerMutationTools(
     },
   );
 
-  tools.figma_reparent_nodes = server.registerTool(
-    'figma_reparent_nodes',
+  tools.figma_design_reparent_nodes = server.registerTool(
+    'figma_design_reparent_nodes',
     {
       description:
         'Move nodes within one bridge-marked Proposal. FLOW participates in Auto Layout; ABSOLUTE stays outside the layout flow.',
@@ -106,8 +106,8 @@ export function registerMutationTools(
     },
   );
 
-  tools.figma_set_layout = server.registerTool(
-    'figma_set_layout',
+  tools.figma_design_set_layout = server.registerTool(
+    'figma_design_set_layout',
     {
       description:
         'Set Auto Layout, padding, gap, alignment, sizing, or absolute positioning on a node inside one Proposal.',
@@ -133,8 +133,8 @@ export function registerMutationTools(
     },
   );
 
-  tools.figma_update_text = server.registerTool(
-    'figma_create_component_from_node',
+  tools.figma_design_create_component_from_node = server.registerTool(
+    'figma_design_create_component_from_node',
     {
       description:
         'Convert a Frame inside a Proposal into a Component while preserving the Proposal marker when the root is replaced.',
@@ -162,8 +162,8 @@ export function registerMutationTools(
     },
   );
 
-  tools.figma_set_instance_properties = server.registerTool(
-    'figma_set_instance_properties',
+  tools.figma_design_set_instance_properties = server.registerTool(
+    'figma_design_set_instance_properties',
     {
       description:
         'Set exposed text, boolean, variant, or instance-swap properties on an Instance inside a Proposal without detaching it.',
@@ -189,8 +189,8 @@ export function registerMutationTools(
     },
   );
 
-  tools.figma_create_component_from_node = server.registerTool(
-    'figma_update_text',
+  tools.figma_design_update_text = server.registerTool(
+    'figma_design_update_text',
     {
       description:
         'Atomically update text inside a Proposal after preloading every required font. Missing fonts leave the node unchanged.',
@@ -216,8 +216,8 @@ export function registerMutationTools(
     },
   );
 
-  tools.figma_discard_proposal = server.registerTool(
-    'figma_discard_proposal',
+  tools.figma_design_discard_proposal = server.registerTool(
+    'figma_design_discard_proposal',
     {
       description:
         'Delete an unchanged bridge-created Proposal. The expected fingerprint prevents deleting a Proposal edited after inspection.',

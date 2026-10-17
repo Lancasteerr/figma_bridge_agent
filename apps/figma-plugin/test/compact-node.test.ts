@@ -78,11 +78,11 @@ const snapshot: NodeSnapshot = {
 describe('紧凑节点投影', () => {
   it('省略公开默认值、空集合、重复渲染边界和内部 fingerprint', () => {
     const result = projectCompactNode(snapshot, [
-      'GEOMETRY',
+      'BOUNDS',
       'LAYOUT',
       'TEXT',
-      'VISUAL',
-      'ASSETS',
+      'APPEARANCE',
+      'ASSET_SOURCES',
       'COMPONENT',
     ]);
 
@@ -90,25 +90,25 @@ describe('紧凑节点投影', () => {
       name: 'Card',
       type: 'FRAME',
       parentId: 'page:1',
-      geometry: { local: bounds, absolute: bounds },
+      bounds: { inParent: bounds, onPage: bounds },
       layout: { overflow: { direction: 'VERTICAL', fixedChildCount: 1 } },
       text: { characters: 'Hello' },
     });
-    expect(result).not.toHaveProperty('children');
+    expect(result).not.toHaveProperty('directChildren');
     expect(result).not.toHaveProperty('snapshotFingerprint');
   });
 
-  it('只有显式请求 CHILDREN 时才返回直接子节点摘要', () => {
-    expect(projectCompactNode(snapshot, ['CHILDREN'])).toEqual({
+  it('只有显式请求 DIRECT_CHILDREN 时才返回直接子节点摘要', () => {
+    expect(projectCompactNode(snapshot, ['DIRECT_CHILDREN'])).toEqual({
       name: 'Card',
       type: 'FRAME',
       parentId: 'page:1',
-      children: [
+      directChildren: [
         {
           id: '1:3',
           name: 'Child',
           type: 'RECTANGLE',
-          geometry: { local: bounds, absolute: bounds },
+          bounds: { inParent: bounds, onPage: bounds },
         },
       ],
     });

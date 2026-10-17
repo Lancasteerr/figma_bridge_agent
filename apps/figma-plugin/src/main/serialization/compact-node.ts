@@ -1,6 +1,6 @@
 import {
   NodeResultSchema,
-  type CompactGeometry,
+  type Bounds,
   type LayoutSnapshot,
   type NodeField,
   type NodeResult,
@@ -16,11 +16,11 @@ export function projectCompactNode(
   fields: readonly NodeField[],
 ): NodeResult {
   const selected = new Set(fields);
-  const geometry = compactGeometry(snapshot.geometry);
+  const bounds = compactBounds(snapshot.geometry);
   const layout = compactLayout(snapshot.layout);
   const text = compactText(snapshot.text);
-  const visual = compactVisual(snapshot.visual);
-  const assets = compactAssets(snapshot.assets);
+  const appearance = compactVisual(snapshot.visual);
+  const assetSources = compactAssets(snapshot.assets);
   const component = compactComponent(snapshot.component);
 
   return NodeResultSchema.parse({
@@ -29,34 +29,34 @@ export function projectCompactNode(
     ...(snapshot.parentId ? { parentId: snapshot.parentId } : {}),
     ...(snapshot.visible === false ? { visible: false as const } : {}),
     ...(snapshot.locked === true ? { locked: true as const } : {}),
-    ...(selected.has('GEOMETRY') && geometry ? { geometry } : {}),
+    ...(selected.has('BOUNDS') && bounds ? { bounds } : {}),
     ...(selected.has('LAYOUT') && layout ? { layout } : {}),
     ...(selected.has('TEXT') && text ? { text } : {}),
-    ...(selected.has('VISUAL') && visual ? { visual } : {}),
-    ...(selected.has('ASSETS') && assets ? { assets } : {}),
+    ...(selected.has('APPEARANCE') && appearance ? { appearance } : {}),
+    ...(selected.has('ASSET_SOURCES') && assetSources ? { assetSources } : {}),
     ...(selected.has('COMPONENT') && component ? { component } : {}),
-    ...(selected.has('CHILDREN')
+    ...(selected.has('DIRECT_CHILDREN')
       ? {
-          children: snapshot.children.map((child) => ({
+          directChildren: snapshot.children.map((child) => ({
             id: child.id,
             name: child.name,
             type: child.type,
-            ...(child.geometry ? { geometry: compactGeometry(child.geometry) } : {}),
+            ...(child.geometry ? { bounds: compactBounds(child.geometry) } : {}),
           })),
         }
       : {}),
   });
 }
 
-function compactGeometry(geometry: NodeSnapshot['geometry']): CompactGeometry | undefined {
+function compactBounds(geometry: NodeSnapshot['geometry']): Bounds | undefined {
   if (!geometry) return undefined;
   const renderBounds = geometry.absoluteRenderBounds;
   return {
-    local: geometry.local,
-    absolute: geometry.absolute,
+    inParent: geometry.local,
+    onPage: geometry.absolute,
     // 渲染边界与普通绝对边界相同时不重复输出。
     ...(renderBounds !== undefined && !sameBounds(renderBounds, geometry.absolute)
-      ? { absoluteRenderBounds: renderBounds }
+      ? { renderOnPage: renderBounds }
       : {}),
     ...(geometry.rotation !== 0 ? { rotation: geometry.rotation } : {}),
   };
@@ -151,9 +151,9 @@ function compactText(text: NodeSnapshot['text']): NodeResult['text'] | undefined
   };
 }
 
-function compactVisual(visual: NodeSnapshot['visual']): NodeResult['visual'] | undefined {
+function compactVisual(visual: NodeSnapshot['visual']): NodeResult['appearance'] | undefined {
   if (!visual) return undefined;
-  const compact: NonNullable<NodeResult['visual']> = {
+  const compact: NonNullable<NodeResult['appearance']> = {
     ...(visual.opacity !== undefined && visual.opacity !== 1 ? { opacity: visual.opacity } : {}),
     ...(visual.blendMode && !['NORMAL', 'PASS_THROUGH'].includes(visual.blendMode)
       ? { blendMode: visual.blendMode }
@@ -194,7 +194,7 @@ function compactVisual(visual: NodeSnapshot['visual']): NodeResult['visual'] | u
   return isEmptyObject(compact) ? undefined : compact;
 }
 
-function compactAssets(assets: NodeSnapshot['assets']): NodeResult['assets'] | undefined {
+function compactAssets(assets: NodeSnapshot['assets']): NodeResult['assetSources'] | undefined {
   if (!assets) return undefined;
   const imagePaints = assets.imagePaints.map((paint) => ({
     ...paint,
@@ -244,10 +244,7 @@ function compactObject<T extends object>(value: T): T {
   return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)) as T;
 }
 
-function sameBounds(
-  first: CompactGeometry['absoluteRenderBounds'],
-  second: CompactGeometry['absolute'],
-): boolean {
+function sameBounds(first: Bounds['renderOnPage'], second: Bounds['onPage']): boolean {
   if (first === null || second === null) return first === second;
   if (first === undefined) return false;
   return (

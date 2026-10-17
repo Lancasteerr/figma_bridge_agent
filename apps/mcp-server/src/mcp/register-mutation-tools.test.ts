@@ -35,7 +35,7 @@ describe('Proposal mutation public results', () => {
     });
 
     await expect(
-      handlers.get('figma_create_frame')!({
+      handlers.get('figma_design_create_frame')!({
         proposalRootId: 'proposal',
         parentId: 'proposal',
         name: 'Frame',
@@ -44,7 +44,7 @@ describe('Proposal mutation public results', () => {
       structuredContent: { nodeId: 'frame-1', proposalFingerprint: 'fingerprint-1' },
     });
     await expect(
-      handlers.get('figma_reparent_nodes')!({
+      handlers.get('figma_design_reparent_nodes')!({
         proposalRootId: 'proposal',
         nodeIds: ['node-1'],
         parentId: 'parent-1',
@@ -52,17 +52,17 @@ describe('Proposal mutation public results', () => {
       }),
     ).resolves.toMatchObject({ structuredContent: { proposalFingerprint: 'fingerprint-2' } });
     await expect(
-      handlers.get('figma_set_layout')!({ proposalRootId: 'proposal', nodeId: 'node-1' }),
+      handlers.get('figma_design_set_layout')!({ proposalRootId: 'proposal', nodeId: 'node-1' }),
     ).resolves.toMatchObject({ structuredContent: { proposalFingerprint: 'fingerprint-3' } });
     await expect(
-      handlers.get('figma_set_instance_properties')!({
+      handlers.get('figma_design_set_instance_properties')!({
         proposalRootId: 'proposal',
         nodeId: 'node-1',
         properties: {},
       }),
     ).resolves.toMatchObject({ structuredContent: { proposalFingerprint: 'fingerprint-4' } });
     await expect(
-      handlers.get('figma_update_text')!({
+      handlers.get('figma_design_update_text')!({
         proposalRootId: 'proposal',
         nodeId: 'node-1',
         characters: 'Updated',
@@ -81,7 +81,7 @@ describe('Proposal mutation public results', () => {
     });
 
     await expect(
-      handlers.get('figma_create_component_from_node')!({
+      handlers.get('figma_design_create_component_from_node')!({
         proposalRootId: 'proposal',
         nodeId: 'proposal',
       }),
@@ -93,7 +93,7 @@ describe('Proposal mutation public results', () => {
       },
     });
     await expect(
-      handlers.get('figma_discard_proposal')!({
+      handlers.get('figma_design_discard_proposal')!({
         proposalRootId: 'proposal',
         expectedFingerprint: 'fingerprint-6',
       }),

@@ -34,8 +34,8 @@ export function registerReadTools(
   artifacts: TemporaryArtifactStore,
 ): RegisteredToolMap {
   const tools: RegisteredToolMap = {};
-  tools.figma_get_design_resources = server.registerTool(
-    'figma_get_design_resources',
+  tools.figma_inspect_read_design_resources = server.registerTool(
+    'figma_inspect_read_design_resources',
     {
       description:
         'Return paginated local styles and variables plus reusable components and instances from the current Figma page. Team libraries are never queried.',
@@ -63,8 +63,8 @@ export function registerReadTools(
     },
   );
 
-  tools.figma_list_fonts = server.registerTool(
-    'figma_list_fonts',
+  tools.figma_inspect_list_fonts = server.registerTool(
+    'figma_inspect_list_fonts',
     {
       description:
         'Return a filtered, stable, paginated catalog of fonts currently available to the Figma editor, including variable-font axis tags.',
@@ -90,8 +90,8 @@ export function registerReadTools(
     },
   );
 
-  tools.figma_get_raw_node = server.registerTool(
-    'figma_get_raw_node',
+  tools.figma_inspect_read_raw_fields = server.registerTool(
+    'figma_inspect_read_raw_fields',
     {
       description:
         'Return a bounded, self-only JSON_REST_V1 projection for a known unsupported detail. Identity fields are retained; request depth 1 or selected top-level fields explicitly. Prefer normalized snapshots for normal reasoning.',
@@ -118,8 +118,8 @@ export function registerReadTools(
     },
   );
 
-  tools.figma_get_css = server.registerTool(
-    'figma_get_css',
+  tools.figma_inspect_read_css_hint = server.registerTool(
+    'figma_inspect_read_css_hint',
     {
       description:
         'Return Figma Inspect CSS for a node as a code-generation hint. NodeSnapshot remains the structural source of truth.',
@@ -144,11 +144,11 @@ export function registerReadTools(
     },
   );
 
-  tools.figma_get_node = server.registerTool(
-    'figma_get_node',
+  tools.figma_inspect_read_node_facts = server.registerTool(
+    'figma_inspect_read_node_facts',
     {
       description:
-        'Return a compact normalized projection of one node on the current Figma page. Identity is always returned; request field groups explicitly and use CHILDREN only when direct-child summaries are needed. Figma clipping and overflow fields are static layout hints, not browser scrolling contracts.',
+        'Return a compact normalized projection of one node on the current Figma page. Identity is always returned; request field groups explicitly and use DIRECT_CHILDREN only when direct-child summaries are needed. Figma clipping and overflow fields are static layout hints, not browser scrolling contracts.',
       inputSchema: GetNodeInputSchema,
       outputSchema: NodeResultSchema,
       annotations: {
@@ -170,11 +170,11 @@ export function registerReadTools(
     },
   );
 
-  tools.figma_get_tree = server.registerTool(
-    'figma_get_tree',
+  tools.figma_inspect_browse_nodes = server.registerTool(
+    'figma_inspect_browse_nodes',
     {
       description:
-        'Return a bounded lightweight navigation tree. maxTextLength must be an integer from 0 to 80 and defaults to 80. Large results are written to a temporary JSONL file; use get_node or semantic snapshots for implementation facts.',
+        'Return a bounded lightweight navigation tree. maxTextLength must be an integer from 0 to 80 and defaults to 80. Large results are written to a temporary JSONL file; use read_node_facts or a prepared workunit for implementation facts.',
       inputSchema: GetTreeInputSchema,
       outputSchema: TreeResultSchema,
       annotations: {
@@ -202,8 +202,8 @@ export function registerReadTools(
     },
   );
 
-  tools.figma_get_fingerprint = server.registerTool(
-    'figma_get_fingerprint',
+  tools.figma_design_read_source_fingerprint = server.registerTool(
+    'figma_design_read_source_fingerprint',
     {
       description:
         'Return the ordered aggregate fingerprint of complete current-page node subtrees. Use it for DesignPlan source.fingerprint and Proposal expectedFingerprint checks.',

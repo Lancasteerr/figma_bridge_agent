@@ -14,8 +14,8 @@ import type { RegisteredToolMap } from './tool-registry.js';
 /** 注册 DesignPlan 的只读验证和原子应用入口。 */
 export function registerDesignTools(server: McpServer, broker: BridgeTransport): RegisteredToolMap {
   const tools: RegisteredToolMap = {};
-  tools.figma_validate_design_plan = server.registerTool(
-    'figma_validate_design_plan',
+  tools.figma_design_validate_plan = server.registerTool(
+    'figma_design_validate_plan',
     {
       description:
         'Validate a complete declarative DesignPlan without modifying Figma. Optional returnRefs selects up to 200 node or resource mappings for apply; it is not part of the plan digest. A valid result contains a single-use ID that expires after five minutes.',
@@ -45,8 +45,8 @@ export function registerDesignTools(server: McpServer, broker: BridgeTransport):
     },
   );
 
-  tools.figma_apply_design_plan = server.registerTool(
-    'figma_apply_design_plan',
+  tools.figma_design_apply_plan = server.registerTool(
+    'figma_design_apply_plan',
     {
       description:
         'Atomically create a complete isolated Proposal from a previously validated DesignPlan. refMap is omitted unless returnRefs were requested during validation.',
