@@ -2,7 +2,7 @@
 
 Let local coding agents read Figma Design documents safely, carry design evidence and assets into front-end projects, and create reviewable design changes in isolated Proposal copies.
 
-[中文](README.md) · [English documentation](docs/en-US/README.md) · [Latest release](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest) · [Report an issue](https://github.com/Lancasteerr/figma_bridge_agent/issues)
+[中文](README.md) · [English documentation](docs/en-US/README.md) · [Latest release](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest) · [Report an issue](https://github.com/Lancasteerr/figma_bridge_agent/issues) · [Showcase](https://github.com/Lancasteerr/figma_bridge_agent_test)
 
 > Local-first · No direct source edits · No cloud relay · No telemetry
 

@@ -2,7 +2,7 @@
 
 让本地 Coding Agent 安全读取 Figma Design 文档，把设计证据与素材带入前端工程生成代码，并在隔离的 Proposal 副本中创建可审查的设计修改。
 
-[English](README.en-US.md) · [中文文档](docs/zh-CN/README.md) · [最新版本](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest) · [报告问题](https://github.com/Lancasteerr/figma_bridge_agent/issues)
+[English](README.en-US.md) · [中文文档](docs/zh-CN/README.md) · [最新版本](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest) · [报告问题](https://github.com/Lancasteerr/figma_bridge_agent/issues) · [示例仓库](https://github.com/Lancasteerr/figma_bridge_agent_test)
 
 > 本地优先 · 源稿不可直接修改 · 无云端中继 · 无遥测
 
