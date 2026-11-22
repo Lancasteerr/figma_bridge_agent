@@ -86,7 +86,7 @@ figma-agent-bridge-plugin/manifest.json
 
 1. 确认客户端只加载一个 `figma-local-agent` MCP Server，并能发现全部 25 个静态工具。
 2. 让 Agent 调用 `figma_status`。
-3. 确认结果包含当前 Figma 文件、页面、选区以及 `UNBOUND` 或 `BOUND` 工作区。协议 11 兼容性由连接建立阶段在内部校验，旧协议插件必须明确失败。
+3. 确认结果包含当前 Figma 文件、页面、选区以及 `UNBOUND` 或 `BOUND` 工作区。协议 12 兼容性由连接建立阶段在内部校验，旧协议插件必须明确失败。
 4. 确认工具名按 `figma_inspect_`、`figma_frontend_`、`figma_design_` 前缀分组，工具列表保持 25 个静态工具且不存在激活入口。
 5. 确认 **Local Figma Agent** Skill 可用，并能指导 Agent 使用 Proposal 工作流。
 

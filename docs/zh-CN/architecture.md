@@ -44,7 +44,7 @@ Server 在每个 Adapter 上静态注册全部 27 个工具。`figma_inspect_*`�
 
 1. 紧凑节点读取枚举 Image Paint、导出设置、矢量和蒙版事实；同一序列化上下文按 image hash 缓存尺寸查询，内部 canonical snapshot 继续保留完整一致性指纹。
 2. `figma_frontend_export_assets` 最多接受 32 个 RAW 或 RENDERED item，并要求 `workUnitId`。Adapter 从 workunit 解析根与已复核来源指纹；插件确认所有 item 位于该根内，并在整批前后匹配来源。
-3. 插件通过协议 11 RPC 返回单项不超过 9 MiB 的原始字节、渲染字节或 SVG 字符串，Adapter 将整批解码后暂存限制为 64 MiB。公共素材结果不会透出正文或逐项内部来源指纹。
+3. 插件通过协议 12 RPC 返回单项不超过 9 MiB 的原始字节、渲染字节或 SVG 字符串，Adapter 将整批解码后暂存限制为 64 MiB。公共素材结果不会透出正文或逐项内部来源指纹。
 4. Adapter 对 RAW 再做 PNG/JPEG/GIF/WebP 魔数识别，对 RENDERED 核对格式、扩展名和载荷上限，并从最终字节读取位图像素尺寸；SVG 使用根宽高或 `viewBox`。无法得到有效固有尺寸时拒绝整批；解析后的输出路径必须唯一。
 5. 所有来源、格式、路径和覆盖条件通过后，Adapter 才把全部内容写入瞬时会话暂存目录，复检目标并发变化，再以可恢复批次发布完整文件。任一步失败都会恢复备份目标，不留下部分项目更新。
 6. 同路径同 hash 返回 `REUSED`；不同 hash 默认返回 `EXPORT_TARGET_CONFLICT`。显式覆盖要求现有 SHA-256，并在提交前再次核对以防并发修改。

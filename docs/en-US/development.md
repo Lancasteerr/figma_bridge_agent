@@ -109,3 +109,5 @@ See the [architecture and safety model](architecture.md) for the security bounda
 - [End-to-end acceptance](acceptance.md) validates the normal user path with real ZIP and tgz packages in Figma Desktop.
 
 Run at least `pnpm check` before submitting changes. Changes to marketplace sources require `pnpm sync:agent-marketplaces` first. Changes to distribution formats, plugin manifests, the Agent Plugin, or version fields also require `pnpm build:release` and inspection of the generated archives.
+
+The in-place error codes require Bridge protocol 12. Deploy the MCP Adapter, Bridge Daemon, and Figma plugin from the same build. Run bridge stop with the old CLI, replace the packages, run bridge start with the new CLI, then rerun the Figma plugin and reconnect MCP. Older protocols are explicitly rejected during authentication instead of dropping new error responses and timing out.

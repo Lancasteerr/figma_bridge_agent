@@ -109,3 +109,5 @@ Server 与 Figma 插件通过 `packages/protocol` 中的 Zod schema 共享 RPC�
 - [端到端验收](acceptance.md)使用真实 ZIP、tgz 和 Figma Desktop 验证普通用户路径。
 
 提交前至少运行 `pnpm check`。修改 marketplace 源索引后应先运行 `pnpm sync:agent-marketplaces`。涉及发行格式、插件清单、Agent Plugin 或版本字段时，还需要运行 `pnpm build:release` 并检查生成的归档。
+
+原位工具扩展了错误码，Bridge 协议已升级到 12。更新时必须同步部署 MCP Adapter、Bridge Daemon 和 Figma 插件：先用旧 CLI 执行 bridge stop，替换同一次构建的安装包，再用新 CLI 执行 bridge start，并重开 Figma 插件和重连 MCP。旧协议会在鉴权时被明确拒绝，避免把新错误码丢弃并伪装成超时。

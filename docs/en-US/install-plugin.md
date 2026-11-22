@@ -86,7 +86,7 @@ Restart ChatGPT/Cursor, or start a new Codex or Copilot agent session, so the ne
 
 1. Confirm the client loads only one `figma-local-agent` MCP Server and discovers all 25 static tools.
 2. Ask the agent to call `figma_status`.
-3. Confirm the result includes the current Figma file, page, selection, and an `UNBOUND` or `BOUND` workspace. Protocol 11 compatibility is checked internally during connection setup; a legacy-protocol plugin must fail clearly.
+3. Confirm the result includes the current Figma file, page, selection, and an `UNBOUND` or `BOUND` workspace. Protocol 12 compatibility is checked internally during connection setup; a legacy-protocol plugin must fail clearly.
 4. Confirm that tool names use the `figma_inspect_`, `figma_frontend_`, and `figma_design_` prefixes, and that the list remains 25 static tools with no activation entry point.
 5. Confirm the **Local Figma Agent** Skill is available and can guide the Proposal workflow.
 
