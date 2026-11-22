@@ -148,7 +148,7 @@ export function registerReadTools(
     'figma_inspect_read_node_facts',
     {
       description:
-        'Return a compact normalized projection of one node on the current Figma page. Identity is always returned; request field groups explicitly and use DIRECT_CHILDREN only when direct-child summaries are needed. Figma clipping and overflow fields are static layout hints, not browser scrolling contracts.',
+        'Return compact facts for a scene node or the current PAGE ID from figma_status.page.id. For PAGE, request DIRECT_CHILDREN to list top-level artboards and layers; PAGE has no scene bounds, layout or text. Request field groups explicitly. Figma clipping and overflow fields are static layout hints, not browser scrolling contracts.',
       inputSchema: GetNodeInputSchema,
       outputSchema: NodeResultSchema,
       annotations: {
@@ -174,7 +174,7 @@ export function registerReadTools(
     'figma_inspect_browse_nodes',
     {
       description:
-        'Return a bounded lightweight navigation tree. maxTextLength must be an integer from 0 to 80 and defaults to 80. Large results are written to a temporary JSONL file; use read_node_facts or a prepared workunit for implementation facts.',
+        'Return a bounded lightweight navigation tree rooted at a scene node or the current PAGE ID from figma_status.page.id. PAGE roots omit navigation bounds; children retain their real geometry. maxTextLength must be an integer from 0 to 80 and defaults to 80. Large results are written to a temporary JSONL file; use read_node_facts or a prepared workunit for implementation facts.',
       inputSchema: GetTreeInputSchema,
       outputSchema: TreeResultSchema,
       annotations: {

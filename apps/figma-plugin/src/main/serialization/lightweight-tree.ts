@@ -1,4 +1,4 @@
-import type { LightweightTreeNode } from '@figma-agent/protocol';
+import type { Geometry, LightweightTreeNode } from '@figma-agent/protocol';
 
 import { serializeGeometry } from './node-summary.js';
 import { isSceneNode } from './resolve.js';
@@ -9,6 +9,16 @@ import { isSceneNode } from './resolve.js';
  */
 export function serializeLightweightTreeNode(
   node: SceneNode,
+  order: number,
+  maxTextLength: number,
+): Omit<LightweightTreeNode, 'children' | 'geometry'> & { geometry: Geometry };
+export function serializeLightweightTreeNode(
+  node: SceneNode | PageNode,
+  order: number,
+  maxTextLength: number,
+): Omit<LightweightTreeNode, 'children'>;
+export function serializeLightweightTreeNode(
+  node: SceneNode | PageNode,
   order: number,
   maxTextLength: number,
 ): Omit<LightweightTreeNode, 'children'> {
@@ -32,7 +42,7 @@ export function serializeLightweightTreeNode(
     name: node.name.slice(0, 200),
     type: node.type,
     visible: 'visible' in node ? node.visible : true,
-    geometry: serializeGeometry(node),
+    ...(node.type === 'PAGE' ? {} : { geometry: serializeGeometry(node) }),
     childCount,
     ...('layoutMode' in node ? { layoutMode: node.layoutMode } : {}),
     ...('layoutPositioning' in node ? { positioning: node.layoutPositioning } : {}),
@@ -50,7 +60,7 @@ export function serializeLightweightTreeNode(
   };
 }
 
-function countImagePaints(node: SceneNode): number {
+function countImagePaints(node: SceneNode | PageNode): number {
   let count = 0;
   for (const paints of [
     'fills' in node ? node.fills : undefined,

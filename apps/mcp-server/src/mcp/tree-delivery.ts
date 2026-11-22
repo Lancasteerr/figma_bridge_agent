@@ -134,7 +134,7 @@ function toPublicNode(node: LightweightTreeNode): PublicTreeNode {
     id: node.id,
     name: node.name,
     type: node.type,
-    navigationBoundsInParent: node.geometry.local,
+    ...(node.geometry ? { navigationBoundsInParent: node.geometry.local } : {}),
     childCount: node.childCount,
     ...(node.visible ? {} : { visible: false as const }),
     ...(node.layoutMode && node.layoutMode !== 'NONE' ? { layoutMode: node.layoutMode } : {}),

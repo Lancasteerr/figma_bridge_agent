@@ -362,7 +362,7 @@ const LightweightTreeNodeFieldsSchema = z
     name: z.string().max(200),
     type: z.string(),
     visible: z.boolean(),
-    geometry: GeometrySchema,
+    geometry: GeometrySchema.optional(),
     childCount: z.number().int().nonnegative(),
     layoutMode: LayoutModeSchema.optional(),
     positioning: PositioningSchema.optional(),
@@ -376,7 +376,10 @@ const LightweightTreeNodeFieldsSchema = z
   .strict();
 
 /** JSONL 中每个节点使用扁平记录，由 parentId 和 order 恢复层级。 */
-export const LightweightTreeNodeRecordSchema = LightweightTreeNodeFieldsSchema;
+export const LightweightTreeNodeRecordSchema = LightweightTreeNodeFieldsSchema.refine(
+  (node) => node.type === 'PAGE' || node.geometry !== undefined,
+  { message: 'Scene navigation nodes require geometry.', path: ['geometry'] },
+);
 export type LightweightTreeNodeRecord = z.infer<typeof LightweightTreeNodeRecordSchema>;
 
 /** MCP 内联树使用递归 children，字段仍保持导航级轻量。 */
@@ -386,6 +389,9 @@ export type LightweightTreeNode = LightweightTreeNodeRecord & {
 export const LightweightTreeNodeSchema: z.ZodType<LightweightTreeNode> =
   LightweightTreeNodeFieldsSchema.extend({
     children: z.lazy(() => z.array(LightweightTreeNodeSchema)),
+  }).refine((node) => node.type === 'PAGE' || node.geometry !== undefined, {
+    message: 'Scene navigation nodes require geometry.',
+    path: ['geometry'],
   });
 
 export const TreeScopeSchema = z
@@ -436,7 +442,7 @@ export type PublicTreeNode = {
   id: string;
   name: string;
   type: string;
-  navigationBoundsInParent: { x: number; y: number; width: number; height: number };
+  navigationBoundsInParent?: { x: number; y: number; width: number; height: number } | undefined;
   childCount: number;
   visible?: false | undefined;
   layoutMode?: z.infer<typeof LayoutModeSchema> | undefined;
@@ -458,7 +464,8 @@ export const PublicTreeNodeSchema: z.ZodType<PublicTreeNode> = z
         width: z.number().nonnegative(),
         height: z.number().nonnegative(),
       })
-      .strict(),
+      .strict()
+      .optional(),
     childCount: z.number().int().nonnegative(),
     visible: z.literal(false).optional(),
     layoutMode: LayoutModeSchema.optional(),
@@ -468,7 +475,11 @@ export const PublicTreeNodeSchema: z.ZodType<PublicTreeNode> = z
     assetHints: TreeAssetHintsSchema.optional(),
     children: z.lazy(() => z.array(PublicTreeNodeSchema)),
   })
-  .strict();
+  .strict()
+  .refine((node) => node.type === 'PAGE' || node.navigationBoundsInParent !== undefined, {
+    message: 'Scene navigation nodes require bounds.',
+    path: ['navigationBoundsInParent'],
+  });
 
 /** MCP 公开树结果用字段是否存在表达截断和临时交付。 */
 export const TreeResultSchema = z

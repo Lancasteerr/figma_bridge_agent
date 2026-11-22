@@ -15,4 +15,15 @@ describe('Figma plugin status', () => {
   it('reports the build-injected plugin package version', () => {
     expect(getStatus().pluginVersion).toBe(__PLUGIN_VERSION__);
   });
+
+  it('advertises page navigation and explicit scoped mutations accurately', () => {
+    expect(getStatus().capabilities).toEqual(
+      expect.arrayContaining([
+        'current-page-navigation-v1',
+        'explicit-in-place-mutations-v1',
+        'scoped-node-deletion-v1',
+      ]),
+    );
+    expect(getStatus().capabilities).not.toContain('proposal-only-mutations');
+  });
 });

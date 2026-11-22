@@ -2,6 +2,7 @@ import {
   GetNodeInputSchema,
   GetFingerprintInputSchema,
   GetTreeRpcInputSchema,
+  NodeResultSchema,
   type FingerprintRpcResult,
   type LightweightTreeNode,
   TreeRpcResultSchema,
@@ -11,13 +12,35 @@ import {
 import { fingerprintNodeTree, serializeNode } from '../serialization/node-snapshot.js';
 import { projectCompactNode } from '../serialization/compact-node.js';
 import { serializeLightweightTreeNode } from '../serialization/lightweight-tree.js';
-import { resolveCurrentPageNode } from '../serialization/resolve.js';
+import { resolveCurrentPageNode, resolveCurrentPageReadNode } from '../serialization/resolve.js';
+import { serializeGeometry } from '../serialization/node-summary.js';
 import { isSceneNode } from '../serialization/resolve.js';
 
 /** 内部先生成完整规范化快照，再按公开字段组返回紧凑投影。 */
 export async function getNode(params: unknown) {
   const { nodeId, fields } = GetNodeInputSchema.parse(params);
-  const snapshot = await serializeNode(await resolveCurrentPageNode(nodeId));
+  const node = await resolveCurrentPageReadNode(nodeId);
+  if (node.type === 'PAGE') {
+    return NodeResultSchema.parse({
+      name: node.name,
+      type: node.type,
+      ...(node.parent ? { parentId: node.parent.id } : {}),
+      ...(fields.includes('DIRECT_CHILDREN')
+        ? {
+            directChildren: node.children.filter(isSceneNode).map((child) => {
+              const geometry = serializeGeometry(child);
+              return {
+                id: child.id,
+                name: child.name,
+                type: child.type,
+                bounds: { inParent: geometry.local, onPage: geometry.absolute },
+              };
+            }),
+          }
+        : {}),
+    });
+  }
+  const snapshot = await serializeNode(node);
   return projectCompactNode(snapshot, fields);
 }
 
@@ -31,13 +54,13 @@ export async function getFingerprint(params: unknown): Promise<FingerprintRpcRes
 /** 按深度和节点数上限读取轻量导航树，并独立报告真实遍历截断。 */
 export async function getTree(params: unknown): Promise<TreeRpcResult> {
   const input = GetTreeRpcInputSchema.parse(params);
-  const root = await resolveCurrentPageNode(input.nodeId);
+  const root = await resolveCurrentPageReadNode(input.nodeId);
   let nodeCount = 0;
   let omittedChildCount = 0;
   const reasons = new Set<'DEPTH_LIMIT' | 'NODE_LIMIT'>();
   const frontierNodeIds = new Set<string>();
 
-  const visit = (node: SceneNode, depth: number, order: number): LightweightTreeNode => {
+  const visit = (node: SceneNode | PageNode, depth: number, order: number): LightweightTreeNode => {
     nodeCount += 1;
     const childNodes = 'children' in node ? node.children.filter(isSceneNode) : [];
     const children: LightweightTreeNode[] = [];
@@ -66,7 +89,7 @@ export async function getTree(params: unknown): Promise<TreeRpcResult> {
     root.parent && 'children' in root.parent
       ? root.parent.children.filter(isSceneNode)
       : ([] as SceneNode[]);
-  const rootOrder = Math.max(0, parentChildren.indexOf(root));
+  const rootOrder = isSceneNode(root) ? Math.max(0, parentChildren.indexOf(root)) : 0;
   const tree = visit(root, input.depth, rootOrder);
   const truncation =
     reasons.size > 0

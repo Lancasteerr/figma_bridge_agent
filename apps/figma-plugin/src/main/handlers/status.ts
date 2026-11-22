@@ -17,7 +17,10 @@ export function getStatus(): PluginStatusResult {
     })),
     capabilities: [
       'current-page-only',
-      'proposal-only-mutations',
+      'proposal-scoped-mutations',
+      'explicit-in-place-mutations-v1',
+      'scoped-node-deletion-v1',
+      'current-page-navigation-v1',
       'adaptive-proposal-scope-v2',
       'node-snapshots-v2',
       'design-plan-v1',

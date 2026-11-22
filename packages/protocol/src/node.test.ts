@@ -31,6 +31,20 @@ const root = {
 };
 
 describe('轻量树协议', () => {
+  it('仅 PAGE 可以省略导航几何，普通图层仍必须有几何信息', () => {
+    const withoutGeometry = { ...root };
+    Reflect.deleteProperty(withoutGeometry, 'geometry');
+    expect(LightweightTreeNodeSchema.safeParse({ ...withoutGeometry, type: 'PAGE' }).success).toBe(
+      true,
+    );
+    expect(LightweightTreeNodeSchema.safeParse(withoutGeometry).success).toBe(false);
+    const publicRoot = { id: '0:1', name: 'Page', type: 'PAGE', childCount: 0, children: [] };
+    expect(TreeResultSchema.safeParse({ root: publicRoot }).success).toBe(true);
+    expect(TreeResultSchema.safeParse({ root: { ...publicRoot, type: 'FRAME' } }).success).toBe(
+      false,
+    );
+  });
+
   it('接受导航字段并拒绝完整视觉快照字段', () => {
     expect(LightweightTreeNodeSchema.safeParse(root).success).toBe(true);
     expect(LightweightTreeNodeSchema.safeParse({ ...root, visual: { opacity: 1 } }).success).toBe(

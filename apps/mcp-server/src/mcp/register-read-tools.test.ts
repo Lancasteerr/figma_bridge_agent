@@ -149,6 +149,36 @@ describe('figma_inspect_read_node_facts MCP 投影', () => {
 });
 
 describe('figma_inspect_browse_nodes MCP 交付', () => {
+  it.each(['AUTO', 'TEMP_FILE'] as const)(
+    '页面根节点支持 %s 且不伪造页面边界',
+    async (delivery) => {
+      const rpc = tree([node('artboard')]);
+      const page = { ...rpc.root };
+      Reflect.deleteProperty(page, 'geometry');
+      const pageTree = { ...rpc, root: { ...page, type: 'PAGE' } };
+      const { handler } = await setup(pageTree);
+      const response = await handler({ nodeId: 'root', delivery });
+      expect(response.isError).not.toBe(true);
+      const root = response.structuredContent?.root as Record<string, unknown>;
+      expect(root).toMatchObject({
+        id: 'root',
+        type: 'PAGE',
+        children: [{ id: 'artboard', navigationBoundsInParent: { width: 100, height: 80 } }],
+      });
+      expect(root).not.toHaveProperty('navigationBoundsInParent');
+      if (delivery === 'TEMP_FILE') {
+        const artifact = response.structuredContent?.artifact as { localPath: string };
+        const records = (await readFile(artifact.localPath, 'utf8'))
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line));
+        expect(records[1]).toMatchObject({ id: 'root', type: 'PAGE' });
+        expect(records[1]).not.toHaveProperty('geometry');
+        expect(records[2]).toHaveProperty('geometry');
+      }
+    },
+  );
+
   it('小树在预算内完整内联，且交付策略不发送给插件', async () => {
     const { broker, handler } = await setup(tree([node('child')]));
 
