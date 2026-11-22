@@ -31,6 +31,8 @@ workflow activation, deprecated alias, or legacy-name parser.
 | Design   | `figma_design_discard_proposal`           | Delete an unchanged Proposal                                        | Deletes copy  |
 | Design   | `figma_design_validate_plan`              | Validate a complete DesignPlan                                      | No            |
 | Design   | `figma_design_apply_plan`                 | Create a Proposal from a one-time validation ID                     | Figma copy    |
+| Design   | `figma_design_edit_in_place`              | Explicitly edit original artwork within a fingerprint-guarded scope | Original      |
+| Design   | `figma_design_delete_nodes`               | Delete exact scoped nodes or an old artboard                        | Original      |
 
 ## Workspace binding
 
@@ -103,3 +105,11 @@ Writes to existing artwork begin with `figma_design_duplicate_as_proposal`; subs
 chain `proposalFingerprint`. DesignPlan calls `figma_design_validate_plan` before consuming the
 one-time ID with `figma_design_apply_plan`; the server still strictly parses the complete recursive
 plan.
+
+## Explicit in-place edits
+
+Only when the user explicitly requests original-artwork changes, use figma_design_edit_in_place or figma_design_delete_nodes. Read figma_status.selection and inspect exact targets. Both tools require editMode set to IN_PLACE, a current-page scopeRootId, and its complete-tree expectedFingerprint from figma_design_read_source_fingerprint with nodeIds: [scopeRootId].
+
+Edit operations are TEXT, LAYOUT, RESIZE, CREATE_FRAME, and CAROUSEL, with 1-100 items. Text, layout, and Frame fields match the corresponding Proposal tools. RESIZE takes nodeId, width, height. CAROUSEL takes parentId, staged raster assetIds, width, height; optional name, x, y, gap. It scrolls horizontally in presentation mode without autoplay. Target IDs must already exist; inspect returned createdNodeIds before further edits. Chain the returned treeFingerprint into subsequent writes.
+
+Deletion takes the same guard plus 1-100 unique nodeIds. Do not specify both parent and child IDs. Removing the scope root returns scopeRemoved true and treeFingerprint null. No Proposal is created or marked. Cross-page/out-of-scope targets, locked ancestors, Instance internals, and stale fingerprints are rejected; deletion also checks locked descendants. Font loading is followed by a scope recheck. A batch is one undoable unit; write failures roll back. Inspect after a timeout before retrying.

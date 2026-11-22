@@ -1,6 +1,6 @@
 # MCP 工具参考
 
-MCP Server 静态注册 25 个工具。除 `figma_status` 外，工具名通过
+MCP Server 静态注册 27 个工具。除 `figma_status` 外，工具名通过
 `figma_inspect_*`、`figma_frontend_*`、`figma_design_*` 直接表达领域；不存在工作流激活、
 deprecated alias 或旧名兼容。
 
@@ -31,6 +31,8 @@ deprecated alias 或旧名兼容。
 | Design   | `figma_design_discard_proposal`           | 指纹匹配时删除 Proposal              | 删除副本   |
 | Design   | `figma_design_validate_plan`              | 验证完整 DesignPlan                  | 否         |
 | Design   | `figma_design_apply_plan`                 | 使用一次性验证 ID 创建 Proposal      | Figma 副本 |
+| Design   | `figma_design_edit_in_place`              | 显式原位编辑原稿                     | Figma 原稿 |
+| Design   | `figma_design_delete_nodes`               | 按明确 ID 和范围指纹删除节点         | 删除原稿   |
 
 ## 工作区绑定
 
@@ -98,3 +100,11 @@ deprecated alias 或旧名兼容。
 所有针对现有设计的写入先通过 `figma_design_duplicate_as_proposal` 创建隔离副本。后续变更
 串联 `proposalFingerprint`。DesignPlan 先调用 `figma_design_validate_plan`，再消费一次性 ID
 调用 `figma_design_apply_plan`；完整递归计划仍由服务端严格解析。
+
+## 显式原位编辑
+
+仅在用户明确要求修改原稿时使用 figma_design_edit_in_place 或 figma_design_delete_nodes。先通过 figma_status.selection 读取选区并检查目标节点。必须携带 editMode（值为 IN_PLACE）、当前页 scopeRootId，以及通过 figma_design_read_source_fingerprint 的 nodeIds: [scopeRootId] 读取的完整树 expectedFingerprint。
+
+编辑的 operations 支持 TEXT、LAYOUT、RESIZE、CREATE_FRAME、CAROUSEL，每批 1–100 项。文字、布局、Frame 字段沿用对应 Proposal 工具；RESIZE 使用 nodeId、width、height。CAROUSEL 使用 parentId、暂存位图 assetIds、width、height，可选 name、x、y、gap；提供演示模式横向滚动，不含自动播放。所有目标 ID 必须已存在，新节点 ID 通过 createdNodeIds 返回。后续写入使用返回的新 treeFingerprint。
+
+删除使用相同 guard 及 1–100 个唯一 nodeIds，不得同时指定父子节点。删除整个范围根时返回 scopeRemoved: true、treeFingerprint: null。不创建或伪造 Proposal 标记。拒绝跨页、越界、锁定祖先、Instance 内部和过期指纹；删除还检查锁定子孙。字体加载后复查范围。预检失败不触碰 Undo，整批写入失败回滚，成功仅产生一个 Undo 单元。超时后先检查结果再重试。

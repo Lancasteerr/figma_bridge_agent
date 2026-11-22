@@ -60,7 +60,7 @@ SHA-256 as `expectedExistingSha256`.
 
 ## Proposal write boundaries
 
-- Never edit source artwork directly. For changes to existing artwork, duplicate it with
+- Default to isolated Proposals. Unless the user explicitly requests in-place edits, duplicate artwork with
   `figma_design_duplicate_as_proposal`, then use only the returned `proposalRootId` and requested
   `targetMap`. A DesignPlan may instead create a new isolated Proposal.
 - Chain each mutation's `proposalFingerprint` into the next `expectedFingerprint`; adopt
@@ -72,3 +72,7 @@ SHA-256 as `expectedExistingSha256`.
 
 Correct input errors without refreshing unrelated state. Do not retry a consumed DesignPlan
 validation after an internal apply failure, and never expose bridge credentials.
+
+## Explicit original-artwork edits
+
+Only when the user explicitly requests editing originals, use figma_design_edit_in_place or figma_design_delete_nodes. Read figma_status.selection, inspect exact targets, and read the complete scope fingerprint with figma_design_read_source_fingerprint using nodeIds: [scopeRootId]. Pass editMode set to IN_PLACE, scopeRootId, and expectedFingerprint. Chain returned treeFingerprint into the next write. Edits retain original IDs without a Proposal duplicate. Operations are TEXT, LAYOUT, RESIZE, CREATE_FRAME, CAROUSEL. Target IDs must already exist. Carousel uses staged raster assetIds for horizontal presentation scrolling without autoplay. Deletion uses exact nodeIds, without overlapping parent/child IDs. Deleting scopeRootId returns scopeRemoved true and a null treeFingerprint. Inspect after timeouts before retrying writes; render after success.

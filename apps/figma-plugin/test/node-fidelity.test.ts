@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { NodeSnapshotSchema } from '@figma-agent/protocol';
 
-import { serializeNode } from '../src/main/serialization/node-snapshot.js';
+import { fingerprintNodeTree, serializeNode } from '../src/main/serialization/node-snapshot.js';
 
 const page = { id: 'page:1', name: 'Page', type: 'PAGE', parent: null } as unknown as PageNode;
 
@@ -32,6 +32,15 @@ function baseNode(overrides: Record<string, unknown> = {}): SceneNode {
 }
 
 describe('前端保真节点快照', () => {
+  it('fingerprints text changes beyond the read-projection truncation limit', async () => {
+    const prefix = 'x'.repeat(2500);
+    const left = baseNode({ type: 'TEXT', characters: prefix + 'A', children: undefined });
+    const right = baseNode({ type: 'TEXT', characters: prefix + 'B', children: undefined });
+    expect((await serializeNode(left)).text?.characters).toEqual(
+      (await serializeNode(right)).text?.characters,
+    );
+    expect(await fingerprintNodeTree([left])).not.toEqual(await fingerprintNodeTree([right]));
+  });
   it('序列化 Auto Layout、Grid、滚动和尺寸约束', async () => {
     const snapshot = await serializeNode(
       baseNode({

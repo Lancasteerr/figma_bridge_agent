@@ -10,6 +10,7 @@ import { registerReadTools } from './mcp/register-read-tools.js';
 import { registerMediaTools } from './mcp/register-media-tools.js';
 import { registerDesignTools } from './mcp/register-design-tools.js';
 import { registerMutationTools } from './mcp/register-mutation-tools.js';
+import { registerInPlaceTools } from './mcp/register-in-place-tools.js';
 import { registerStatusTool } from './mcp/register-status.js';
 import { registerFrontendTools } from './mcp/register-frontend-tools.js';
 import { TemporaryArtifactStore } from './temp/artifact-store.js';
@@ -36,6 +37,7 @@ export function createMcpServer(
   registerMediaTools(server, broker, assets, exports, contexts);
   registerFrontendTools(server, broker, contexts);
   registerMutationTools(server, broker);
+  registerInPlaceTools(server, broker);
   registerDesignTools(server, broker);
   return server;
 }

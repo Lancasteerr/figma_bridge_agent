@@ -40,7 +40,7 @@ export async function updateText(params: unknown): Promise<MutationResult> {
   });
 }
 
-async function preflightFonts(node: TextNode, requested?: FontName): Promise<void> {
+export async function preflightFonts(node: TextNode, requested?: FontName): Promise<void> {
   // Figma 要求所有将被写入或保留的字体先 load，否则 characters/fontName 修改可能失败。
   if (node.hasMissingFont) {
     throw missing(node, 'The Text node contains a missing font.');

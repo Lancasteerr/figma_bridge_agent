@@ -451,7 +451,8 @@ async function serializeComponent(
 export async function fingerprintNodeTree(nodes: readonly SceneNode[]): Promise<string> {
   const context = createSerializeContext();
   const visit = async (node: SceneNode): Promise<unknown> => ({
-    snapshot: await serializeNode(node, {}, context),
+    // Read projections may truncate text; a destructive-write guard must cover the full text.
+    snapshot: await serializeNode(node, { maxTextLength: Number.MAX_SAFE_INTEGER }, context),
     children:
       'children' in node
         ? await Promise.all(node.children.filter(isSceneNode).map((child) => visit(child)))

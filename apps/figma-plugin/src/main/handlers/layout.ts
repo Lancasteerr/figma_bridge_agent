@@ -50,7 +50,7 @@ export async function setLayout(params: unknown): Promise<MutationResult> {
 type SetLayoutInput = ReturnType<typeof SetLayoutInputSchema.parse>;
 
 /** 在触碰 Figma 属性前校验节点能力和 FILL/HUG/ABSOLUTE 的父子约束。 */
-function validateLayoutInput(node: SceneNode, input: SetLayoutInput): void {
+export function validateLayoutInput(node: SceneNode, input: SetLayoutInput): void {
   if (input.layout && !hasWritableAutoLayout(node)) {
     throw invalid(
       node,

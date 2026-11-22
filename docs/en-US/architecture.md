@@ -26,7 +26,7 @@ An explicit CLI pairing session temporarily enables `ws://127.0.0.1:3900/pair`; 
 
 Public MCP results omit SHA-256 values, byte counts, Base64/SVG bodies, and per-item consistency metadata used only by internal RPC. Session IDs, validation IDs, Proposal/complete-tree/workunit source fingerprints, purpose-bound local or project paths, expiry times, and intrinsic dimensions remain public because callers need them for recovery or concurrency control. `expectedExistingSha256` is an explicit-overwrite concurrency input and is never echoed in results.
 
-Every Adapter statically registers the same 25 bounded tools. Tool names use `figma_inspect_`, `figma_frontend_`, and `figma_design_` prefixes so the model can choose the domain directly; there is no activation state or dynamic tool-list transition.
+Every Adapter statically registers the same 27 bounded tools. Tool names use `figma_inspect_`, `figma_frontend_`, and `figma_design_` prefixes so the model can choose the domain directly; there is no activation state or dynamic tool-list transition.
 
 The first adapter starts the Daemon when needed. Closing one host only closes its adapter. The Daemon exits after both the last adapter and the plugin have been disconnected for 30 seconds.
 
@@ -60,9 +60,9 @@ The first adapter starts the Daemon when needed. Closing one host only closes it
 6. Facts stay in JSONL and are queried by node ID or name. They are never loaded wholesale into conversation context. Only nodes that produce code, selectors, assets, or special geometry need mappings.
 7. Before completion, `figma_frontend_check_workunit_source` accepts only `workUnitId` and reports `FRESH` or `STALE`. The Agent marks `COMPLETE` only when the source is fresh, fingerprints agree, and differences are resolved or explicitly reported.
 
-## Source immutability
+## Proposal isolation
 
-Write handlers accept only nodes inside a root carrying the `figma-agent-mcp:proposal` plugin-data marker. Marker v3 adds `GENERATED`/`CLONED` origin, build state, and operation ID while marker v2 remains readable and writable. Requested targets describe intent; the Proposal root remains the write boundary and every cloned context node inside it is writable.
+Proposal write handlers accept only nodes inside a root carrying the `figma-agent-mcp:proposal` plugin-data marker. Marker v3 adds `GENERATED`/`CLONED` origin, build state, and operation ID while marker v2 remains readable and writable. Requested targets describe intent; the Proposal root remains the write boundary and every cloned context node inside it is writable.
 
 `figma_design_duplicate_as_proposal` accepts edit targets and resolves clone roots automatically. Flow children include their direct Auto Layout parent; ordinary leaves include their nearest structural container; Page and Section stop the search. Component Set variants and absolute Auto Layout children do not expand. The resolved scope is capped at 1000 scene nodes: an oversized inferred context falls back to the target with a warning, while an oversized target or aggregate request is rejected. Single roots are moved directly to the Page and multiple roots enter a transparent Page-level wrapper, so no Proposal remains in the original layout context. The public response maps only the requested edit targets to Proposal node IDs and resolution reasons; clone roots and the complete internal ID map remain private.
 
@@ -101,3 +101,11 @@ DesignPlan v1 supports Frame, Text, Rectangle, Ellipse, Line, Image, SVG, Clone,
 - Persistent asset, index, and workunit writes require a bound workspace. Temporary tree/render storage retains its independent TTL and quota controls.
 
 CSS from `getCSSAsync()` is labeled as a code-generation hint. Normalized snapshots remain the structural truth.
+
+## Explicit in-place edits
+
+Only when the user explicitly requests original-artwork changes, use figma_design_edit_in_place or figma_design_delete_nodes. Read figma_status.selection and inspect exact targets. Both tools require editMode set to IN_PLACE, a current-page scopeRootId, and its complete-tree expectedFingerprint from figma_design_read_source_fingerprint with nodeIds: [scopeRootId].
+
+Edit operations are TEXT, LAYOUT, RESIZE, CREATE_FRAME, and CAROUSEL, with 1-100 items. Text, layout, and Frame fields match the corresponding Proposal tools. RESIZE takes nodeId, width, height. CAROUSEL takes parentId, staged raster assetIds, width, height; optional name, x, y, gap. It scrolls horizontally in presentation mode without autoplay. Target IDs must already exist; inspect returned createdNodeIds before further edits. Chain the returned treeFingerprint into subsequent writes.
+
+Deletion takes the same guard plus 1-100 unique nodeIds. Do not specify both parent and child IDs. Removing the scope root returns scopeRemoved true and treeFingerprint null. No Proposal is created or marked. Cross-page/out-of-scope targets, locked ancestors, Instance internals, and stale fingerprints are rejected; deletion also checks locked descendants. Font loading is followed by a scope recheck. A batch is one undoable unit; write failures roll back. Inspect after a timeout before retrying.

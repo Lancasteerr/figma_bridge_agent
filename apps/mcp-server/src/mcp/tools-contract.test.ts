@@ -38,6 +38,8 @@ const STATIC_TOOL_NAMES = [
   'figma_design_discard_proposal',
   'figma_design_validate_plan',
   'figma_design_apply_plan',
+  'figma_design_edit_in_place',
+  'figma_design_delete_nodes',
 ].sort();
 const LEGACY_TOOL_NAMES = [
   'figma_activate_workflow',

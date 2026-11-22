@@ -14,3 +14,4 @@ export * from './resources.js';
 export * from './rpc.js';
 export * from './frontend.js';
 export * from './tools.js';
+export * from './in-place.js';

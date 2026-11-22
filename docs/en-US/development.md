@@ -98,7 +98,7 @@ The Server and Figma plugin share RPC, authentication, and tool data structures 
 3. Figma plugin handlers, main/UI messages, and relevant unit tests.
 4. The Agent Plugin Skill, DesignPlan reference, and public documentation in both languages.
 
-See the [architecture and safety model](architecture.md) for the security boundary, Proposal marker, and DesignPlan lifecycle. Do not bypass those boundaries with arbitrary scripts, source-artwork writes, or cross-Proposal mutations.
+See the [architecture and safety model](architecture.md) for the security boundary, Proposal marker, and DesignPlan lifecycle. Do not bypass those boundaries with arbitrary scripts or cross-Proposal mutations. Original-artwork writes must use the separate explicit in-place tools, with scope, complete-tree fingerprints, lock checks, and atomic rollback.
 
 ## Test layers
 

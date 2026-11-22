@@ -4,7 +4,7 @@
 
 [English](README.en-US.md) · [中文文档](docs/zh-CN/README.md) · [最新版本](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest) · [报告问题](https://github.com/Lancasteerr/figma_bridge_agent/issues) · [示例仓库](https://github.com/Lancasteerr/figma_bridge_agent_test)
 
-> 本地优先 · 源稿不可直接修改 · 无云端中继 · 无遥测
+> 本地优先 · 显式授权原位编辑 · 无云端中继 · 无遥测
 
 这是通过 GitHub 分发的非官方开发工具，与 Figma 不存在隶属或背书关系，也不会发布到 Figma Community。Figma 文件和桥接凭据只经过本机 loopback。
 
@@ -22,7 +22,7 @@
 
 Bridge 本身不是特定框架的代码生成器。它为 Coding Agent 提供结构化设计证据、安全素材交付和来源新鲜度校验；Agent 再结合目标仓库的技术栈、组件库和工程约定编写代码。
 
-MCP Server 静态注册 25 个受限工具。除 `figma_status` 外，工具按 `figma_inspect_`、`figma_frontend_`、`figma_design_` 领域前缀命名，不存在动态激活步骤。完整列表和调用顺序见 [MCP 工具参考](docs/zh-CN/tools.md)。
+MCP Server 静态注册 27 个受限工具。除 `figma_status` 外，工具按 `figma_inspect_`、`figma_frontend_`、`figma_design_` 领域前缀命名，不存在动态激活步骤。完整列表和调用顺序见 [MCP 工具参考](docs/zh-CN/tools.md)。
 
 ## 界面预览
 
@@ -87,7 +87,7 @@ npx -y figma-local-agent-mcp@<VERSION> pair
 
 ### 4. 验证连接
 
-重启 MCP 客户端或新建 Agent 会话，确认可发现 25 个静态工具，然后让 Agent 调用 `figma_status`。正常结果会包含当前 Figma 文件、页面、选区，以及 `UNBOUND` 或 `BOUND` 工作区状态。插件与 Server 内部使用 Bridge 协议 11。
+重启 MCP 客户端或新建 Agent 会话，确认可发现 27 个静态工具，然后让 Agent 调用 `figma_status`。正常结果会包含当前 Figma 文件、页面、选区，以及 `UNBOUND` 或 `BOUND` 工作区状态。插件与 Server 内部使用 Bridge 协议 11。
 
 Development build、源码构建和直接 MCP 故障排查见[直接 MCP 安装指南](docs/zh-CN/install-mcp-server.md)。
 
@@ -114,7 +114,7 @@ Development build、源码构建和直接 MCP 故障排查见[直接 MCP 安装�
 1. 在 Figma Desktop 打开目标 Design 文件和 **Local Figma Agent Bridge**。
 2. 在 Agent 中先检查 `figma_status`，再直接使用 `figma_inspect_` 与 `figma_design_` 工具，选择要处理的节点并描述读取、修改或生成目标。
 3. 修改现有设计时，Agent 会先创建隔离 Proposal；从零生成复杂界面时，会先验证完整 DesignPlan。
-4. 在画布中审查生成的 Proposal；公开写工具不会覆盖源稿。
+4. 在画布中审查生成的 Proposal；Proposal 工具不会覆盖源稿；原位修改使用独立的显式工具。
 
 示例请求：
 
@@ -189,7 +189,7 @@ pnpm build:release
 
 当前稳定版支持 Windows、本地 stdio、多个 MCP Adapter、一个活动 Figma 插件，以及当前 Design 文件的当前页面。它支持读取、渲染、Workunit、素材导出、受控 Proposal 编辑和已验证的 DesignPlan。Coding Agent 可以依据这些能力在本地前端工程中生成代码。
 
-当前不提供 Windows 安装器、自动更新、远程传输、云同步、任意 JavaScript、源稿直接写入、通用删除、Instance 分离或 Team Library 查询。Bridge 也不内置特定框架的一键代码生成器；代码生成由所连接的 Coding Agent 完成。
+当前不提供 Windows 安装器、自动更新、远程传输、云同步、任意 JavaScript、不受限删除、Instance 分离或 Team Library 查询。Bridge 也不内置特定框架的一键代码生成器；代码生成由所连接的 Coding Agent 完成。
 
 ## License
 

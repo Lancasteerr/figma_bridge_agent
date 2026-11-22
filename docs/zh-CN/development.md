@@ -98,7 +98,7 @@ Server 与 Figma 插件通过 `packages/protocol` 中的 Zod schema 共享 RPC�
 3. Figma 插件处理器、主进程/UI 消息以及对应单元测试。
 4. Agent Plugin Skill、DesignPlan reference 和中英文公开文档。
 
-安全边界、Proposal marker 和 DesignPlan 生命周期见[架构与安全模型](architecture.md)。不要通过新增任意脚本、源稿写入或跨 Proposal 写入来绕过现有边界。
+安全边界、Proposal marker 和 DesignPlan 生命周期见[架构与安全模型](architecture.md)。不要通过任意脚本或跨 Proposal 写入绕过边界。源稿修改必须使用独立的显式原位工具，保留范围、指纹、锁定校验和原子回滚。
 
 ## 测试层次
 

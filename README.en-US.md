@@ -4,7 +4,7 @@ Let local coding agents read Figma Design documents safely, carry design evidenc
 
 [中文](README.md) · [English documentation](docs/en-US/README.md) · [Latest release](https://github.com/Lancasteerr/figma_bridge_agent/releases/latest) · [Report an issue](https://github.com/Lancasteerr/figma_bridge_agent/issues) · [Showcase](https://github.com/Lancasteerr/figma_bridge_agent_test)
 
-> Local-first · No direct source edits · No cloud relay · No telemetry
+> Local-first · Explicit in-place editing · No cloud relay · No telemetry
 
 This unofficial developer tool is distributed through GitHub. It is not affiliated with or endorsed by Figma and is not published to Figma Community. Figma data and bridge credentials stay on the local loopback interface.
 
@@ -22,7 +22,7 @@ This unofficial developer tool is distributed through GitHub. It is not affiliat
 
 The Bridge is not a framework-specific code generator. It gives the coding agent structured design evidence, safe asset delivery, and source-freshness checks; the agent writes code using the target repository's stack, component library, and conventions.
 
-The MCP Server statically registers 25 bounded tools. Apart from `figma_status`, names use the `figma_inspect_`, `figma_frontend_`, and `figma_design_` domain prefixes; there is no activation step. See the [MCP tool reference](docs/en-US/tools.md) for the complete list and call sequences.
+The MCP Server statically registers 27 bounded tools. Apart from `figma_status`, names use the `figma_inspect_`, `figma_frontend_`, and `figma_design_` domain prefixes; there is no activation step. See the [MCP tool reference](docs/en-US/tools.md) for the complete list and call sequences.
 
 ## Interface preview
 
@@ -87,7 +87,7 @@ Click **Codes match** only when the six-digit codes in the terminal and plugin a
 
 ### 4. Verify the connection
 
-Restart the MCP client or open a new agent session. Confirm that all 25 static tools are discoverable, then ask the agent to call `figma_status`. A healthy result contains the current Figma file, page, selection, and an `UNBOUND` or `BOUND` workspace. Protocol 11 compatibility is checked internally during the authenticated connection.
+Restart the MCP client or open a new agent session. Confirm that all 27 static tools are discoverable, then ask the agent to call `figma_status`. A healthy result contains the current Figma file, page, selection, and an `UNBOUND` or `BOUND` workspace. Protocol 11 compatibility is checked internally during the authenticated connection.
 
 For Development builds, source builds, and direct MCP troubleshooting, see the [direct MCP installation guide](docs/en-US/install-mcp-server.md).
 
@@ -114,7 +114,7 @@ See the [front-end implementation workflow](plugins/figma-local-agent/skills/fig
 1. Open the target Design file and **Local Figma Agent Bridge** in Figma Desktop.
 2. Check `figma_status`, use the `figma_inspect_` and `figma_design_` tools directly, select the relevant nodes, and describe the read, edit, or generation task.
 3. For an existing design, the agent first creates an isolated Proposal. For complex generation from scratch, it validates a complete DesignPlan first.
-4. Review the resulting Proposal on the canvas. Public write tools never overwrite the source artwork.
+4. Review the resulting Proposal on the canvas. Proposal tools never overwrite source artwork; explicit in-place edits use separate tools.
 
 Example requests:
 
@@ -189,7 +189,7 @@ See the [development guide](docs/en-US/development.md) for the environment and r
 
 The current stable release supports Windows, local stdio, multiple MCP Adapters, one active Figma plugin, and the current page of the current Design file. It supports reads, renders, workunits, asset exports, controlled Proposal edits, and validated DesignPlans. A connected coding agent can use these capabilities to generate code in a local front-end project.
 
-The current release does not provide a Windows installer, automatic updates, remote transport, cloud sync, arbitrary JavaScript, direct source-artwork writes, general deletion, Instance detaching, or Team Library queries. The Bridge also has no built-in one-click generator for a particular framework; the connected coding agent performs code generation.
+The current release does not provide a Windows installer, automatic updates, remote transport, cloud sync, arbitrary JavaScript, unrestricted deletion, Instance detaching, or Team Library queries. The Bridge also has no built-in one-click generator for a particular framework; the connected coding agent performs code generation.
 
 ## License
 

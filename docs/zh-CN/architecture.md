@@ -26,7 +26,7 @@ Figma 插件主进程
 
 公共 MCP 结果不返回 SHA-256、字节计数、Base64/SVG 正文或仅供内部 RPC 使用的逐项一致性元数据。session ID、验证 ID、Proposal/完整树/workunit 来源指纹、用途明确的本地或项目路径、过期时间和固有尺寸是调用方恢复或并发控制所需的公开 token，继续保留。`expectedExistingSha256` 只作为显式覆盖的并发保护输入，不在结果中回显。
 
-Server 在每个 Adapter 上静态注册全部 25 个工具。`figma_inspect_*`、`figma_frontend_*` 和 `figma_design_*` 前缀直接表达领域，不存在连接级工作流状态、动态句柄切换或旧工具 alias。
+Server 在每个 Adapter 上静态注册全部 27 个工具。`figma_inspect_*`、`figma_frontend_*` 和 `figma_design_*` 前缀直接表达领域，不存在连接级工作流状态、动态句柄切换或旧工具 alias。
 
 首个 Adapter 会在需要时启动 Daemon。关闭某个主机只会关闭自己的 Adapter。当最后一个 Adapter 和插件都断开 30 秒后，Daemon 自动退出。
 
@@ -60,9 +60,9 @@ Server 在每个 Adapter 上静态注册全部 25 个工具。`figma_inspect_*`�
 6. Agent 仅映射实际产生代码的组件、选择器、资源和特殊几何。facts 留在 JSONL，通过节点 ID/名称定向查询。
 7. 完成前调用 `figma_frontend_check_workunit_source(workUnitId)`；只有来源为 `FRESH`、实施指纹与当前来源一致且差异已解决或报告，才能把状态设为 `COMPLETE`。
 
-## 源稿不可变
+## Proposal 隔离
 
-写入处理器只接受位于带有 `figma-agent-mcp:proposal` 插件数据标记的根节点内的节点。v3 标记增加 `GENERATED`/`CLONED` 来源、构建状态和 operation ID，同时继续读写 v2 Proposal。请求目标只描述意图；Proposal 根仍是写入边界，其中复制进来的全部上下文节点均可写。
+Proposal 写入处理器只接受位于带有 `figma-agent-mcp:proposal` 插件数据标记的根节点内的节点。v3 标记增加 `GENERATED`/`CLONED` 来源、构建状态和 operation ID，同时继续读写 v2 Proposal。请求目标只描述意图；Proposal 根仍是写入边界，其中复制进来的全部上下文节点均可写。
 
 `figma_design_duplicate_as_proposal` 接收编辑目标并自动解析复制根。Auto Layout 流式子节点包含其直接父级，普通叶节点包含最近的结构容器，Page 和 Section 会停止上探；Component Set 变体和绝对定位子节点不会扩张。解析范围最多包含 1000 个场景节点：推导出的上下文超限时会退回目标并返回警告，目标自身或合并请求超限时直接拒绝。单根副本直接移动到 Page，多根副本进入 Page 级透明包装器，因此 Proposal 不会留在原布局上下文。公共返回只映射请求的编辑目标及其解析原因；复制根和完整内部 ID 映射不对 Agent 暴露。
 
@@ -101,3 +101,11 @@ DesignPlan v1 支持 Frame、Text、Rectangle、Ellipse、Line、Image、SVG、C
 - 持久素材、结构索引与 workunit 写入必须先绑定工作区；临时树/渲染存储继续使用独立 TTL 与配额控制。
 
 `getCSSAsync()` 返回的 CSS 会标记为代码生成提示。规范化快照仍然是结构事实来源。
+
+## 显式原位编辑
+
+仅在用户明确要求修改原稿时使用 figma_design_edit_in_place 或 figma_design_delete_nodes。先通过 figma_status.selection 读取选区并检查目标节点。必须携带 editMode（值为 IN_PLACE）、当前页 scopeRootId，以及通过 figma_design_read_source_fingerprint 的 nodeIds: [scopeRootId] 读取的完整树 expectedFingerprint。
+
+编辑的 operations 支持 TEXT、LAYOUT、RESIZE、CREATE_FRAME、CAROUSEL，每批 1–100 项。文字、布局、Frame 字段沿用对应 Proposal 工具；RESIZE 使用 nodeId、width、height。CAROUSEL 使用 parentId、暂存位图 assetIds、width、height，可选 name、x、y、gap；提供演示模式横向滚动，不含自动播放。所有目标 ID 必须已存在，新节点 ID 通过 createdNodeIds 返回。后续写入使用返回的新 treeFingerprint。
+
+删除使用相同 guard 及 1–100 个唯一 nodeIds，不得同时指定父子节点。删除整个范围根时返回 scopeRemoved: true、treeFingerprint: null。不创建或伪造 Proposal 标记。拒绝跨页、越界、锁定祖先、Instance 内部和过期指纹；删除还检查锁定子孙。字体加载后复查范围。预检失败不触碰 Undo，整批写入失败回滚，成功仅产生一个 Undo 单元。超时后先检查结果再重试。
