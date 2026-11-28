@@ -2,7 +2,7 @@
 
 [中文版](../zh-CN/acceptance.md) · [Documentation home](README.md)
 
-This runbook is for contributors validating candidate distribution artifacts. Run `pnpm build:release` before manual acceptance and replace every `<VERSION>` on this page with the candidate version. Perform the user path from the generated Figma ZIP, npm tarball, and Agent Plugin ZIP, not from workspace entry points. Use a disposable Figma page for mutation scenarios.
+The release candidate is `3.0.2`. Run `pnpm build:release` before manual acceptance and replace every `<VERSION>` on this page with the candidate version. Follow the user installation flow with the generated Figma ZIP, npm tarball, and Agent Plugin ZIP. Use a disposable Figma page for mutation scenarios.
 
 ## 1. Distribution and pairing gate
 
@@ -34,6 +34,7 @@ Do not continue acceptance if this gate fails.
 8. Select the rough ArticleCard, use the selection returned by `figma_status`, and call `figma_inspect_read_node_facts`, `figma_inspect_browse_nodes`, and `figma_inspect_render_preview`. Confirm the old selection and variables tools are absent.
 9. Confirm `figma_inspect_read_node_facts` accepts stable field groups, returns name/type/parent unconditionally, omits `DIRECT_CHILDREN` unless requested, and removes default booleans, zero rotation, empty collections, invalid mask shells, duplicate render bounds, and any public source fingerprint. Verify Auto Layout/Grid, size constraints, child alignment, text truncation and styles, strokes, independent corners, true render bounds, and asset facts remain available when requested. Treat clipping and overflow only as static facts; do not claim page, container, sticky, or other scrolling behavior from them.
 10. Call `figma_inspect_read_raw_fields` and confirm the default omits `children`; `depth: 1` keeps one level only, `fields` accepts at most 32 unique top-level fields while always retaining `id`, `name`, and `type`, and projection precedes the 256 KiB/2 MiB byte check. Simulate an empty image hash, missing image, and dimension-query failure. Confirm paint location plus error state remain and the node read succeeds. Change layout, text, shape, image, crop, vector, mask, or export-setting facts and confirm a new workunit source receives a different `sourceFingerprint` while node facts still expose none.
+11. Clear the selection and confirm `tools/list` advertises the current-page entry point for `figma_inspect_browse_nodes`. Call it with `{"scope":"CURRENT_PAGE"}` and check for a `PAGE` root whose direct layers include frames, sections, and loose asset layers. Call it again with one of the returned node IDs to verify subtree browsing.
 
 ## 3. Primitive Proposal path
 

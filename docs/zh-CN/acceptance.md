@@ -2,7 +2,7 @@
 
 [English](../en-US/acceptance.md) · [文档首页](README.md)
 
-本手册供贡献者验证候选发行产物。手动验收前先运行 `pnpm build:release`，并用候选版本号替换本页所有 `<VERSION>`。必须从生成的 Figma ZIP、npm tarball 和 Agent Plugin ZIP 执行普通用户路径，不能直接使用 workspace 入口。修改场景请使用一次性 Figma 页面。
+本次候选发行版本为 `3.0.2`。手动验收前先运行 `pnpm build:release`，并用候选版本号替换本页所有 `<VERSION>`。从生成的 Figma ZIP、npm tarball 和 Agent Plugin ZIP 执行普通用户安装流程。修改场景请使用一次性 Figma 页面。
 
 ## 1. 分发与配对门禁
 
@@ -34,6 +34,7 @@
 8. 选择粗略的 ArticleCard，使用 `figma_status` 返回的选区并调用 `figma_inspect_read_node_facts`、`figma_inspect_browse_nodes` 和 `figma_inspect_render_preview`；确认旧的 selection 与 variables 工具不存在。
 9. 确认 `figma_inspect_read_node_facts` 接受稳定字段组，始终返回名称/类型/父节点，只有显式请求才返回 `DIRECT_CHILDREN`，并省略默认布尔值、零旋转、空集合、无效蒙版外壳、重复渲染边界及公开来源指纹。按需读取时仍应保留 Auto Layout/Grid、尺寸约束、子项对齐、文本截断与样式、描边、独立圆角、真实渲染边界和素材事实。clipping/overflow 只能作为静态事实，不能据此声称页面、容器、吸顶或其他滚动行为已确定。
 10. 调用 `figma_inspect_read_raw_fields` 时确认默认不含 `children`；`depth: 1` 只保留一层，`fields` 最多接受 32 个唯一顶层字段并始终保留 `id`、`name`、`type`，且投影发生在 256 KiB/2 MiB 字节检查之前。模拟空 image hash、找不到图片和尺寸查询异常；确认 paint 定位和错误状态保留，整次节点读取仍成功。修改布局、文本、形状、图片、裁剪、矢量、蒙版或导出设置事实，确认新 Workunit 来源得到不同 `sourceFingerprint`，而节点事实读取仍不公开指纹。
+11. 清空选区，在 `tools/list` 中确认 `figma_inspect_browse_nodes` 公开当前页入口。传入 `{"scope":"CURRENT_PAGE"}`，确认返回 `PAGE` 根并列出直属的 Frame、Section 和散落素材图层。用其中一个节点 ID 再调用一次，确认仍可浏览子树。
 
 ## 3. 基础 Proposal 路径
 

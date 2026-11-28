@@ -42,7 +42,7 @@ async function setup() {
       connected: true,
       authenticated: true,
       protocolVersion: BRIDGE_PROTOCOL_VERSION,
-      pluginVersion: '3.0.1',
+      pluginVersion: __CLI_VERSION__,
       document: { id: 'document:1', name: 'Community' },
       page: { id: 'page:1', name: 'Home' },
       selection: [{ id: 'node:1', name: 'Hero', type: 'FRAME', parentId: 'page:1' }],

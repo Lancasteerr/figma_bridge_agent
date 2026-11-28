@@ -60,7 +60,7 @@ async function setup(
   } as unknown as McpServer;
   const broker = {
     connected: true,
-    pluginVersion: '3.0.1',
+    pluginVersion: __CLI_VERSION__,
     request: vi.fn(async (method: string, params: unknown) => {
       if (method === 'checkAssetSourceGuard' && !options.delegateSourceGuard) {
         return { rootNodeId: 'root', sourceFingerprint: 'source-123' };
