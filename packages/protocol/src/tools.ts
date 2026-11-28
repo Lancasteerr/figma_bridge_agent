@@ -57,17 +57,32 @@ export const FingerprintRpcResultSchema = z
   .strict();
 export type FingerprintRpcResult = z.infer<typeof FingerprintRpcResultSchema>;
 export const FingerprintResultSchema = z.object({ treeFingerprint: z.string().min(8) }).strict();
-export const GetTreeInputSchema = z
+const TreeTraversalSchema = z
   .object({
-    nodeId: z.string().min(1),
-    depth: z.number().int().min(0).max(8).default(2),
     maxNodes: z.number().int().min(1).max(1_000).default(200),
     maxTextLength: z.number().int().min(0).max(80).default(80),
-    delivery: z.enum(['AUTO', 'TEMP_FILE']).default('AUTO'),
   })
   .strict();
+const TreeDepthSchema = z.number().int().min(0).max(8);
+const SubtreeInputSchema = TreeTraversalSchema.extend({
+  nodeId: z.string().min(1).describe('Scene node ID on the current page. Omit scope.'),
+  depth: TreeDepthSchema.default(2).describe('Subtree depth. Defaults to 2.'),
+});
+const CurrentPageTreeInputSchema = TreeTraversalSchema.extend({
+  scope: z
+    .literal('CURRENT_PAGE')
+    .describe('Browse from the current page root without a selection. Omit nodeId.'),
+  depth: TreeDepthSchema.default(1).describe('Page depth. Defaults to 1 for direct layers.'),
+});
+const TreeDeliveryShape = { delivery: z.enum(['AUTO', 'TEMP_FILE']).default('AUTO') };
+
+/** 两个严格分支在公开 schema 中表达入口互斥，并各自设置默认深度。 */
+export const GetTreeInputSchema = z.union([
+  SubtreeInputSchema.extend(TreeDeliveryShape),
+  CurrentPageTreeInputSchema.extend(TreeDeliveryShape),
+]);
 /** Figma 插件只接收遍历参数，交付策略由本地 MCP Server 决定。 */
-export const GetTreeRpcInputSchema = GetTreeInputSchema.omit({ delivery: true });
+export const GetTreeRpcInputSchema = z.union([SubtreeInputSchema, CurrentPageTreeInputSchema]);
 export const RenderNodeInputSchema = z.object({
   nodeId: z.string().min(1),
   scale: z.number().positive().max(4).default(1),

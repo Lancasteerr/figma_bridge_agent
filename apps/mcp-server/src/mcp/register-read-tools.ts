@@ -9,7 +9,6 @@ import {
   GetNodeInputSchema,
   GetRawNodeInputSchema,
   GetTreeInputSchema,
-  GetTreeRpcInputSchema,
   NodeResultSchema,
   RawNodeResultSchema,
   RawNodeRpcResultSchema,
@@ -174,11 +173,11 @@ export function registerReadTools(
     'figma_inspect_browse_nodes',
     {
       description:
-        'Return a bounded lightweight navigation tree. maxTextLength must be an integer from 0 to 80 and defaults to 80. Large results are written to a temporary JSONL file; use read_node_facts or a prepared workunit for implementation facts.',
+        'Browse a bounded lightweight tree on the current Figma page. Use scope: "CURRENT_PAGE" to discover top-level frames, sections, layers, and asset candidates without a selection, or provide nodeId to browse a known subtree. Provide exactly one. Depth defaults to 1 for the page and 2 for a subtree. Large results may be delivered as temporary JSONL with an inline overview. Use figma_inspect_read_node_facts with ASSET_SOURCES to verify asset candidates.',
       inputSchema: GetTreeInputSchema,
       outputSchema: TreeResultSchema,
       annotations: {
-        title: 'Get Figma subtree',
+        title: 'Browse Figma page or subtree',
         readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: true,
@@ -187,15 +186,10 @@ export function registerReadTools(
     },
     async (input) => {
       try {
-        const parsed = GetTreeInputSchema.parse(input);
-        const rpcInput = GetTreeRpcInputSchema.parse({
-          nodeId: parsed.nodeId,
-          depth: parsed.depth,
-          maxNodes: parsed.maxNodes,
-          maxTextLength: parsed.maxTextLength,
-        });
+        // 文件交付由 MCP Server 处理，只将已校验的遍历参数发送给插件。
+        const { delivery, ...rpcInput } = GetTreeInputSchema.parse(input);
         const tree = TreeRpcResultSchema.parse(await broker.request('getTree', rpcInput));
-        return structuredResult(await deliverTreeResult(tree, parsed.delivery, artifacts));
+        return structuredResult(await deliverTreeResult(tree, delivery, artifacts));
       } catch (error) {
         return toolError(error);
       }

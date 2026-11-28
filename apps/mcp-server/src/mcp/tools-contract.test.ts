@@ -91,6 +91,27 @@ describe('MCP tool contract', () => {
   it('保留关键 schema 与 destructive annotations', async () => {
     const { mcp } = createTestServer();
     const tools = await (await connectServer(mcp)).listTools();
+    // 从真实 tools/list 校验页面入口对 Agent 可发现。
+    const browse = tools.find((tool) => tool.name === 'figma_inspect_browse_nodes');
+    expect(browse?.description).toContain('scope: "CURRENT_PAGE"');
+    expect(browse?.description).toContain('Provide exactly one');
+    expect(browse?.annotations).toMatchObject({
+      title: 'Browse Figma page or subtree',
+      readOnlyHint: true,
+    });
+    expect(propertyDescriptions(browse?.inputSchema, 'scope')).toContain(
+      'Browse from the current page root without a selection. Omit nodeId.',
+    );
+    expect(propertyDescriptions(browse?.inputSchema, 'nodeId')).toContain(
+      'Scene node ID on the current page. Omit scope.',
+    );
+    expect(propertyDescriptions(browse?.inputSchema, 'depth')).toEqual(
+      expect.arrayContaining([
+        'Page depth. Defaults to 1 for direct layers.',
+        'Subtree depth. Defaults to 2.',
+      ]),
+    );
+
     expect(
       tools.find((tool) => tool.name === 'figma_frontend_export_assets')?.annotations,
     ).toMatchObject({ readOnlyHint: false, destructiveHint: true, idempotentHint: true });
@@ -191,6 +212,7 @@ describe('MCP tool contract', () => {
 
 interface ListedTool {
   name: string;
+  description?: string;
   inputSchema: unknown;
   outputSchema: unknown;
   annotations?: Record<string, unknown>;

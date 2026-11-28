@@ -48,14 +48,25 @@ function textNode(id: string, characters: string): SceneNode {
   } as unknown as SceneNode;
 }
 
-function installFigma(root: SceneNode, getImageByHash = vi.fn()): void {
-  const page = { id: 'page:1', name: 'Page', type: 'PAGE', parent: null, children: [root] };
-  (root as unknown as { parent: unknown }).parent = page;
+function installFigma(roots: SceneNode[], getImageByHash = vi.fn()) {
+  const page = {
+    id: 'page:1',
+    name: 'Page',
+    type: 'PAGE',
+    parent: null,
+    children: roots,
+    selection: [],
+  };
+  for (const root of roots) (root as unknown as { parent: unknown }).parent = page;
+  const getNodeByIdAsync = vi.fn(
+    async (id: string) => roots.find((root) => root.id === id) ?? null,
+  );
   vi.stubGlobal('figma', {
     currentPage: page,
-    getNodeByIdAsync: vi.fn(async (id: string) => (id === root.id ? root : null)),
+    getNodeByIdAsync,
     getImageByHash,
   });
+  return getNodeByIdAsync;
 }
 
 describe('轻量节点树', () => {
@@ -69,7 +80,7 @@ describe('轻量节点树', () => {
       getMainComponentAsync,
     } as unknown as SceneNode;
     const root = frame('1:1', 'Root', [child, instance]);
-    installFigma(root, getImageByHash);
+    installFigma([root], getImageByHash);
 
     const result = await getTree({ nodeId: root.id, depth: 2, maxNodes: 20, maxTextLength: 80 });
 
@@ -94,7 +105,7 @@ describe('轻量节点树', () => {
     const first = frame('2:1', 'First', [grandchild]);
     const second = frame('2:2', 'Second');
     const root = frame('1:1', 'Root', [first, second]);
-    installFigma(root);
+    installFigma([root]);
 
     const depthLimited = await getTree({
       nodeId: root.id,
@@ -118,5 +129,57 @@ describe('轻量节点树', () => {
       nodeCount: 2,
       truncation: { reasons: ['NODE_LIMIT'], frontierNodeIds: [grandchild.id, second.id] },
     });
+  });
+
+  it('从空选区浏览页面时先纳入直属图层，并限制截断 ID 的数量', async () => {
+    const sectionChildren = Array.from({ length: 105 }, (_, index) =>
+      frame(`2:${index}`, `Section child ${index}`),
+    );
+    const section = {
+      ...frame('1:1', 'Section', sectionChildren),
+      type: 'SECTION',
+    } as SceneNode;
+    const vector = { ...frame('1:3', 'Vector'), type: 'VECTOR', visible: false } as SceneNode;
+    const getNodeByIdAsync = installFigma([section, frame('1:2', 'Frame'), vector]);
+
+    const result = await getTree({ scope: 'CURRENT_PAGE', depth: 2, maxNodes: 5 });
+
+    expect(getNodeByIdAsync).not.toHaveBeenCalled();
+    expect(result.schemaVersion).toBe(3);
+    expect(result.root).toMatchObject({
+      id: 'page:1',
+      name: 'Page',
+      type: 'PAGE',
+      childCount: 3,
+      children: [
+        { type: 'SECTION', order: 0, children: [{ id: '2:0' }] },
+        { type: 'FRAME', order: 1 },
+        { type: 'VECTOR', order: 2, visible: false, assetHints: { hasVector: true } },
+      ],
+    });
+    expect(result.root).not.toHaveProperty('geometry');
+    expect(result.coverage).toEqual({
+      complete: false,
+      nodeCount: 5,
+      truncation: {
+        reasons: ['NODE_LIMIT'],
+        frontierNodeIds: sectionChildren.slice(1, 101).map(({ id }) => id),
+        frontierNodeIdsTruncated: true,
+        omittedChildCount: 104,
+      },
+    });
+
+    const rootOnly = await getTree({ scope: 'CURRENT_PAGE', depth: 0 });
+    expect(rootOnly.root).toMatchObject({ childCount: 3, children: [] });
+    expect(rootOnly.coverage.truncation).toEqual({
+      reasons: ['DEPTH_LIMIT'],
+      frontierNodeIds: ['page:1'],
+      omittedChildCount: 3,
+    });
+
+    installFigma([]);
+    const emptyPage = await getTree({ scope: 'CURRENT_PAGE' });
+    expect(emptyPage.root).toMatchObject({ childCount: 0, children: [] });
+    expect(emptyPage.coverage).toEqual({ complete: true, nodeCount: 1 });
   });
 });

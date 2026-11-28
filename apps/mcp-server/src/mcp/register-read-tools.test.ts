@@ -205,6 +205,37 @@ describe('figma_inspect_browse_nodes MCP 交付', () => {
     expect(response.structuredContent).not.toHaveProperty('coverage');
   });
 
+  it('页面模式用 v3 JSONL 交付独立的 PAGE 根记录', async () => {
+    const page = { id: 'page:1', name: 'Page', type: 'PAGE', childCount: 1 };
+    const { broker, handler } = await setup({
+      schemaVersion: 3,
+      scope: { rootNodeId: page.id, requestedDepth: 1, maxNodes: 200 },
+      coverage: { complete: true, nodeCount: 2 },
+      root: { ...page, children: [{ ...node('child'), parentId: page.id }] },
+    });
+
+    const response = await handler({ scope: 'CURRENT_PAGE', delivery: 'TEMP_FILE' });
+
+    expect(broker.request).toHaveBeenCalledWith('getTree', {
+      scope: 'CURRENT_PAGE',
+      depth: 1,
+      maxNodes: 200,
+      maxTextLength: 80,
+    });
+    expect(response.structuredContent?.root).toEqual({
+      ...page,
+      children: [
+        expect.objectContaining({ id: 'child', navigationBoundsInParent: expect.any(Object) }),
+      ],
+    });
+    const artifact = response.structuredContent?.artifact as { localPath: string };
+    const lines = (await readFile(artifact.localPath, 'utf8')).trimEnd().split('\n');
+    expect(lines).toHaveLength(3);
+    expect(JSON.parse(lines[0]!)).toMatchObject({ recordType: 'manifest', schemaVersion: 3 });
+    expect(JSON.parse(lines[1]!)).toEqual(page);
+    expect(JSON.parse(lines[2]!)).toMatchObject({ id: 'child', parentId: page.id });
+  });
+
   it('overview 在同一深度轮询各分支，不让首个分支独占预算', async () => {
     const branches = Array.from({ length: 8 }, (_, branchIndex) => {
       const leaves = Array.from({ length: 80 }, (_, leafIndex) =>

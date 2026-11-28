@@ -155,10 +155,11 @@ describe('render result boundary', () => {
 
 describe('lightweight tree input', () => {
   it('公开输入包含交付策略，插件 RPC 输入会移除该字段', () => {
-    const input = GetTreeInputSchema.parse({ nodeId: '1:2' });
+    const subtree = { nodeId: '1:2' };
+    const input = GetTreeInputSchema.parse(subtree);
 
     expect(input).toEqual({
-      nodeId: '1:2',
+      ...subtree,
       depth: 2,
       maxNodes: 200,
       maxTextLength: 80,
@@ -167,7 +168,7 @@ describe('lightweight tree input', () => {
     expect(GetTreeRpcInputSchema.safeParse(input).success).toBe(false);
     expect(
       GetTreeRpcInputSchema.parse({
-        nodeId: input.nodeId,
+        ...subtree,
         depth: input.depth,
         maxNodes: input.maxNodes,
         maxTextLength: input.maxTextLength,
@@ -178,6 +179,22 @@ describe('lightweight tree input', () => {
   it('文本预览上限固定为八十字符且不允许无限内联模式', () => {
     expect(GetTreeInputSchema.safeParse({ nodeId: '1:2', maxTextLength: 81 }).success).toBe(false);
     expect(GetTreeInputSchema.safeParse({ nodeId: '1:2', delivery: 'INLINE' }).success).toBe(false);
+  });
+
+  it('页面入口默认浏览直属图层，且与场景节点入口互斥', () => {
+    const page = { scope: 'CURRENT_PAGE' };
+    expect(GetTreeInputSchema.parse(page)).toEqual({
+      ...page,
+      depth: 1,
+      maxNodes: 200,
+      maxTextLength: 80,
+      delivery: 'AUTO',
+    });
+    expect(GetTreeRpcInputSchema.parse({ ...page, depth: 0 }).depth).toBe(0);
+    for (const schema of [GetTreeInputSchema, GetTreeRpcInputSchema]) {
+      expect(schema.safeParse({}).success).toBe(false);
+      expect(schema.safeParse({ ...page, nodeId: '1:2' }).success).toBe(false);
+    }
   });
 });
 

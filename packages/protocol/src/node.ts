@@ -388,6 +388,20 @@ export const LightweightTreeNodeSchema: z.ZodType<LightweightTreeNode> =
     children: z.lazy(() => z.array(LightweightTreeNodeSchema)),
   });
 
+/** PAGE 根只记录页面身份和子节点数量，场景几何由图层各自提供。 */
+export const TreePageRootRecordSchema = z
+  .object({
+    id: z.string(),
+    name: z.string().max(200),
+    type: z.literal('PAGE'),
+    childCount: z.number().int().nonnegative(),
+  })
+  .strict();
+export type TreePageRootRecord = z.infer<typeof TreePageRootRecordSchema>;
+const LightweightTreePageRootSchema = TreePageRootRecordSchema.extend({
+  children: z.array(LightweightTreeNodeSchema),
+});
+
 export const TreeScopeSchema = z
   .object({
     rootNodeId: z.string(),
@@ -401,6 +415,7 @@ export const TreeTruncationSchema = z
     reasons: z.array(z.enum(['DEPTH_LIMIT', 'NODE_LIMIT'])).min(1),
     frontierNodeIds: z.array(z.string()),
     omittedChildCount: z.number().int().nonnegative(),
+    frontierNodeIdsTruncated: z.literal(true).optional(),
   })
   .strict();
 
@@ -420,15 +435,23 @@ export const TreeCoverageSchema = z
     }
   });
 
-/** 插件 RPC 只返回完整的轻量树，不参与本地文件交付决策。 */
-export const TreeRpcResultSchema = z
+const TreeRpcResultFieldsSchema = z
   .object({
-    schemaVersion: z.literal(2),
     scope: TreeScopeSchema,
     coverage: TreeCoverageSchema,
-    root: LightweightTreeNodeSchema,
   })
   .strict();
+/** 子树沿用 v2，页面浏览用 v3 表达独立的 PAGE 根。 */
+export const TreeRpcResultSchema = z.discriminatedUnion('schemaVersion', [
+  TreeRpcResultFieldsSchema.extend({
+    schemaVersion: z.literal(2),
+    root: LightweightTreeNodeSchema,
+  }),
+  TreeRpcResultFieldsSchema.extend({
+    schemaVersion: z.literal(3),
+    root: LightweightTreePageRootSchema,
+  }),
+]);
 export type TreeRpcResult = z.infer<typeof TreeRpcResultSchema>;
 
 /** MCP 公开树只保留导航所需的父坐标系边界和非默认提示。 */
@@ -470,10 +493,14 @@ export const PublicTreeNodeSchema: z.ZodType<PublicTreeNode> = z
   })
   .strict();
 
+const PublicTreePageRootSchema = TreePageRootRecordSchema.extend({
+  children: z.array(PublicTreeNodeSchema),
+});
+
 /** MCP 公开树结果用字段是否存在表达截断和临时交付。 */
 export const TreeResultSchema = z
   .object({
-    root: PublicTreeNodeSchema,
+    root: z.union([PublicTreeNodeSchema, PublicTreePageRootSchema]),
     truncation: TreeTruncationSchema.optional(),
     artifact: z
       .object({
@@ -490,7 +517,7 @@ export type TreeResult = z.infer<typeof TreeResultSchema>;
 export const TreeArtifactManifestSchema = z
   .object({
     recordType: z.literal('manifest'),
-    schemaVersion: z.literal(2),
+    schemaVersion: z.union([z.literal(2), z.literal(3)]),
     scope: TreeScopeSchema,
     coverage: TreeCoverageSchema,
   })

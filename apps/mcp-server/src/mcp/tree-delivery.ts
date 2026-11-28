@@ -1,15 +1,19 @@
 import {
   LightweightTreeNodeRecordSchema,
   TreeArtifactManifestSchema,
+  TreePageRootRecordSchema,
   TreeResultSchema,
   type LightweightTreeNode,
   type LightweightTreeNodeRecord,
   type PublicTreeNode,
+  type TreePageRootRecord,
   type TreeRpcResult,
   type TreeResult,
 } from '@figma-agent/protocol';
 
 import type { StoredArtifact, TemporaryArtifactStore } from '../temp/artifact-store.js';
+
+type TreeArtifactRecord = LightweightTreeNodeRecord | TreePageRootRecord;
 
 /** 包含 MCP 外层结构后的树结果最大公开字节数。 */
 export const TREE_PUBLIC_RESULT_BUDGET_BYTES = 48 * 1024;
@@ -20,12 +24,15 @@ export async function deliverTreeResult(
   requestedMode: 'AUTO' | 'TEMP_FILE',
   artifacts: TemporaryArtifactStore,
 ): Promise<TreeResult> {
-  const records = flattenTree(tree.root);
+  const records = flattenTree(tree);
   if (records.length !== tree.coverage.nodeCount) {
     throw new Error('Lightweight tree node count does not match coverage metadata.');
   }
 
-  const publicRoot = toPublicNode(tree.root);
+  const publicRoot =
+    tree.schemaVersion === 3
+      ? { ...tree.root, children: tree.root.children.map(toPublicNode) }
+      : toPublicNode(tree.root);
   const inline = TreeResultSchema.parse({
     root: publicRoot,
     ...(tree.coverage.truncation ? { truncation: tree.coverage.truncation } : {}),
@@ -38,9 +45,17 @@ export async function deliverTreeResult(
   return createOverview(tree, publicRoot, artifact);
 }
 
-function flattenTree(root: LightweightTreeNode): LightweightTreeNodeRecord[] {
-  const records: LightweightTreeNodeRecord[] = [];
-  const queue = [root];
+/** v3 先写 PAGE 根记录，再按原有扁平顺序写场景节点。 */
+function flattenTree(tree: TreeRpcResult): TreeArtifactRecord[] {
+  const records: TreeArtifactRecord[] = [];
+  const queue: LightweightTreeNode[] = [];
+  if (tree.schemaVersion === 3) {
+    const { children, ...page } = tree.root;
+    records.push(TreePageRootRecordSchema.parse(page));
+    queue.push(...children);
+  } else {
+    queue.push(tree.root);
+  }
   while (queue.length > 0) {
     const node = queue.shift()!;
     const { children, ...record } = node;
@@ -52,7 +67,7 @@ function flattenTree(root: LightweightTreeNode): LightweightTreeNodeRecord[] {
 
 async function writeTreeArtifact(
   tree: TreeRpcResult,
-  records: LightweightTreeNodeRecord[],
+  records: TreeArtifactRecord[],
   artifacts: TemporaryArtifactStore,
 ): Promise<StoredArtifact> {
   const manifest = TreeArtifactManifestSchema.parse({
@@ -68,23 +83,23 @@ async function writeTreeArtifact(
 /** 按广度优先顺序纳入节点，先覆盖主要分支，再逐层补充细节。 */
 function createOverview(
   tree: TreeRpcResult,
-  publicRoot: PublicTreeNode,
+  publicRoot: TreeResult['root'],
   artifact: StoredArtifact,
 ): TreeResult {
-  const root = cloneWithoutChildren(publicRoot);
-  let frontier: Array<{ source: PublicTreeNode; target: PublicTreeNode }> = [
+  const root: TreeResult['root'] = { ...publicRoot, children: [] };
+  let frontier: Array<{ source: TreeResult['root']; target: TreeResult['root'] }> = [
     { source: publicRoot, target: root },
   ];
 
   while (frontier.length > 0) {
-    const next: Array<{ source: PublicTreeNode; target: PublicTreeNode }> = [];
+    const next: typeof frontier = [];
     const widestBranch = Math.max(...frontier.map(({ source }) => source.children.length));
     // 同一深度按子节点序号轮询各父分支，避免首个大分支独占剩余预算。
     for (let childIndex = 0; childIndex < widestBranch; childIndex += 1) {
       for (const { source, target } of frontier) {
         const child = source.children[childIndex];
         if (!child) continue;
-        const cloned = cloneWithoutChildren(child);
+        const cloned: PublicTreeNode = { ...child, children: [] };
         target.children.push(cloned);
         const candidate = resultWithArtifact(tree, root, artifact);
         if (publicResultBytes(candidate) <= TREE_PUBLIC_RESULT_BUDGET_BYTES) {
@@ -104,13 +119,9 @@ function createOverview(
   return TreeResultSchema.parse(result);
 }
 
-function cloneWithoutChildren(node: PublicTreeNode): PublicTreeNode {
-  return { ...node, children: [] };
-}
-
 function resultWithArtifact(
   tree: TreeRpcResult,
-  root: PublicTreeNode,
+  root: TreeResult['root'],
   artifact: StoredArtifact,
 ): TreeResult {
   return {
