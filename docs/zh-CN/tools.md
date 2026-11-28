@@ -7,7 +7,7 @@ deprecated alias 或旧名兼容。
 | 领域     | 工具                                      | 作用                                 | 写入       |
 | -------- | ----------------------------------------- | ------------------------------------ | ---------- |
 | 状态     | `figma_status`                            | 当前文件、页面、选区与工作区绑定状态 | 否         |
-| Inspect  | `figma_inspect_browse_nodes`              | 有界轻量导航树或临时 JSONL           | 否         |
+| Inspect  | `figma_inspect_browse_nodes`              | 当前页面或子树的轻量导航             | 否         |
 | Inspect  | `figma_inspect_read_node_facts`           | 按字段组读取单节点实施事实           | 否         |
 | Inspect  | `figma_inspect_read_css_hint`             | Figma Inspect CSS 提示               | 否         |
 | Inspect  | `figma_inspect_render_preview`            | 30 分钟有效的临时 PNG                | 否         |
@@ -39,6 +39,21 @@ deprecated alias 或旧名兼容。
 绑定幂等，切换根返回 `EXPORT_ROOT_CONFLICT`。未绑定时 workunit、结构索引和项目素材写入
 返回 `EXPORT_ROOT_UNBOUND`；临时树和预览仍可使用。
 
+## Inspect 导航
+
+用 `figma_inspect_browse_nodes` 浏览当前页面或已知子树。两个入口参数二选一。
+
+- `{"scope":"CURRENT_PAGE"}` 从当前页根开始，空选区也可调用。默认 `depth: 1`，按图层顺序列出页面直属节点。传 `depth: 2` 可展开一层 Section、Frame 或组，页面直属节点优先占用节点预算。
+- `{"nodeId":"12:34"}` 浏览当前页内的已知场景节点，默认 `depth: 2`。找到目标 Section 或 Frame 后，可用它的 ID 缩小浏览范围。
+
+用 `type` 识别 Frame、Section 和普通图层，用 `assetHints` 找出素材候选。确认素材来源时，调用
+`figma_inspect_read_node_facts` 并传 `{"nodeId":"12:34","fields":["ASSET_SOURCES"]}`。
+
+页面模式返回 `type: "PAGE"` 的根，页面根计入 `maxNodes`。遍历超出深度或节点上限时返回
+`truncation`。页面模式若省略了部分边界 ID，会设置 `frontierNodeIdsTruncated: true`。
+大结果返回内联概览和临时 JSONL 路径。页面 JSONL 使用 v3，manifest 后先写页面根记录，再写
+场景节点。子树 JSONL 继续使用 v2。
+
 ## Inspect 事实
 
 `figma_inspect_read_node_facts.fields` 支持
@@ -46,8 +61,8 @@ deprecated alias 或旧名兼容。
 `DIRECT_CHILDREN`。实施坐标使用 `bounds.inParent`、`bounds.onPage` 和
 `bounds.renderOnPage`；导航树只返回 `navigationBoundsInParent`，不得作为实施事实。
 
-预览返回 `{localPath,pixelWidth,pixelHeight,expiresAt}`。大树可以落到临时 JSONL，公共结果
-只返回路径与到期时间。CSS 始终是提示，raw fields 只用于一个已知缺口。
+预览返回 `{localPath,pixelWidth,pixelHeight,expiresAt}`。CSS 始终是提示，raw fields 只用于一个
+已知缺口。
 
 ## Workunit
 

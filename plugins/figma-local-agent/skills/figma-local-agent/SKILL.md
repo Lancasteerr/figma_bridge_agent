@@ -39,9 +39,12 @@ confirm material behavior that remains unresolved after inspecting the request a
 
 ## Shared read boundaries
 
-- Use `figma_inspect_browse_nodes` for bounded navigation and
-  `figma_inspect_read_node_facts` for targeted facts. Request only relevant field groups.
-  `assetHints` identify candidates, not export facts.
+- To discover frames, sections, layers, or loose assets on the current page, call
+  `figma_inspect_browse_nodes` with `{"scope":"CURRENT_PAGE"}`. It lists direct layers by default,
+  even with an empty selection. Continue with `{"nodeId":"12:34"}` for a known subtree.
+- Use `type` for layer discovery and `assetHints` to identify asset candidates. Confirm the source
+  with `figma_inspect_read_node_facts` and `{"nodeId":"12:34","fields":["ASSET_SOURCES"]}`.
+  Request only relevant field groups.
 - Use `figma_inspect_read_css_hint` only when Inspect CSS resolves a material styling choice.
   `figma_inspect_read_raw_fields` is a bounded fallback for one known missing fact.
 - Use `figma_inspect_render_preview` only when visual evidence changes a decision or for the final

@@ -7,7 +7,7 @@ workflow activation, deprecated alias, or legacy-name parser.
 | Domain   | Tool                                      | Purpose                                                             | Writes        |
 | -------- | ----------------------------------------- | ------------------------------------------------------------------- | ------------- |
 | Status   | `figma_status`                            | Current file, page, selection, and workspace state                  | No            |
-| Inspect  | `figma_inspect_browse_nodes`              | Bounded navigation tree or temporary JSONL                          | No            |
+| Inspect  | `figma_inspect_browse_nodes`              | Lightweight navigation for the current page or a subtree            | No            |
 | Inspect  | `figma_inspect_read_node_facts`           | Project one node into selected fact groups                          | No            |
 | Inspect  | `figma_inspect_read_css_hint`             | Figma Inspect CSS hint                                              | No            |
 | Inspect  | `figma_inspect_render_preview`            | Temporary PNG with a 30-minute TTL                                  | No            |
@@ -40,6 +40,25 @@ exact absolute workspace path from its execution environment and calls
 root is idempotent; switching roots returns `EXPORT_ROOT_CONFLICT`. Workunit, index, and project
 asset writes return `EXPORT_ROOT_UNBOUND` while unbound. Temporary trees and previews remain usable.
 
+## Inspect navigation
+
+Use `figma_inspect_browse_nodes` with exactly one entry point.
+
+- `{"scope":"CURRENT_PAGE"}` starts at the current page root, even with an empty selection. The default
+  `depth: 1` lists direct layers in Figma order. Use `depth: 2` to expand one level inside sections,
+  frames, and groups. Direct layers take priority within the node budget.
+- `{"nodeId":"12:34"}` browses a known scene node on the current page and defaults to `depth: 2`.
+  Use the ID of a section or frame to narrow the browse scope.
+
+Use `type` to identify frames, sections, and other layers, and `assetHints` to find asset candidates.
+To confirm a candidate's source, call `figma_inspect_read_node_facts` with
+`{"nodeId":"12:34","fields":["ASSET_SOURCES"]}`.
+
+The page root has `type: "PAGE"` and counts toward `maxNodes`. The tool returns `truncation` when it
+hits a depth or node limit. Page mode sets `frontierNodeIdsTruncated: true` when it omits some
+frontier IDs. Large results include an inline overview and a temporary JSONL path. Page JSONL uses
+v3, with the page root after the manifest and before the scene nodes. Subtree JSONL uses v2.
+
 ## Inspect facts
 
 `figma_inspect_read_node_facts.fields` accepts
@@ -48,8 +67,8 @@ asset writes return `EXPORT_ROOT_UNBOUND` while unbound. Temporary trees and pre
 and `bounds.renderOnPage`. Navigation trees expose only `navigationBoundsInParent`, which is not an
 implementation fact.
 
-Preview results are `{localPath,pixelWidth,pixelHeight,expiresAt}`. Large trees may use temporary
-JSONL. CSS is always a hint; raw fields are a fallback for one known gap.
+Preview results are `{localPath,pixelWidth,pixelHeight,expiresAt}`. CSS is always a hint. Use raw
+fields for a known gap.
 
 ## Workunits
 
